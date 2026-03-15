@@ -1,0 +1,37 @@
+# params/lung.yaml
+# ICBHI 2017 Respiratory Sound Database — Lung Sound preprocessing parameters
+
+dataset: icbhi2017
+modality: lung
+
+# Audio loading
+sample_rate: 8000          # Hz — resample all recordings to this target
+                            # (native rates vary: 4000/10000/22050/44100 Hz)
+
+# Bandpass filter (Butterworth)
+bandpass_low_hz: 200       # lower cutoff (below 200 Hz is predominantly breath noise)
+bandpass_high_hz: 1800     # upper cutoff (crackle/wheeze energy is 200-1800 Hz)
+bandpass_order: 4
+
+# Segmentation strategy: annotation-aligned respiratory cycles (not fixed windows)
+# Parse .txt annotation file; extract each [start, end] cycle segment
+# Pad/trim cycles to a fixed duration for batching
+cycle_pad_length_s: 3.0    # seconds; zero-pad short cycles; trim long ones
+                            # 3 s at 8000 Hz = 24000 samples per feature vector
+
+# Labels (cycle-level, from annotation .txt)
+label_map:
+  crackles: 0
+  wheeze: 1
+  both: 2   # crackle + wheeze; smallest class (506 cycles); may merge into crackle if F1 too low
+  normal: 3
+
+# Official split file (included in Kaggle download)
+# Contains patient IDs for train (76 patients) and test (50 patients)
+# NOTE: exact filename varies across Kaggle mirrors; Phase 2 will discover the
+# actual filename via `find data/raw/icbhi2017 -name "*.txt" | head -20`
+# Common names: ICBHI_challenge_train_and_test.txt, patient_list_foldwise.txt
+split_file: "ICBHI_challenge_train_and_test.txt"
+
+# Primary metric
+primary_metric: icbhi_score  # ICBHI Score = (Se + Sp) / 2 — official challenge metric

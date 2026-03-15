@@ -1,0 +1,28 @@
+# params/heart.yaml
+# PhysioNet/CinC Challenge 2016 — Heart Sound (PCG) preprocessing parameters
+
+dataset: cinc2016
+modality: heart
+
+# Audio loading
+sample_rate: 2000          # Hz — native PhysioNet rate; DO NOT resample
+                            # (recordings already at 2000 Hz, per STACK.md)
+
+# Bandpass filter (Butterworth)
+bandpass_low_hz: 20        # lower cutoff (removes DC / sub-cardiac noise)
+bandpass_high_hz: 400      # upper cutoff (S1/S2 energy is 20-150 Hz; 400 Hz keeps murmurs)
+bandpass_order: 4
+
+# Segmentation
+segment_length_s: 3.0      # seconds per window
+segment_hop_s: 1.5         # 50% overlap for training; no overlap for test
+max_silence_fraction: 0.8  # discard window if >80% is near-zero
+
+# Labels
+label_map:
+  1:  "normal"
+  -1: "abnormal"
+  0:  "unsure"   # exclude from training targets (log exclusion count)
+
+# Primary metric
+primary_metric: macc        # MAcc = (Se + Sp) / 2 — official CinC 2016 metric

@@ -22,10 +22,6 @@ dependencies = [
     "seaborn==0.13.2",
     "kaggle==2.2.0",
     "pyyaml>=6.0",
-]
-
-[project.optional-dependencies]
-dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
 ]

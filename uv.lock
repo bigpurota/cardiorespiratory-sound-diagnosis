@@ -753,6 +753,8 @@ dependencies = [
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pandas" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
     { name = "pyyaml" },
     { name = "scikit-learn" },
     { name = "scipy" },
@@ -765,12 +767,6 @@ dependencies = [
     { name = "xgboost" },
 ]
 
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-cov" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "audiomentations", specifier = "==0.43.1" },
@@ -780,8 +776,8 @@ requires-dist = [
     { name = "matplotlib", specifier = "==3.10.9" },
     { name = "numpy", specifier = "==1.26.4" },
     { name = "pandas", specifier = "==2.2.3" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-cov", specifier = ">=5.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "scikit-learn", specifier = "==1.8.0" },
     { name = "scipy", specifier = "==1.13.1" },
@@ -793,7 +789,6 @@ requires-dist = [
     { name = "wfdb", specifier = "==4.3.1" },
     { name = "xgboost", specifier = "==3.2.0" },
 ]
-provides-extras = ["dev"]
 
 [[package]]
 name = "fastjsonschema"
