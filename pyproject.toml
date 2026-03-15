@@ -1,0 +1,42 @@
+[project]
+name = "dsba-cardiosound"
+version = "0.1.0"
+description = "Cardiorespiratory & arterial sound ML diagnosis"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "torch==2.11.0",
+    "torchaudio==2.11.0",
+    "librosa==0.11.0",
+    "scikit-learn==1.8.0",
+    "xgboost==3.2.0",
+    "numpy==1.26.4",
+    "scipy==1.13.1",
+    "pandas==2.2.3",
+    "imbalanced-learn==0.14.1",
+    "wfdb==4.3.1",
+    "audiomentations==0.43.1",
+    "timm==1.0.27",
+    "soundfile==0.13.1",
+    "matplotlib==3.10.9",
+    "seaborn==0.13.2",
+    "kaggle==2.2.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

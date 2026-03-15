@@ -1,1 +1,38 @@
+# Python environment
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Raw and processed data — never commit (~1.7 GB)
+data/
+
+# Large generated feature caches
+*.npy
+*.npz
+
+# Model checkpoints (large)
+*.pth
+*.pt
+*.pkl
+
+# IDE artifacts
 .DS_Store
+.vscode/
+.idea/
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Temporary files
+*.tmp
+*.log
+
+# DO NOT gitignore the following: uv.lock, requirements.txt, .python-version, params/, results/tables/, results/figures/
+# uv.lock               — exact dependency lockfile (commit this)
+# requirements.txt      — pip-compatible export for Colab/graders (commit this)
+# .python-version       — Python version pin read by uv (commit this)
+# params/               — modality-specific preprocessing parameters
+# results/tables/       — experiment result CSVs for the report
+# results/figures/      — report figures
