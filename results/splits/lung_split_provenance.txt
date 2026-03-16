@@ -1,0 +1,4 @@
+official-split + 2-patient repair (156,218->train)
+source: https://raw.githubusercontent.com/raymin0223/patch-mix_contrastive_learning/main/data/icbhi_dataset/official_split.txt
+canonical: Harvard Dataverse DOI 10.7910/DVN/HT6PKI
+2 patients (156, 218) reassigned to train for strict patient-level integrity; deviates from official split by 2 patients (Open Question 1, Pitfall 1).
