@@ -92,3 +92,48 @@ def synthetic_signal():
     y = (tone + noise).astype("float32")
 
     return {"y": y, "sr": fs, "duration_s": duration_s, "n": n}
+
+
+# ---------------------------------------------------------------------------
+# Synthetic-feature-matrix fixture (no data dependency) — Phase 3 Wave 0
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def synthetic_feature_matrix():
+    """Return a deterministic ``(X, y, groups)`` tuple for the Phase-3 train/metric tests.
+
+    No downloaded data is required: a fixed-seed ``numpy.default_rng(42)`` builds a
+    small tabular feature matrix that stands in for the cached classical feature
+    cache (``features/*_classical.npy``) when exercising the leakage-safe
+    ``src.train_classical`` pipelines and the ``src.metrics`` majority-vote helper.
+
+    Shape contract (relied on by the train/metric tests):
+      - ``X``: ``(60, 12)`` ``float64`` feature matrix — enough rows/columns to
+        fit all four classifiers (logreg / svm / rf / xgb) without warnings.
+      - ``y``: length-60 binary label vector (0 = normal, 1 = abnormal) with BOTH
+        classes present, so every pipeline can ``.fit`` and ``.predict``.
+      - ``groups``: length-60 integer patient-id array of 12 groups × 5 rows each,
+        so ``GroupKFold`` / ``StratifiedGroupKFold`` have several disjoint groups
+        and the majority-vote test has multiple windows per patient.
+
+    A mild class-dependent shift is added to ``X`` so the toy classifiers are not
+    degenerate, while the fixed seed keeps the matrix fully reproducible.
+    """
+    import numpy as np  # local import — conftest must not import config at top level
+
+    rng = np.random.default_rng(42)
+    n_groups = 12
+    rows_per_group = 5
+    n_rows = n_groups * rows_per_group        # 60
+    n_features = 12
+
+    groups = np.repeat(np.arange(n_groups), rows_per_group)   # 12 groups × 5 rows
+    # Binary label per group (both classes present), expanded to per-row.
+    group_labels = np.array([g % 2 for g in range(n_groups)])  # 0,1,0,1,...
+    y = group_labels[groups].astype(int)
+
+    X = rng.standard_normal((n_rows, n_features)).astype("float64")
+    # Add a small class-dependent shift so classifiers are separable (non-degenerate).
+    X[y == 1] += 0.8
+
+    return X, y, groups
