@@ -5,8 +5,10 @@ dataset: icbhi2017
 modality: lung
 
 # Audio loading
-sample_rate: 8000          # Hz — resample all recordings to this target
-                            # (native rates vary: 4000/10000/22050/44100 Hz)
+sample_rate: 4000          # Hz — common cross-modal target (D-01); all recordings
+                            # downsampled to 4000 Hz (native rates vary:
+                            # 4000/10000/44100 Hz). Nyquist 2000 Hz covers the
+                            # 1800 Hz bandpass cutoff below.
 
 # Bandpass filter (Butterworth)
 bandpass_low_hz: 200       # lower cutoff (below 200 Hz is predominantly breath noise)
@@ -17,7 +19,7 @@ bandpass_order: 4
 # Parse .txt annotation file; extract each [start, end] cycle segment
 # Pad/trim cycles to a fixed duration for batching
 cycle_pad_length_s: 3.0    # seconds; zero-pad short cycles; trim long ones
-                            # 3 s at 8000 Hz = 24000 samples per feature vector
+                            # 3.0 s × 4000 Hz = 12000 samples per feature vector
 
 # Labels (cycle-level, from annotation .txt)
 label_map:

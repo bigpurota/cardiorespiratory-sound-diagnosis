@@ -29,5 +29,9 @@ CINC2016_DIR   = os.path.join(DATA_RAW, "cinc2016")
 ICBHI2017_DIR  = os.path.join(DATA_RAW, "icbhi2017")
 
 # ── Sampling rates (canonical, used by all preprocessing) ────────────────────
-SR_HEART = 2000   # PhysioNet/CinC 2016 native rate; consistent with literature
-SR_LUNG  = 8000   # ICBHI 2017 target resample rate; recommended by literature
+# D-01: single common 4000 Hz target for BOTH modalities so heart and lung share
+# one feature space (enables the Phase-5 cross-modal / joint-training novelty).
+# Heart is upsampled 2000 → 4000; lung is downsampled (44100/10000/4000) → 4000.
+# Nyquist (2000 Hz) covers the lung 1800 Hz cutoff and the full heart band.
+SR_HEART = 4000   # upsampled from PhysioNet/CinC 2016 native 2000 Hz (D-01)
+SR_LUNG  = 4000   # downsampled from mixed ICBHI native rates to 4000 Hz (D-01)

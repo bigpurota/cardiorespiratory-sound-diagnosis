@@ -5,8 +5,9 @@ dataset: cinc2016
 modality: heart
 
 # Audio loading
-sample_rate: 2000          # Hz — native PhysioNet rate; DO NOT resample
-                            # (recordings already at 2000 Hz, per STACK.md)
+sample_rate: 4000          # Hz — common cross-modal target (D-01); heart is
+                            # upsampled from the native 2000 Hz to 4000 Hz so
+                            # heart and lung share one feature space.
 
 # Bandpass filter (Butterworth)
 bandpass_low_hz: 20        # lower cutoff (removes DC / sub-cardiac noise)
@@ -19,10 +20,14 @@ segment_hop_s: 1.5         # 50% overlap for training; no overlap for test
 max_silence_fraction: 0.8  # discard window if >80% is near-zero
 
 # Labels
+# D-08: PhysioNet/CinC 2016 convention is -1 = normal, 1 = abnormal (de-inverted
+# from the previous inverted mapping). Verified against REFERENCE.csv across A–E
+# (2495× -1 / 631× 1) and the .hea `# Normal`/`# Abnormal` comments.
 label_map:
-  1:  "normal"
-  -1: "abnormal"
-  0:  "unsure"   # exclude from training targets (log exclusion count)
+  -1: "normal"
+  1:  "abnormal"
+  0:  "unsure"   # exclude from training targets (log exclusion count).
+                 # D-09: no 0-labels exist on disk → exclusion count is 0.
 
 # Primary metric
 primary_metric: macc        # MAcc = (Se + Sp) / 2 — official CinC 2016 metric
