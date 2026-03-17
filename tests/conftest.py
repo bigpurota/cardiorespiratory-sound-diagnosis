@@ -137,3 +137,84 @@ def synthetic_feature_matrix():
     X[y == 1] += 0.8
 
     return X, y, groups
+
+
+# ---------------------------------------------------------------------------
+# Synthetic-spectrogram-cache fixture (no audio dependency) — Phase 4 Wave 0
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def synthetic_spectrogram_cache():
+    """Return a deterministic 2-class heart + 4-class lung log-mel cache (no audio).
+
+    No downloaded audio is required: a fixed-seed ``numpy.default_rng(42)`` builds two
+    small ``(N, 64, 128)`` float32 log-mel "cache" payloads that stand in for the
+    Wave-1 spectrogram cache (``features/*_logmel.npy``) when exercising the
+    leakage-safe ``src.datasets`` / ``src.cnn`` / ``src.train_cnn`` pipelines and the
+    ``src.metrics`` suite. The smoke tests train a tiny model on this fixture so they
+    need NO real PhysioNet/ICBHI WAV files.
+
+    Returns a dict ``{"heart": <payload>, "lung": <payload>}`` where each payload is a
+    dict mirroring the on-disk spectrogram-cache schema:
+
+      - ``X``: ``(N, 64, 128)`` ``float32`` log-mel-spectrogram tensor stack.
+      - ``labels``: length-N int label vector — heart in ``{0, 1}`` (HEART_LABEL_MAP
+        codomain), lung in ``{0, 1, 2, 3}`` (LUNG_LABEL_MAP codomain). ALL classes
+        are present so every Dataset/loader can ``.fit``/``.predict`` and the weighted
+        loss + non-degenerate-CM guards hold.
+      - ``patient_id``: length-N ``str`` patient/group ids — ``>=4`` distinct groups so
+        a ``GroupShuffleSplit`` validation carve has disjoint train/val groups.
+      - ``split``: length-N ``str`` in ``{"train", "test"}`` — BOTH present (patient-
+        level, so a patient never spans train+test), to exercise the train-only class
+        weights / augment-after-split contract.
+      - ``recording_id``: length-N ``str`` — heart ``recording_id == patient_id`` (one
+        recording per patient), lung a WAV-stem-style id (several cycles per recording).
+
+    A small class-dependent shift is added to ``X`` so a smoke-trained model is
+    non-degenerate (uses >=2 predicted CM columns), while the fixed seed keeps the
+    cache fully reproducible. ``N`` is kept small (heart 40, lung 64 rows) so smoke
+    training runs in seconds on CPU.
+    """
+    import numpy as np  # local import — conftest must not import config at top level
+
+    rng = np.random.default_rng(42)
+
+    def _build(n_classes, n_per_class, groups_per_class, id_prefix, heart_like):
+        """Build one cache payload with all classes present and patient-level splits."""
+        H, W = 64, 128
+        X_list, labels, patient_id, split, recording_id = [], [], [], [], []
+        for cls in range(n_classes):
+            for g in range(groups_per_class):
+                pid = f"{id_prefix}{cls}_{g:02d}"
+                # Patient-level split: alternate whole patients into train/test so a
+                # patient never spans both folds (no patient leakage by construction).
+                this_split = "train" if (g % 2 == 0) else "test"
+                rows = n_per_class // groups_per_class
+                for r in range(rows):
+                    spec = rng.standard_normal((H, W)).astype("float32")
+                    # Class-dependent shift -> separable, non-degenerate smoke model.
+                    spec += float(cls) * 0.8
+                    X_list.append(spec)
+                    labels.append(cls)
+                    patient_id.append(pid)
+                    split.append(this_split)
+                    # Heart: one recording per patient (recording_id == patient_id).
+                    # Lung: several cycles per WAV-stem recording.
+                    recording_id.append(pid if heart_like else f"{pid}.wav")
+        X = np.stack(X_list).astype("float32")
+        return {
+            "X": X,
+            "labels": np.asarray(labels, dtype=int),
+            "patient_id": np.asarray(patient_id, dtype=object),
+            "split": np.asarray(split, dtype=object),
+            "recording_id": np.asarray(recording_id, dtype=object),
+        }
+
+    # Heart: 2 classes × 4 groups × 5 rows = 40 rows (>=4 groups for the val carve).
+    heart = _build(n_classes=2, n_per_class=20, groups_per_class=4,
+                   id_prefix="h", heart_like=True)
+    # Lung: 4 classes × 4 groups × 4 rows = 64 rows (all 4 cycle classes present).
+    lung = _build(n_classes=4, n_per_class=16, groups_per_class=4,
+                  id_prefix="l", heart_like=False)
+
+    return {"heart": heart, "lung": lung}
