@@ -1,0 +1,5 @@
+modality,model,primary_metric_name,mean,std,n_seeds,seeds,Se_mean,Se_std,Sp_mean,Sp_std,macro_f1_mean,macro_f1_std,auc_roc_mean,auc_roc_std,accuracy_mean,accuracy_std
+heart,cnn,MAcc,0.8708,0.0085,3,"[1, 2, 42]",0.9103,0.0556,0.8313,0.0396,0.8049,0.0158,0.9457,0.0037,0.8477,0.02
+heart,effnet_b0,MAcc,0.8981,0.0076,3,"[1, 2, 42]",0.9359,0.032,0.8602,0.0168,0.8373,0.0046,0.966,0.0031,0.8759,0.0067
+lung,cnn,ICBHI_Score,0.5402,0.0223,3,"[1, 2, 42]",0.755,0.1121,0.3254,0.1081,0.3007,0.0225,,,0.381,0.0432
+lung,effnet_b0,ICBHI_Score,0.5552,0.0159,3,"[1, 2, 42]",0.5093,0.116,0.6011,0.1069,0.3086,0.0228,,,0.4732,0.0613
