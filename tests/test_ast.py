@@ -55,10 +55,12 @@ def _require_transformers():
 # ---------------------------------------------------------------------------
 
 def test_ast_input_adapter_shape():
-    """``_to_ast_input((64,128))`` returns a 1-D vector of length 128*1024=131072.
+    """``_to_ast_input((64,128))`` returns a 2-D ``(max_length, num_mel_bins)`` tensor.
 
-    This test does NOT require ``transformers`` — it only exercises the adapter that
-    lives in ``src.ast_model`` (which is importable without transformers).
+    AST's ``input_values`` contract is ``(batch, max_length, num_mel_bins)``, so the
+    per-clip adapter must emit ``(max_length, num_mel_bins) = (1024, 128)`` — NOT a
+    flattened 1-D vector (which triggers a "Dimension out of range" error in the AST
+    patch embedding). This test does NOT require ``transformers``.
     """
     ast_mod = _import("src.ast_model")
     if not hasattr(ast_mod, "_to_ast_input"):
@@ -72,17 +74,17 @@ def test_ast_input_adapter_shape():
 
     spec = torch.randn(64, 128)
     out = ast_mod._to_ast_input(spec, num_mel_bins=num_mel_bins, max_length=max_length)
-    expected_len = num_mel_bins * max_length  # 131072
-    assert out.dim() == 1, f"_to_ast_input must return a 1-D tensor; got shape {tuple(out.shape)}"
-    assert out.shape[0] == expected_len, (
-        f"_to_ast_input must return length {expected_len}; got {out.shape[0]}"
+    expected_shape = (max_length, num_mel_bins)  # (1024, 128)
+    assert out.dim() == 2, f"_to_ast_input must return a 2-D tensor; got shape {tuple(out.shape)}"
+    assert tuple(out.shape) == expected_shape, (
+        f"_to_ast_input must return shape {expected_shape}; got {tuple(out.shape)}"
     )
 
     # Also accept (1, 64, 128) input (DataLoader adds the channel dim).
     spec_chan = torch.randn(1, 64, 128)
     out_chan = ast_mod._to_ast_input(spec_chan, num_mel_bins=num_mel_bins, max_length=max_length)
-    assert out_chan.shape[0] == expected_len, (
-        f"_to_ast_input must handle (1,64,128) input; got {out_chan.shape[0]}"
+    assert tuple(out_chan.shape) == expected_shape, (
+        f"_to_ast_input must handle (1,64,128) input; got {tuple(out_chan.shape)}"
     )
 
 

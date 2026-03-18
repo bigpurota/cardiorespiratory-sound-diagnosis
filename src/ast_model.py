@@ -103,8 +103,11 @@ def _to_ast_input(spec, num_mel_bins=_AST_NUM_MEL_BINS, max_length=_AST_MAX_LENG
     else:
         s_time = s_resized[:, :max_length]  # trim to max_length
 
-    # 4. Flatten to the 1-D input_values expected by ASTForAudioClassification.
-    return s_time.reshape(-1)  # (num_mel_bins * max_length,)
+    # 4. Transpose to (max_length, num_mel_bins) — the shape ASTForAudioClassification
+    #    expects for `input_values` (batch, max_length, num_mel_bins). The previous
+    #    flatten to 1-D caused a "Dimension out of range (got 3)" error in the AST
+    #    patch-embedding (which unsqueezes to a 4-D image internally).
+    return s_time.transpose(0, 1).contiguous()  # (max_length, num_mel_bins)
 
 
 class ASTWrapper(nn.Module):
@@ -132,7 +135,7 @@ class ASTWrapper(nn.Module):
         # Adapt each sample in the batch independently (leakage-free per-clip scaling).
         adapted = torch.stack(
             [_to_ast_input(x[i], self.num_mel_bins, self.max_length) for i in range(x.shape[0])]
-        )  # (B, num_mel_bins * max_length)
+        )  # (B, max_length, num_mel_bins) — the ASTForAudioClassification input contract
         out = self.hf_model(input_values=adapted)
         return out.logits  # (B, n_classes)
 
