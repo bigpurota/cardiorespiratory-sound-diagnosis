@@ -93,7 +93,7 @@ def _val_icbhi(y_true, y_pred):
 # ---------------------------------------------------------------------------
 # Precise-BN: recompute BatchNorm running stats so eval matches the trained weights
 # ---------------------------------------------------------------------------
-def _recalibrate_batchnorm(model, train_loader, device, n_passes=3):
+def _recalibrate_batchnorm(model, train_loader, device, n_passes=3, max_batches=None):
     """Recompute BatchNorm running mean/var as an exact average over the train loader.
 
     Fixes the train/eval BatchNorm-statistic mismatch that, on small batches / few epochs,
@@ -102,10 +102,28 @@ def _recalibrate_batchnorm(model, train_loader, device, n_passes=3):
     a handful of no-grad TRAIN-MODE forward passes accumulate the exact dataset statistics.
     No gradients are taken and no weights change — only the running buffers are recalibrated.
     A no-op when the model has no BatchNorm layers.
+
+    Deadline/efficiency guards (Rule 1 fix):
+      - **Frozen-backbone skip:** when the BatchNorm layers are FROZEN
+        (``weight.requires_grad is False`` — the EfficientNet head-only fallback path, D-04),
+        their running stats were never disturbed by training (the backbone never updated), so
+        recomputing them is a no-benefit operation that, on the 33k-window heart EffNet, costs
+        ~3 full forward passes over the whole train set (tens of minutes on CPU). Skip it.
+      - **Pass batch cap:** ``max_batches`` bounds the number of batches per pass so the
+        recalibration cannot dominate the wall-clock cap on large datasets; a few hundred
+        batches already give an accurate running-stat estimate.
     """
     bns = [m for m in model.modules() if isinstance(m, nn.modules.batchnorm._BatchNorm)]
     if not bns:
         return
+    # Frozen-backbone skip: if the BN affine params are frozen, the backbone did not train,
+    # so its pretrained running stats are already correct — recomputing wastes compute.
+    trainable_bn = [
+        m for m in bns
+        if getattr(m, "weight", None) is not None and m.weight.requires_grad
+    ]
+    if not trainable_bn:
+        return  # all BN layers frozen (e.g. EffNet head-only freeze, D-04) → no-op
     saved_momentum = [m.momentum for m in bns]
     for m in bns:
         m.reset_running_stats()
@@ -114,7 +132,9 @@ def _recalibrate_batchnorm(model, train_loader, device, n_passes=3):
     model.train()
     with torch.no_grad():
         for _ in range(max(1, n_passes)):
-            for xb, _yb in train_loader:
+            for i, (xb, _yb) in enumerate(train_loader):
+                if max_batches is not None and i >= max_batches:
+                    break  # bound the recalibration cost on large datasets
                 model(xb.to(device))
     for m, mom in zip(bns, saved_momentum):
         m.momentum = mom
@@ -226,7 +246,10 @@ def train_one_model(
     # eval-time normalisation matches the learned weights. This is the standard "precise BN"
     # technique (Ioffe 2017 / He et al.) — it improves eval stability on the real runs too,
     # and is what makes the 2-epoch smoke run produce a non-degenerate confusion matrix.
-    _recalibrate_batchnorm(model, train_loader, device)
+    # Cap precise-BN to ~200 batches/pass so it cannot dominate the wall-clock budget on the
+    # 33k-window heart set (a few hundred batches give an accurate running-stat estimate);
+    # frozen-backbone EffNet is skipped entirely inside the helper (Rule 1 deadline fix).
+    _recalibrate_batchnorm(model, train_loader, device, max_batches=200)
 
     if ckpt_path:
         torch.save(model.state_dict(), ckpt_path)
