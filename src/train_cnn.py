@@ -160,10 +160,12 @@ def train_one_model(
     tr_losses, va_losses = [], []
     t0 = time.perf_counter()
 
+    capped_mid_epoch = False
     for _epoch in range(max_epochs):
         # ---- train ----
         model.train()
         run = 0.0
+        seen = 0
         for xb, yb in train_loader:
             xb, yb = xb.to(device), yb.to(device)
             opt.zero_grad()
@@ -172,7 +174,18 @@ def train_one_model(
             loss.backward()
             opt.step()
             run += loss.item() * xb.size(0)
-        tr_losses.append(run / len(train_loader.dataset))
+            seen += xb.size(0)
+            # MID-EPOCH wall-cap check (Rule 1/D-03 deadline protection): on a large
+            # dataset a single epoch can vastly exceed wall_cap_s, so the end-of-epoch cap
+            # alone is ineffective (the loop cannot interrupt an in-flight epoch). Break out
+            # of the train loop here, then still run ONE validation pass below so the
+            # partially-trained epoch contributes a val score + best_state (a non-degenerate
+            # model) rather than wasting the compute. This makes the cap honest for the 33k
+            # heart-window EfficientNet path where one CPU epoch can take ~40+ min.
+            if time.perf_counter() - t0 > wall_cap_s:
+                capped_mid_epoch = True
+                break
+        tr_losses.append(run / max(1, seen))
 
         # ---- validation: loss + primary metric (val MAcc heart / val ICBHI lung) ----
         model.eval()
@@ -199,8 +212,8 @@ def train_one_model(
 
         if bad >= patience:
             break  # early stop (D-06)
-        if time.perf_counter() - t0 > wall_cap_s:
-            break  # wall-clock cap (D-03 deadline protection)
+        if capped_mid_epoch or time.perf_counter() - t0 > wall_cap_s:
+            break  # wall-clock cap (D-03 deadline protection; mid- or end-of-epoch)
 
     if best_state is not None:
         model.load_state_dict(best_state)
