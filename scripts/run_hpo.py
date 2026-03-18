@@ -42,6 +42,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+import concurrent.futures
 import numpy as np
 import pandas as pd
 
@@ -223,53 +224,64 @@ def main():
         combo_seed = search_seed + abs(hash((modality, model))) % 1000
         rng = np.random.default_rng(combo_seed)
 
+        # Pre-sample ALL configs for this (modality, model) combo before launching any trials
+        # so the sampled sequence is deterministic regardless of execution order.
+        all_hparams = [_sample_config(model_key, rng) for _ in range(n_trials)]
+
         trial_rows = []
-        for trial_idx in range(n_trials):
-            hparams = _sample_config(model_key, rng)
+
+        def _run_trial_wrapper(trial_idx):
+            """Wrapper for thread pool — returns (trial_idx, row_or_None, elapsed, hparams)."""
+            hp = all_hparams[trial_idx]
             gpu_id = trial_idx % NUM_GPUS
             print(f"  trial {trial_idx+1}/{n_trials}: "
-                  f"lr={hparams['lr']:.2e} bs={hparams['batch_size']} "
-                  f"wd={hparams['weight_decay']:.2e} aug={hparams['aug_strength']} "
-                  f"ls={hparams['label_smoothing']} sampler={hparams['sampler_mode']} "
-                  f"patience={hparams['patience']}"
-                  + (f" widths={hparams['cnn_widths']} p={hparams['p']}" if model_key == "cnn" else "")
-                  + f" -> GPU {gpu_id}")
-
+                  f"lr={hp['lr']:.2e} bs={hp['batch_size']} "
+                  f"wd={hp['weight_decay']:.2e} aug={hp['aug_strength']} "
+                  f"ls={hp['label_smoothing']} sampler={hp['sampler_mode']} "
+                  f"patience={hp['patience']}"
+                  + (f" widths={hp['cnn_widths']} p={hp['p']}" if model_key == "cnn" else "")
+                  + f" -> GPU {gpu_id}", flush=True)
             row, elapsed = _run_one_trial(
-                modality, model, trial_idx, hparams,
+                modality, model, trial_idx, hp,
                 args.wall_cap_min, gpu_id, python_exe, search_seed=search_seed
             )
-            if row is not None:
-                # Record trial metadata alongside the run row.
-                trial_row = {
-                    "modality": modality,
-                    "model": model_key,
-                    "trial_idx": trial_idx,
-                    "learning_rate": hparams["lr"],
-                    "batch_size": hparams["batch_size"],
-                    "weight_decay": hparams["weight_decay"],
-                    "aug_strength": hparams["aug_strength"],
-                    "label_smoothing": hparams["label_smoothing"],
-                    "imbalance": hparams["sampler_mode"],
-                    "patience": hparams["patience"],
-                    "cnn_widths": str(hparams.get("cnn_widths")),
-                    "p": hparams.get("p", 0.3),
-                    # SELECTION METRIC: best_val_score (val-carve ONLY, T-04-13).
-                    # primary_metric_test is recorded for reference but NEVER used for selection.
-                    "best_val_score": row.get("best_val_score"),
-                    "primary_metric_test": row.get("primary_metric"),
-                    "epochs_ran": row.get("epochs_ran"),
-                    "train_time_s": row.get("train_time_s"),
-                    "gpu_id": gpu_id,
-                    "elapsed_s": round(elapsed, 1),
-                }
-                trial_rows.append(trial_row)
-                all_trial_rows.append(trial_row)
-                print(f"    best_val_score={row.get('best_val_score'):.4f} "
-                      f"primary_metric_test={row.get('primary_metric'):.4f} "
-                      f"epochs={row.get('epochs_ran')} elapsed={elapsed:.0f}s")
-            else:
-                print(f"    FAILED (elapsed={elapsed:.0f}s)")
+            return trial_idx, row, elapsed, gpu_id, hp
+
+        # Run up to NUM_GPUS trials in parallel to saturate all 4 A100s.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=NUM_GPUS) as executor:
+            futures = {executor.submit(_run_trial_wrapper, i): i for i in range(n_trials)}
+            for fut in concurrent.futures.as_completed(futures):
+                trial_idx, row, elapsed, gpu_id, hp = fut.result()
+                if row is not None:
+                    trial_row = {
+                        "modality": modality,
+                        "model": model_key,
+                        "trial_idx": trial_idx,
+                        "learning_rate": hp["lr"],
+                        "batch_size": hp["batch_size"],
+                        "weight_decay": hp["weight_decay"],
+                        "aug_strength": hp["aug_strength"],
+                        "label_smoothing": hp["label_smoothing"],
+                        "imbalance": hp["sampler_mode"],
+                        "patience": hp["patience"],
+                        "cnn_widths": str(hp.get("cnn_widths")),
+                        "p": hp.get("p", 0.3),
+                        # SELECTION METRIC: best_val_score (val-carve ONLY, T-04-13).
+                        # primary_metric_test is recorded for reference but NEVER used for selection.
+                        "best_val_score": row.get("best_val_score"),
+                        "primary_metric_test": row.get("primary_metric"),
+                        "epochs_ran": row.get("epochs_ran"),
+                        "train_time_s": row.get("train_time_s"),
+                        "gpu_id": gpu_id,
+                        "elapsed_s": round(elapsed, 1),
+                    }
+                    trial_rows.append(trial_row)
+                    all_trial_rows.append(trial_row)
+                    print(f"  [trial {trial_idx+1} done] best_val_score={row.get('best_val_score'):.4f} "
+                          f"primary_metric_test={row.get('primary_metric'):.4f} "
+                          f"epochs={row.get('epochs_ran')} elapsed={elapsed:.0f}s", flush=True)
+                else:
+                    print(f"  [trial {trial_idx+1} FAILED] elapsed={elapsed:.0f}s", flush=True)
 
         # Write all trial rows so far (cumulative, append-safe).
         trial_df = pd.DataFrame(all_trial_rows)
