@@ -4,10 +4,12 @@ src/cnn.py — deep-learning model factory (Phase 4, MODL-02).
 The model half of the Phase-4 DL comparative study. Pure ``nn.Module`` definitions and
 builders only — there is NO training logic here (that lives in ``src/train_cnn.py``):
 
-  - ``SmallCNN(n_classes, p=0.3)`` — the from-scratch baseline (D-06): four
-    Conv2d-BatchNorm2d-ReLU-MaxPool2d blocks (channels 1→16→32→64→128), AdaptiveAvgPool2d,
-    then Flatten → Dropout(p≥0.3) → Linear(128, n_classes). Accepts ``(B, 1, 64, 128)``
-    log-mel batches and emits ``(B, n_classes)`` logits (04-RESEARCH §Code Examples 4).
+  - ``SmallCNN(n_classes, p=0.3, widths=(16,32,64,128))`` — the from-scratch baseline (D-06):
+    four Conv2d-BatchNorm2d-ReLU-MaxPool2d blocks (channels 1→widths[0]→…→widths[3]), where
+    the default ``widths=(16,32,64,128)`` reproduces the 04-04 architecture exactly.
+    AdaptiveAvgPool2d, then Flatten → Dropout(p≥0.3) → Linear(widths[-1], n_classes). Accepts
+    ``(B, 1, 64, 128)`` log-mel batches and emits ``(B, n_classes)`` logits (04-RESEARCH §Code
+    Examples 4). HPO knobs: ``widths`` and ``p``.
   - ``build_efficientnet_b0(n_classes, freeze_backbone=False)`` — the transfer-learning
     path (D-04): ``timm.create_model("efficientnet_b0", pretrained=True, in_chans=3,
     num_classes=n_classes)`` (VERIFIED exactly 4,010,110 params at num_classes=2). The
@@ -35,16 +37,25 @@ class SmallCNN(nn.Module):
     """From-scratch 4-conv-block CNN: ``(B, 1, 64, 128)`` → ``(B, n_classes)`` (D-06).
 
     Four Conv2d(3, padding=1)-BatchNorm2d-ReLU-MaxPool2d(2) blocks grow the channels
-    1→16→32→64→128, AdaptiveAvgPool2d(1) collapses the spatial dims, and the head applies
-    Dropout(``p``, default 0.3 ≥ 0.3 per D-06) before the final Linear(128, n_classes).
+    as specified by ``widths`` (default ``(16, 32, 64, 128)`` — the 04-04 architecture),
+    AdaptiveAvgPool2d(1) collapses the spatial dims, and the head applies
+    Dropout(``p``, default 0.3 ≥ 0.3 per D-06) before the final Linear(widths[-1], n_classes).
     ``forward`` returns raw logits (a weighted ``CrossEntropyLoss`` is applied downstream).
+
+    HPO knobs (additive — defaults reproduce the 04-04 architecture exactly):
+      - ``widths``: 4-tuple of channel widths for the 4 conv blocks (D-06 default 16/32/64/128).
+        Changing widths changes the model capacity (and param count) without touching architecture.
+      - ``p``: dropout probability (≥ 0.3 per D-06 floor).
     """
 
-    def __init__(self, n_classes, p=0.3):
+    def __init__(self, n_classes, p=0.3, widths=(16, 32, 64, 128)):
         super().__init__()
         if p < 0.3:
             # D-06: regularise the from-scratch baseline with dropout >= 0.3.
             raise ValueError(f"SmallCNN dropout p must be >= 0.3 (D-06); got {p}")
+        widths = tuple(widths)
+        if len(widths) != 4:
+            raise ValueError(f"SmallCNN widths must be a 4-tuple; got {widths}")
 
         def block(ci, co):
             return nn.Sequential(
@@ -54,14 +65,15 @@ class SmallCNN(nn.Module):
                 nn.MaxPool2d(2),
             )
 
+        w0, w1, w2, w3 = widths
         self.features = nn.Sequential(
-            block(1, 16), block(16, 32), block(32, 64), block(64, 128)
+            block(1, w0), block(w0, w1), block(w1, w2), block(w2, w3)
         )
         self.pool = nn.AdaptiveAvgPool2d(1)
         self.head = nn.Sequential(
             nn.Flatten(),
-            nn.Dropout(p),  # Dropout(0.3) — D-06 floor
-            nn.Linear(128, n_classes),
+            nn.Dropout(p),  # Dropout(p ≥ 0.3) — D-06 floor
+            nn.Linear(w3, n_classes),
         )
 
     def forward(self, x):

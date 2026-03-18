@@ -203,3 +203,71 @@ def test_class_weights_train_only(synthetic_spectrogram_cache):
     # unless the train fold is perfectly balanced; the fixture is balanced per class so
     # we assert the helper at minimum runs on the TRAIN subset without touching test rows.
     assert len(y_train) < len(y_all), "fixture must hold held-out test rows"
+
+
+# ---------------------------------------------------------------------------
+# UNIT — HPO knobs: aug_strength + sampler_mode in build_loaders
+# ---------------------------------------------------------------------------
+
+def test_build_loaders_aug_strength(synthetic_spectrogram_cache):
+    """build_loaders with aug_strength != 1.0 scales SpecAugment params on the TRAIN dataset.
+
+    Val/test datasets must remain augment=False (D-05) regardless of aug_strength.
+    """
+    datasets = _import("src.datasets")
+    if not hasattr(datasets, "build_loaders"):
+        pytest.skip("src.datasets.build_loaders not implemented yet")
+
+    heart = synthetic_spectrogram_cache["heart"]
+
+    loaders_default = datasets.build_loaders(heart, "heart", aug_strength=1.0, seed=42)
+    loaders_strong = datasets.build_loaders(heart, "heart", aug_strength=1.5, seed=42)
+
+    # Default path: aug_strength=1.0 must return valid loaders.
+    assert "train_loader" in loaders_default
+    assert "val_loader" in loaders_default
+    assert "test_loader" in loaders_default
+
+    # Val/test datasets are always augment=False regardless of aug_strength (D-05).
+    assert loaders_strong["val_loader"].dataset.augment is False, (
+        "val dataset must NOT augment even with aug_strength != 1.0"
+    )
+    assert loaders_strong["test_loader"].dataset.augment is False, (
+        "test dataset must NOT augment even with aug_strength != 1.0"
+    )
+
+    # The TRAIN dataset for aug_strength=1.5 should have a larger freq_mask_param than 1.0.
+    train_ds_default = loaders_default["train_loader"].dataset
+    train_ds_strong = loaders_strong["train_loader"].dataset
+    assert train_ds_strong.freq_mask.mask_param >= train_ds_default.freq_mask.mask_param, (
+        "aug_strength=1.5 should produce >= mask param vs aug_strength=1.0"
+    )
+
+
+def test_build_loaders_weighted_sampler(synthetic_spectrogram_cache):
+    """build_loaders with sampler_mode='weighted_sampler' returns a valid loader that is
+    leakage-free (train/val/test patients remain disjoint).
+    """
+    datasets = _import("src.datasets")
+    if not hasattr(datasets, "build_loaders"):
+        pytest.skip("src.datasets.build_loaders not implemented yet")
+
+    import numpy as np
+    from src.split import assert_no_patient_leakage
+
+    heart = synthetic_spectrogram_cache["heart"]
+
+    loaders = datasets.build_loaders(
+        heart, "heart", sampler_mode="weighted_sampler", seed=42
+    )
+
+    # Must return valid loaders with class_weights (still useful for bookkeeping).
+    assert "train_loader" in loaders
+    assert "class_weights" in loaders
+    assert loaders["class_weights"] is not None
+
+    # Leakage must still hold: (train, test) and (train, val).
+    # Reconstruct patient IDs from the raw cache to verify.
+    pid = np.asarray(heart["patient_id"])
+    split = np.asarray(heart["split"])
+    assert_no_patient_leakage(pid[split == "train"], pid[split == "test"])

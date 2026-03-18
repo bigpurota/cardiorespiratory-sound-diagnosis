@@ -61,6 +61,18 @@ def test_param_counts():
         f"(timm efficientnet_b0, num_classes=2); got {cnn.count_params(effnet)}"
     )
 
+    # HPO knob — default widths must reproduce the exact same param count as SmallCNN(2).
+    small_explicit = cnn.SmallCNN(n_classes=2, widths=(16, 32, 64, 128))
+    assert cnn.count_params(small_explicit) == cnn.count_params(small), (
+        "SmallCNN(2, widths=(16,32,64,128)) must have the same param count as SmallCNN(2)"
+    )
+
+    # HPO knob — wider net must have strictly more parameters.
+    wider = cnn.SmallCNN(n_classes=2, widths=(32, 64, 128, 256))
+    assert cnn.count_params(wider) > cnn.count_params(small), (
+        "SmallCNN with widths=(32,64,128,256) must have more params than the default net"
+    )
+
 
 # ---------------------------------------------------------------------------
 # UNIT — forward shapes: (B,1,64,128) -> (B,n_classes) for both models

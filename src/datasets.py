@@ -174,7 +174,15 @@ def train_class_weights(y_train, n_classes):
     return torch.tensor(w, dtype=torch.float32)
 
 
-def build_loaders(cache, modality, for_effnet=False, batch_size=32, seed=42):
+def build_loaders(
+    cache,
+    modality,
+    for_effnet=False,
+    batch_size=32,
+    seed=42,
+    aug_strength=1.0,
+    sampler_mode="class_weight",
+):
     """Build seeded, leakage-safe train/val/test DataLoaders from a spectrogram cache.
 
     Splits ``cache`` by its ``split`` tag into train/test, carves a patient-grouped val out
@@ -183,6 +191,17 @@ def build_loaders(cache, modality, for_effnet=False, batch_size=32, seed=42):
     ``augment=False``; ``for_effnet`` routed) in DataLoaders. The shuffled train loader uses
     a seeded ``torch.Generator`` and ``num_workers=0`` for macOS determinism (Pitfall 6).
 
+    HPO knobs (additive — defaults reproduce the 04-04 behaviour exactly):
+      - ``aug_strength``: scales the TRAIN SpecAugment mask params and noise sigma on the
+        TRAIN dataset only (val/test remain ``augment=False`` unaffected). Default 1.0.
+      - ``sampler_mode``: ``"class_weight"`` (default) returns ``class_weights`` for a
+        weighted CrossEntropyLoss; ``"weighted_sampler"`` builds a seeded
+        ``torch.utils.data.WeightedRandomSampler`` from TRAIN class frequencies and passes
+        it to the train DataLoader (shuffle=False + sampler=…) — the two imbalance
+        strategies are NEVER double-applied (the caller should use unweighted CE when
+        ``sampler_mode=="weighted_sampler"``). ``class_weights`` is still returned in both
+        modes for caller bookkeeping. D-05: TRAIN labels only, no SMOTE, no global scaler.
+
     Returns
     -------
     dict
@@ -190,6 +209,8 @@ def build_loaders(cache, modality, for_effnet=False, batch_size=32, seed=42):
         labels only), ``test_recording_id`` (for the heart majority vote downstream),
         ``n_classes``, and the raw split sizes for volumetrics.
     """
+    from torch.utils.data import WeightedRandomSampler  # HPO sampler_mode
+
     X = np.asarray(cache["X"], dtype="float32")
     y = np.asarray(cache["labels"], dtype=int)
     pid = np.asarray(cache["patient_id"])
@@ -216,14 +237,46 @@ def build_loaders(cache, modality, for_effnet=False, batch_size=32, seed=42):
     X_tr, y_tr = X_tr_all[tr_idx], y_tr_all[tr_idx]
     X_va, y_va = X_tr_all[va_idx], y_tr_all[va_idx]
 
+    # TRAIN dataset with scaled augmentation params (HPO aug_strength knob).
+    # aug_strength scales SpecAugment mask params + noise sigma for the TRAIN set ONLY;
+    # val/test remain augment=False unchanged (D-05 / Pitfall 3).
+    scaled_freq = max(1, round(_FREQ_MASK_PARAM * aug_strength))
+    scaled_time = max(1, round(_TIME_MASK_PARAM * aug_strength))
+    scaled_noise = float(_NOISE_SIGMA * aug_strength)
+
     train_ds = SpectrogramDataset(X_tr, y_tr, augment=True, for_effnet=for_effnet)
+    # Override the aug params on the TRAIN dataset instance (module-level constants remain
+    # unchanged so no global state is mutated — safe for concurrent subprocess runs).
+    train_ds.freq_mask = T.FrequencyMasking(freq_mask_param=scaled_freq)
+    train_ds.time_mask = T.TimeMasking(time_mask_param=scaled_time)
+    train_ds.noise_sigma = scaled_noise
+
     val_ds = SpectrogramDataset(X_va, y_va, augment=False, for_effnet=for_effnet)
     test_ds = SpectrogramDataset(X_te, y_te, augment=False, for_effnet=for_effnet)
 
+    cw = train_class_weights(y_tr, n_classes)
+
     gen = torch.Generator().manual_seed(seed)
-    train_loader = DataLoader(
-        train_ds, batch_size=batch_size, shuffle=True, generator=gen, num_workers=0
-    )
+    if sampler_mode == "weighted_sampler":
+        # WeightedRandomSampler: per-sample weights from TRAIN inverse class frequency.
+        # Built from TRAIN labels only (D-05); seed the generator for reproducibility.
+        # shuffle=False because sampler handles the sampling order.
+        class_freq = np.bincount(y_tr, minlength=n_classes).astype(float)
+        class_freq = np.where(class_freq == 0, 1.0, class_freq)  # avoid /0
+        inv_freq = 1.0 / class_freq
+        sample_weights = torch.tensor([inv_freq[yi] for yi in y_tr], dtype=torch.double)
+        sampler = WeightedRandomSampler(
+            sample_weights, num_samples=len(y_tr), replacement=True, generator=gen
+        )
+        train_loader = DataLoader(
+            train_ds, batch_size=batch_size, sampler=sampler, num_workers=0
+        )
+    else:
+        # Default "class_weight" path: seeded shuffle=True (reproduces 04-04 exactly).
+        train_loader = DataLoader(
+            train_ds, batch_size=batch_size, shuffle=True, generator=gen, num_workers=0
+        )
+
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=0)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=0)
 
@@ -231,7 +284,7 @@ def build_loaders(cache, modality, for_effnet=False, batch_size=32, seed=42):
         "train_loader": train_loader,
         "val_loader": val_loader,
         "test_loader": test_loader,
-        "class_weights": train_class_weights(y_tr, n_classes),
+        "class_weights": cw,
         "test_recording_id": rec_te,
         "n_classes": n_classes,
         "n_train": int(len(y_tr)),

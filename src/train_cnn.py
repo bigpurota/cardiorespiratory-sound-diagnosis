@@ -158,6 +158,7 @@ def train_one_model(
     ckpt_path=None,
     curve_png=None,
     device=None,
+    weight_decay=0.0,
 ):
     """Train ``model`` with early stop + wall cap; restore best by val metric; write curve PNG.
 
@@ -169,11 +170,15 @@ def train_one_model(
     deep-copied; the loop early-stops after ``patience`` non-improving epochs and hard-breaks
     when the wall-clock cap ``wall_cap_s`` is exceeded (D-03). Returns
     ``(model, {"best_val_score", "train_time_s", "epochs_ran"})``.
+
+    HPO knob: ``weight_decay`` (default 0.0 → same Adam as 04-04; any positive value adds L2
+    regularisation).
     """
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     opt = torch.optim.Adam(
-        [p for p in model.parameters() if p.requires_grad], lr=lr
+        [p for p in model.parameters() if p.requires_grad], lr=lr,
+        weight_decay=weight_decay,
     )
 
     best_score, best_state, bad = -1.0, None, 0
@@ -436,6 +441,13 @@ def run_modality(
     wall_cap_s=1800,
     out_dir=None,
     device=None,
+    seed=42,
+    weight_decay=0.0,
+    label_smoothing=0.0,
+    aug_strength=1.0,
+    sampler_mode="class_weight",
+    cnn_widths=None,
+    p=0.3,
     **_ignored,
 ):
     """Train + evaluate ONE DL experiment (modality × model); return its row dict.
@@ -448,7 +460,27 @@ def run_modality(
     override). Writes a learning-curve PNG + checkpoint under ``out_dir`` (PNG/ckpt only — no
     CSV). Returns the Phase-3-shaped row dict (with ``params``, ``epochs_ran``,
     ``curve_png``, and raw ``test_true``/``test_pred``).
+
+    ``seed`` controls val-carve split + DataLoader shuffle + model weight init. Set all
+    global RNGs (random, numpy, torch) here so multi-seed callers only need to pass the int.
+
+    HPO knobs (all default to 04-04 values so no-arg call is behaviour-identical to 04-04):
+      - ``weight_decay``: L2 regularisation for Adam (default 0.0 — 04-04 behaviour).
+      - ``label_smoothing``: CrossEntropyLoss label smoothing (default 0.0 — 04-04 behaviour).
+      - ``aug_strength``: SpecAugment mask-param + noise scaling for the TRAIN set only
+        (default 1.0 — 04-04 behaviour; threaded into build_loaders).
+      - ``sampler_mode``: imbalance strategy — ``"class_weight"`` (default, weighted CE) or
+        ``"weighted_sampler"`` (WeightedRandomSampler + unweighted CE, never double-applied).
+      - ``cnn_widths``: 4-tuple of SmallCNN channel widths (default None → (16,32,64,128)).
+      - ``p``: SmallCNN dropout ≥ 0.3 (default 0.3 — 04-04 behaviour).
     """
+    import random as _random
+    _random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
     model_name = "effnet_b0" if str(model).lower() in ("effnet", "effnet_b0", "efficientnet") else "cnn"
     for_effnet = model_name == "effnet_b0"
     if lr is None:
@@ -460,8 +492,10 @@ def run_modality(
     fs_label = "log_mel_64x128"
 
     # Build loaders (leakage re-assert lives inside build_loaders → assert_no_patient_leakage).
+    # Thread aug_strength + sampler_mode as HPO knobs; defaults reproduce 04-04 exactly.
     loaders = build_loaders(
-        cache, modality, for_effnet=for_effnet, batch_size=batch_size, seed=42
+        cache, modality, for_effnet=for_effnet, batch_size=batch_size, seed=seed,
+        aug_strength=aug_strength, sampler_mode=sampler_mode,
     )
     n_classes = loaders["n_classes"]
 
@@ -490,11 +524,28 @@ def run_modality(
         freeze = not torch.cuda.is_available()
         net = build_efficientnet_b0(n_classes, freeze_backbone=freeze)
     else:
-        net = SmallCNN(n_classes=n_classes)
+        # Thread HPO width + dropout knobs; defaults reproduce 04-04 exactly.
+        net = SmallCNN(
+            n_classes=n_classes,
+            p=p,
+            widths=tuple(cnn_widths) if cnn_widths is not None else (16, 32, 64, 128),
+        )
     params_count = count_params(net)
 
     dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
-    criterion = nn.CrossEntropyLoss(weight=loaders["class_weights"].to(dev))
+
+    # Imbalance strategy: when using WeightedRandomSampler the sampler handles class
+    # imbalance — do NOT also apply class-weighted CE loss (T-04-13: never double-apply).
+    if sampler_mode == "weighted_sampler":
+        # Unweighted CE + sampler (two strategies are mutually exclusive, D-05).
+        criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
+    else:
+        # Default "class_weight" path: weighted CE + standard shuffle (04-04 behaviour).
+        criterion = nn.CrossEntropyLoss(
+            weight=loaders["class_weights"].to(dev),
+            label_smoothing=label_smoothing,
+        )
+
     val_metric_fn = _val_macc if modality == "heart" else _val_icbhi
 
     curve_png = os.path.join(out_dir, f"learning_curve_{modality}_{model_name}.png")
@@ -513,6 +564,7 @@ def run_modality(
         ckpt_path=ckpt_path,
         curve_png=curve_png,
         device=dev,
+        weight_decay=weight_decay,
     )
 
     row = evaluate(
