@@ -247,6 +247,30 @@ def _stable_figure_names(modality, model_name, row):
     return row
 
 
+def _copy_figures_for_fallback(modality, row):
+    """Copy the small-CNN figures to the effnet canonical names (D-03 fallback).
+
+    Unlike ``_stable_figure_names`` (which MOVES per-experiment files), this COPIES the
+    already-published ``{kind}_{modality}_cnn.png`` flat figures to ``..._effnet.png`` so the
+    genuine CNN figures survive while the substituted #9/#10 effnet figures still exist.
+    """
+    import shutil
+
+    os.makedirs(FIGURES_DIR, exist_ok=True)
+    for kind in ("learning_curve", "cm"):
+        src = os.path.join(FIGURES_DIR, f"{kind}_{modality}_cnn.png")
+        dst = os.path.join(FIGURES_DIR, f"{kind}_{modality}_effnet.png")
+        if os.path.exists(src):
+            shutil.copyfile(src, dst)
+    row["learning_curve_png"] = os.path.join(
+        FIGURES_DIR, f"learning_curve_{modality}_effnet.png"
+    )
+    cm_dst = os.path.join(FIGURES_DIR, f"cm_{modality}_effnet.png")
+    row["cm_figure_path"] = cm_dst
+    row["cm_figure"] = os.path.basename(cm_dst)
+    return row
+
+
 def _run_experiment(cache, modality, model, wall_cap_s):
     """Train+evaluate ONE DL experiment via src.train_cnn; normalise figure names.
 
@@ -324,7 +348,10 @@ def run_modality(modality, models, wall_cap_s):
                 fb = dict(cnn_row)
                 fb["model"] = "effnet_b0"          # report the row under the EffNet slot
                 fb["fallback_from"] = "cnn"         # machine-readable provenance (D-03)
-                fb = _stable_figure_names(modality, "effnet_b0", fb)
+                # COPY (not move) the small-CNN figures to the effnet canonical names so the
+                # genuine CNN figures (learning_curve/cm_{modality}_cnn.png) stay intact while
+                # the #9/#10 effnet figures still exist for the report (D-03 fallback).
+                fb = _copy_figures_for_fallback(modality, fb)
                 rows.append(fb)
                 print(f"    [D-03 fallback] wrote small-CNN result as effnet_b0 row "
                       f"(fallback_from=cnn).")
