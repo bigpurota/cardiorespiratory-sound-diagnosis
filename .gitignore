@@ -23,6 +23,9 @@ data/
 .idea/
 .claude/
 
+# MS Office lock files (created when a .docx is open in Word)
+~$*
+
 # Internal AI/agent + planning scaffolding — not part of the academic deliverable.
 # (Kept locally; excluded from the public repo to keep it clean.)
 CLAUDE.md
@@ -49,6 +52,8 @@ id_ed25519.pub
 reference/*.pdf
 reference/*.docx
 reference/*.zip
+# official FCS LaTeX template (reference only)
+reference/CourseworkTemplateEng/
 
 # DO NOT gitignore the following: uv.lock, requirements.txt, .python-version, params/, results/tables/, results/figures/
 # uv.lock               — exact dependency lockfile (commit this)
@@ -60,3 +65,5 @@ reference/*.zip
 
 # Typst build artifact (regenerate with: typst compile report/main.typ report/main.pdf)
 report/main.pdf
+# Temporary per-page PNG renders used for visual proofing
+report/_check_*.png
