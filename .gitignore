@@ -5,8 +5,11 @@ __pycache__/
 *.pyo
 .pytest_cache/
 
-# Raw and processed data — never commit (~1.7 GB)
-data/
+# Raw audio — never commit (~2.4 GB; ICBHI is not licensed for redistribution).
+# The small processed metadata (manifest + ICBHI cycle annotations) under
+# data/processed/ IS kept for reviewer transparency; heavy feature caches stay
+# out via the *.npy/*.npz rules below.
+data/raw/
 
 # Large generated feature caches
 *.npy
@@ -29,6 +32,7 @@ data/
 # Internal AI/agent + planning scaffolding — not part of the academic deliverable.
 # (Kept locally; excluded from the public repo to keep it clean.)
 CLAUDE.md
+AGENTS.md
 .planning/
 
 # Jupyter notebook checkpoints
