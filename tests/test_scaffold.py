@@ -9,11 +9,8 @@ import pathlib
 
 import pytest
 
-# Directory structure
-# pytest runs with cwd = project root when invoked as `pytest tests/` from root,
-# so relative Path() lookups resolve correctly.
 
-_REQUIRED_DIRS = ["src", "data", "params", "results", "report", "notebooks"]
+_REQUIRED_DIRS = ["src", "data", "params", "results", "report"]
 
 
 def test_dir_structure():
@@ -32,12 +29,10 @@ def test_dir_structure():
     )
 
 
-# params YAML keys
-
 def test_yaml_params():
     """params/heart.yaml and params/lung.yaml are valid YAML with the required keys."""
     try:
-        import yaml  # noqa: E501
+        import yaml
     except ImportError:
         pytest.skip("PyYAML not installed — run `uv sync` first")
 

@@ -20,7 +20,6 @@ HEART_SPLITS = SPLITS_DIR / "heart_splits.csv"
 LUNG_SPLITS = SPLITS_DIR / "lung_splits.csv"
 LUNG_PROVENANCE = SPLITS_DIR / "lung_split_provenance.txt"
 
-# The official ICBHI split has these 2 patients in BOTH train and test.
 OVERLAP_PATIENTS = {"156", "218"}
 
 
@@ -28,7 +27,7 @@ def _import_split():
     """Import src.split, skipping (not erroring) if absent."""
     try:
         import src.split as split_mod
-    except Exception as exc:  # pragma: no cover - defensive (module absent)
+    except Exception as exc:
         pytest.skip(f"src.split not implemented yet: {exc}")
     return split_mod
 
@@ -49,8 +48,6 @@ def _split_column(df):
     raise AssertionError(f"no train/test split flag column found in {list(df.columns)}")
 
 
-# Reusable zero-leakage helper
-
 def test_leakage_helper():
     """assert_no_patient_leakage raises on overlap and passes cleanly on disjoint sets."""
     split_mod = _import_split()
@@ -59,15 +56,11 @@ def test_leakage_helper():
     )
     fn = split_mod.assert_no_patient_leakage
 
-    # Disjoint sets: must NOT raise.
     fn(["p1", "p2", "p3"], ["p4", "p5"])
 
-    # Overlapping sets: MUST raise AssertionError.
     with pytest.raises(AssertionError):
         fn(["p1", "p2", "p3"], ["p3", "p4"])
 
-
-# Disjointness of the on-disk splits
 
 def test_splits_disjoint():
     """Both heart and lung splits must have train/test patient sets that are disjoint."""
@@ -86,17 +79,15 @@ def test_split_schema():
     """Each split CSV encodes patient_id + a train/test flag; heart also carries db_source."""
     heart = _read_split(HEART_SPLITS)
     assert "patient_id" in heart.columns, "heart split missing patient_id column"
-    _split_column(heart)  # raises if no train/test flag
+    _split_column(heart)
     assert "db_source" in heart.columns, (
         "heart split must carry db_source (A–E provenance)"
     )
 
     lung = _read_split(LUNG_SPLITS)
     assert "patient_id" in lung.columns, "lung split missing patient_id column"
-    _split_column(lung)  # raises if no train/test flag
+    _split_column(lung)
 
-
-# Lung split provenance + overlap repair (patients 156, 218)
 
 def test_lung_split_provenance():
     """A provenance record states the path taken; if official, 156/218 are repaired.

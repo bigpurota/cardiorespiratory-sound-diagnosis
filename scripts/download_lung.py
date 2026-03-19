@@ -37,7 +37,6 @@ def check_credentials():
         )
         sys.exit(1)
 
-    # The token must not be group- or world-accessible.
     mode = os.stat(kaggle_json).st_mode
     if (mode & 0o077) != 0:
         print(

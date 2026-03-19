@@ -34,7 +34,6 @@ def download():
             print(f"[WARN] {ZIP_PATH} exists but is incomplete/corrupt — re-downloading.")
             ZIP_PATH.unlink()
     print(f"[INFO] Downloading training.zip from PhysioNet (~181 MB)...")
-    # Prefer wget; fall back to curl if it isn't installed.
     try:
         subprocess.run(
             ["wget", "-N", "-c", URL, "-O", str(ZIP_PATH)],
@@ -55,8 +54,6 @@ def extract():
     ZIP_PATH.unlink()
     print("[INFO] Extraction complete; training.zip removed.")
 
-    # training-f (114 recordings) was added after the challenge closed and is not
-    # part of the A-E set, so drop it to get the canonical 3,126-recording dataset.
     training_f = DEST / "training-f"
     if training_f.exists():
         import shutil
@@ -100,7 +97,6 @@ def verify_references():
 
 
 def main():
-    # If WAVs are already present and training-f is gone, there's nothing to do.
     wav_count = sum(1 for _ in DEST.rglob("*.wav"))
     if wav_count > 0 and not (DEST / "training-f").exists():
         print(f"[INFO] {wav_count} WAV files already present and training-f absent — skipping download/extraction.")
@@ -115,7 +111,6 @@ def main():
             print(f"[INFO] {wav_count} WAV files already present — skipping extraction.")
             if ZIP_PATH.exists():
                 ZIP_PATH.unlink()
-            # A previous interrupted run may have left training-f behind.
             training_f = DEST / "training-f"
             if training_f.exists():
                 import shutil

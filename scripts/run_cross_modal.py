@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Cross-modal transfer and joint multi-task experiments between heart and lung sounds.
 
@@ -21,7 +20,6 @@ Usage:
 """
 import os
 
-# macOS duplicate-OpenMP-runtime guard: must run before the first ``import torch``.
 os.environ.setdefault("OMP_NUM_THREADS", "8")
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -33,27 +31,27 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src import config  # noqa: E402,F401 — import FIRST (seeds RNGs, exposes paths)
+from src import config
 
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
+import numpy as np
+import pandas as pd
 
-import matplotlib  # noqa: E402
-matplotlib.use("Agg")  # headless backend; must precede the pyplot import
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
-import torch  # noqa: E402
+import torch
 
-from src.split import assert_no_patient_leakage  # noqa: E402
-from src.train_cnn import run_modality as _run_modality_single  # noqa: E402
-from src.cross_modal import (  # noqa: E402
+from src.split import assert_no_patient_leakage
+from src.train_cnn import run_modality as _run_modality_single
+from src.cross_modal import (
     transfer_modality,
     train_joint,
     evaluate_joint,
     spearman_method_rankings,
     build_shared_encoder,
 )
-from src.datasets import build_loaders  # noqa: E402
+from src.datasets import build_loaders
 
 FEATURES_DIR = os.path.join(config.PROJECT_ROOT, "features")
 TABLES_DIR = os.path.join(config.RESULTS_DIR, "tables")
@@ -106,7 +104,6 @@ def _write_summary(rows):
             if c not in existing.columns:
                 existing[c] = ""
         existing = existing[SUMMARY_COLUMNS]
-        # Drop only the keys produced by this run.
         keys = new_df[["setting", "source_modality", "target_modality", "model"]].apply(
             tuple, axis=1
         )
@@ -142,11 +139,9 @@ def _render_heatmap(rows):
     """Render a source×target primary-metric heatmap and save to HEATMAP_PNG."""
     os.makedirs(FIGURES_DIR, exist_ok=True)
 
-    # Matrix rows = source modality, cols = target modality.
     sources = ["heart", "lung", "heart+lung"]
     targets = ["heart", "lung"]
 
-    # Index by (source, target) → primary_metric.
     lookup = {}
     for r in rows:
         key = (r.get("source_modality", ""), r.get("target_modality", ""))
@@ -178,7 +173,6 @@ def _render_heatmap(rows):
     ax.set_ylabel("Source (training) modality", fontsize=11)
     ax.set_title("Cross-Modal Transfer Matrix — Primary Metric", fontsize=12)
 
-    # Annotate each cell with its value.
     for i, src in enumerate(sources):
         for j, tgt in enumerate(targets):
             val = matrix_arr[i, j]
@@ -247,7 +241,6 @@ def main():
     device_str = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"[run_cross_modal] device={device_str}  archs={archs}  wall_cap_s={wall_cap_s}  seed={seed}")
 
-    # Load both caches and re-assert no patient leakage at startup.
     print("[run_cross_modal] loading heart cache ...")
     heart_cache = _load_cache("heart")
     print("[run_cross_modal] loading lung cache ...")
@@ -270,7 +263,6 @@ def main():
         print(f"[arch={arch}]  wall_cap_s={wall_cap_s}")
         print(f"{'='*60}")
 
-        # --- IN-DOMAIN baselines ---
         print(f"\n[1/5] IN-DOMAIN heart ({arch}) ...")
         try:
             row_h = _run_in_domain(
@@ -293,7 +285,6 @@ def main():
         except Exception as e:
             print(f"      [WARN] lung in-domain failed: {e}")
 
-        # --- CROSS-DOMAIN: heart → lung ---
         print(f"\n[3/5] TRANSFER heart→lung ({arch}) ...")
         try:
             row_h2l = transfer_modality(
@@ -307,7 +298,6 @@ def main():
                 out_dir=os.path.join(out_base, "transfer_heart_lung"),
             )
             print(f"      heart→lung  {row_h2l['primary_metric_name']}={row_h2l['primary_metric']:.4f}")
-            # Flag weak/negative transfer against the in-domain baseline.
             in_domain_lung_metric = next(
                 (r["primary_metric"] for r in all_rows
                  if r["setting"] == "in_domain" and r["target_modality"] == "lung"
@@ -322,7 +312,6 @@ def main():
         except Exception as e:
             print(f"      [WARN] heart→lung transfer failed: {e}")
 
-        # --- CROSS-DOMAIN: lung → heart ---
         print(f"\n[4/5] TRANSFER lung→heart ({arch}) ...")
         try:
             row_l2h = transfer_modality(
@@ -350,7 +339,6 @@ def main():
         except Exception as e:
             print(f"      [WARN] lung→heart transfer failed: {e}")
 
-        # --- JOINT multi-task ---
         print(f"\n[5/5] JOINT multi-task ({arch}) ...")
         try:
             joint_model, train_info = train_joint(
@@ -364,7 +352,6 @@ def main():
             print(f"      joint best_val_score={train_info['best_val_score']:.4f}  "
                   f"epochs={train_info['epochs_ran']}")
 
-            # Build the same loaders used for training to evaluate the joint model.
             heart_loaders = build_loaders(
                 heart_cache, "heart",
                 for_effnet=for_effnet, batch_size=32, seed=seed,
@@ -390,7 +377,6 @@ def main():
 
     _write_summary(all_rows)
 
-    # --- Spearman rank correlation (reads unified_comparison.csv read-only) ---
     if os.path.exists(UNIFIED_CSV):
         try:
             rho, pvalue, n, labels, h_scores, l_scores = spearman_method_rankings(UNIFIED_CSV)
@@ -404,7 +390,6 @@ def main():
     if all_rows:
         _render_heatmap(all_rows)
 
-    # Verify unified_comparison.csv was left untouched.
     if os.path.exists(UNIFIED_CSV):
         n_unified = len(pd.read_csv(UNIFIED_CSV))
         print(f"\n[verify] unified_comparison.csv still has {n_unified} rows (untouched).")

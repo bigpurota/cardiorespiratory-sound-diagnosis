@@ -14,11 +14,9 @@ import sys
 
 import pytest
 
-# Make the project root importable so `import config` and `from src.config_loader
-# import load_params` resolve when running pytest directly from the project root.
 PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(pathlib.Path(__file__).parent))  # conftest import parity
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
 
 def _import_config():
@@ -28,8 +26,8 @@ def _import_config():
     collection always succeeds.
     """
     try:
-        from src import config  # noqa: WPS433  (intentional in-body import)
-    except Exception as exc:  # pragma: no cover - defensive
+        from src import config
+    except Exception as exc:
         pytest.skip(f"config.py not importable yet: {exc}")
     return config
 
@@ -38,14 +36,10 @@ def _load_params(modality):
     """Import load_params and call it for `modality`, skipping on import failure."""
     try:
         from src.config_loader import load_params
-    except Exception as exc:  # pragma: no cover - defensive
+    except Exception as exc:
         pytest.skip(f"src.config_loader not importable yet: {exc}")
     return load_params(modality)
 
-
-# ---------------------------------------------------------------------------
-# config.py sampling rates unified to 4000 Hz
-# ---------------------------------------------------------------------------
 
 def test_config_sr_4000():
     """config.SR_HEART and config.SR_LUNG must both equal 4000 Hz."""
@@ -57,10 +51,6 @@ def test_config_sr_4000():
         f"config.SR_LUNG must be 4000, got {getattr(config, 'SR_LUNG', None)}"
     )
 
-
-# ---------------------------------------------------------------------------
-# params YAML sample_rate is 4000 Hz for both modalities
-# ---------------------------------------------------------------------------
 
 def test_heart_yaml_sample_rate():
     """params/heart.yaml `sample_rate` must be 4000."""
@@ -77,10 +67,6 @@ def test_lung_yaml_sample_rate():
         f"params/lung.yaml sample_rate must be 4000, got {params['sample_rate']}"
     )
 
-
-# ---------------------------------------------------------------------------
-# heart label_map: -1 -> normal, 1 -> abnormal
-# ---------------------------------------------------------------------------
 
 def test_heart_label_map_deinverted():
     """heart label_map must resolve -1 -> normal and 1 -> abnormal.

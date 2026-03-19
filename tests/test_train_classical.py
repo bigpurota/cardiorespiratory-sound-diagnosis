@@ -29,14 +29,11 @@ TABLES_DIR = PROJECT_ROOT / "results" / "tables"
 
 MODEL_NAMES = ["logreg", "svm", "rf", "xgb"]
 
-# unified_comparison.csv column set (exact order).
 UNIFIED_COLUMNS = [
     "modality", "feature_set", "model", "primary_metric_name", "primary_metric",
     "Se", "Sp", "macro_f1", "auc_roc", "accuracy", "n_train", "n_test",
 ]
-# 2 feature sets × 4 models × 2 modalities = 16 classical rows.
 UNIFIED_CLASSICAL_ROWS = 16
-# 2 feature sets × 4 models = 8 rows per per-modality metrics CSV.
 METRICS_ROWS_PER_MODALITY = 8
 
 
@@ -44,7 +41,7 @@ def _import(module_name):
     """Import `module_name`, skipping (not erroring) if absent."""
     try:
         return importlib.import_module(module_name)
-    except Exception as exc:  # pragma: no cover - defensive (module absent)
+    except Exception as exc:
         pytest.skip(f"{module_name} not implemented yet: {exc}")
 
 
@@ -55,8 +52,6 @@ def _read_csv(path):
     pd = pytest.importorskip("pandas")
     return pd.read_csv(path)
 
-
-# Leakage gate — no global fit_transform; scaler inside a Pipeline
 
 def test_no_global_scaler():
     """src/train_classical.py must scale INSIDE an sklearn Pipeline — never globally.
@@ -71,17 +66,12 @@ def test_no_global_scaler():
 
     source = TRAIN_SRC.read_text(encoding="utf-8")
 
-    # Strengthened guard: forbid ANY `.fit_transform(` call (scaling outside a
-    # Pipeline leaks test statistics regardless of the variable name). Pipelines
-    # call fit/transform internally — production code should never call
-    # `fit_transform` on the feature matrix itself.
     assert "fit_transform(" not in source, (
         "LEAKAGE: src/train_classical.py contains a bare `.fit_transform(` call — "
         "the scaler must live INSIDE the Pipeline (fit on train fold only), never "
         "transform the full matrix globally."
     )
 
-    # Positive assertion: the scaler is the first step of an sklearn Pipeline.
     assert "Pipeline" in source, (
         "src/train_classical.py must build an sklearn Pipeline so the StandardScaler "
         "fits on the train fold only."
@@ -90,8 +80,6 @@ def test_no_global_scaler():
         "src/train_classical.py must use StandardScaler inside the Pipeline."
     )
 
-
-# Each of the 4 models builds a Pipeline (scaler first step) and fits
 
 def test_pipelines_fit(synthetic_feature_matrix):
     """build_pipeline(model, n_classes=2) returns a Pipeline whose first step is a
@@ -117,8 +105,6 @@ def test_pipelines_fit(synthetic_feature_matrix):
         assert preds.shape[0] == X.shape[0], f"{name}: predict returned wrong row count"
 
 
-# GridSearchCV uses a grouped CV; tuning folds are patient-disjoint
-
 def test_tuning_groups_disjoint(synthetic_feature_matrix):
     """The tuning helper wraps a pipeline in GridSearchCV with a grouped CV, and when
     fit with ``groups=train_groups`` each fold's train/validation patients are disjoint
@@ -141,7 +127,6 @@ def test_tuning_groups_disjoint(synthetic_feature_matrix):
         "GridSearchCV.cv must be GroupKFold/StratifiedGroupKFold so folds are patient-disjoint"
     )
 
-    # Independently verify the grouped CV keeps train/validation groups disjoint.
     cv = search.cv
     for tr_idx, va_idx in cv.split(X, y, groups=groups):
         tr_groups = set(np.asarray(groups)[tr_idx])
@@ -150,12 +135,9 @@ def test_tuning_groups_disjoint(synthetic_feature_matrix):
             "inner-CV fold leaked a patient group across train/validation"
         )
 
-    # Fitting with groups passed to .fit (NOT the constructor) must run without error.
     search.fit(X, y, groups=groups)
     assert hasattr(search, "best_estimator_"), "GridSearchCV did not refit a best_estimator_"
 
-
-# Per-modality metrics CSVs: 8 rows each + full metric suite
 
 def test_metrics_csv_schema():
     """metrics_{heart,lung}_classical.csv each have 8 rows (feature_set×model) and the metric columns."""
@@ -165,8 +147,6 @@ def test_metrics_csv_schema():
         assert len(df) == METRICS_ROWS_PER_MODALITY, (
             f"{name} must have {METRICS_ROWS_PER_MODALITY} rows (2 feature sets × 4 models); got {len(df)}"
         )
-        # Primary metric column present (MAcc for heart, ICBHI_Score for lung) —
-        # accept either an explicit primary metric column or a primary_metric field.
         has_primary = (
             "primary_metric" in df.columns
             or any(c in df.columns for c in ("MAcc", "ICBHI_Score"))
@@ -175,8 +155,6 @@ def test_metrics_csv_schema():
         missing = required_cols - set(df.columns)
         assert not missing, f"{name} missing columns: {sorted(missing)}"
 
-
-# unified_comparison.csv: exact columns + 16 classical rows
 
 def test_unified_schema():
     """unified_comparison.csv has the exact columns and 16 classical rows."""
@@ -192,8 +170,6 @@ def test_unified_schema():
     )
 
 
-# volumetrics_classical.csv: train_time + segment AND record/patient counts
-
 def test_volumetrics_schema():
     """volumetrics_classical.csv has train_time_s, segment-level AND recording/patient
     counts, and a data_volume_mb column."""
@@ -203,11 +179,9 @@ def test_volumetrics_schema():
     assert "train_time_s" in cols, "volumetrics_classical.csv missing train_time_s"
     assert "data_volume_mb" in cols, "volumetrics_classical.csv missing data_volume_mb"
 
-    # Segment/cycle-level counts (windows for heart, cycles for lung).
     assert any("segment" in c for c in cols), (
         "volumetrics_classical.csv missing a segment/cycle-level count column"
     )
-    # Recording AND patient-level counts (both are required).
     assert any("recording" in c for c in cols), (
         "volumetrics_classical.csv missing a recording-level count column"
     )

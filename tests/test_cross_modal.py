@@ -22,10 +22,6 @@ def _import(module_name):
         pytest.skip(f"{module_name} not available: {exc}")
 
 
-# ---------------------------------------------------------------------------
-# STATIC — grep contracts (code structure assertions)
-# ---------------------------------------------------------------------------
-
 def test_static_imports_reuse():
     """src/cross_modal.py must import the required building blocks (no re-implementation)."""
     src = (PROJECT_ROOT / "src" / "cross_modal.py").read_text(encoding="utf-8")
@@ -55,11 +51,6 @@ def test_static_no_training_loop():
     """cross_modal.py must NOT re-implement a training loop (for epoch in range/max_epochs)."""
     import re
     src = (PROJECT_ROOT / "src" / "cross_modal.py").read_text(encoding="utf-8")
-    # train_joint DOES have its own epoch loop because it drives an interleaved
-    # multi-modal joint model not served by train_one_model's single-modality API.
-    # The check here is that the single-head transfer uses train_one_model (which it does)
-    # and there is no re-implementation of the per-classifier metrics.
-    # We only assert no re-implemented model classes (SmallCNN / build_efficientnet_b0).
     assert "class SmallCNN" not in src, (
         "cross_modal.py must NOT re-implement SmallCNN — import from src.cnn"
     )
@@ -73,11 +64,9 @@ def test_static_head_swap_present():
     import re
     src = (PROJECT_ROOT / "src" / "cross_modal.py").read_text(encoding="utf-8")
 
-    # head_heart and head_lung attributes of JointMultiTaskModel
     assert "head_heart" in src, "cross_modal.py missing 'head_heart' (joint model)"
     assert "head_lung" in src, "cross_modal.py missing 'head_lung' (joint model)"
 
-    # A comment documenting the 2-class/4-class label-space handling must be present.
     has_comment = bool(re.search(
         r"(2.class|4.class|heart.binary|label.space|head.swap|binary.*4)",
         src, re.IGNORECASE
@@ -102,8 +91,6 @@ def test_static_no_smote_no_global_scaler():
     """cross_modal.py must not APPLY SMOTE or fit_transform (usage, not comments)."""
     import re
     src = (PROJECT_ROOT / "src" / "cross_modal.py").read_text(encoding="utf-8")
-    # Match actual usage (not docstring mentions like "NO SMOTE" or "no SMOTE").
-    # A genuine SMOTE call would be e.g. SMOTE().fit_resample(...) or SMOTE(random_state=...)
     assert not re.search(r"\bSMOTE\s*\(", src), (
         "cross_modal.py must not instantiate/call SMOTE"
     )
@@ -138,10 +125,6 @@ def test_static_all_exports():
     ]:
         assert sym in src, f"cross_modal.py __all__ must include '{sym}'"
 
-
-# ---------------------------------------------------------------------------
-# UNIT — encoder and joint model shape contracts
-# ---------------------------------------------------------------------------
 
 def test_build_shared_encoder_cnn():
     """build_shared_encoder('cnn') returns (encoder, 128) and the forward shape is correct."""
@@ -190,10 +173,6 @@ def test_joint_model_invalid_modality():
         model(x, "arterial")
 
 
-# ---------------------------------------------------------------------------
-# SMOKE — transfer_modality on synthetic 2-class→4-class cache
-# ---------------------------------------------------------------------------
-
 def _make_tiny_cache(n_classes, n_per_class=4, groups_per_class=2, prefix="p", heart_like=True):
     """Build a minimal spectrogram cache with n_classes present and patient-level splits.
 
@@ -204,14 +183,12 @@ def _make_tiny_cache(n_classes, n_per_class=4, groups_per_class=2, prefix="p", h
     import numpy as np
     rng = np.random.default_rng(99)
     H, W = 64, 128
-    # Force at least 4 groups per class so all classes appear in train (groups 0,2 → train).
     gpc = max(groups_per_class, 4)
     rows_per_group = max(n_per_class // gpc, 2)
     X_list, labels, patient_id, split, recording_id = [], [], [], [], []
     for cls in range(n_classes):
         for g in range(gpc):
             pid = f"{prefix}{cls}_{g:02d}"
-            # Even groups → train; odd groups → test; ensures all classes in BOTH splits.
             this_split = "train" if g % 2 == 0 else "test"
             for _ in range(rows_per_group):
                 spec = rng.standard_normal((H, W)).astype("float32")
@@ -256,7 +233,7 @@ def test_transfer_modality_smoke(tmp_path):
     assert row["target_modality"] == "lung"
     assert row["primary_metric_name"] == "ICBHI_Score"
     pm = row["primary_metric"]
-    assert pm == pm, "primary_metric must not be NaN"  # NaN != NaN
+    assert pm == pm, "primary_metric must not be NaN"
     assert 0.0 <= row["Se"] <= 1.0, f"Se out of range: {row['Se']}"
     assert 0.0 <= row["Sp"] <= 1.0, f"Sp out of range: {row['Sp']}"
 

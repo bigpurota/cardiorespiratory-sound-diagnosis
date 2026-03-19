@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Multi-seed run of the deep-learning configs for mean±std reporting.
 
@@ -54,16 +53,13 @@ SEEDS = [42, 1, 2]
 MODALITIES = ["heart", "lung"]
 MODELS = ["cnn", "effnet"]
 
-# Jobs are round-robin assigned across GPUs 0..NUM_GPUS-1.
 NUM_GPUS = 4
 
-# unified_comparison.csv column order (12-column schema shared with the other drivers).
 UNIFIED_COLUMNS = [
     "modality", "feature_set", "model", "primary_metric_name", "primary_metric",
     "Se", "Sp", "macro_f1", "auc_roc", "accuracy", "n_train", "n_test",
 ]
 
-# volumetrics_cnn.csv columns.
 VOLUMETRICS_COLUMNS = [
     "modality", "feature_set", "model", "train_time_s",
     "n_train_segments", "n_test_segments",
@@ -99,7 +95,6 @@ def _run_one_seed(modality, model, seed, wall_cap_min, gpu_id, python_exe, hpara
     env["OMP_NUM_THREADS"] = "8"
     env["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-    # Serialise hparams for injection into the subprocess, dropping meta/non-scalar keys.
     if hparams is not None:
         safe_hparams = {
             k: v for k, v in hparams.items()
@@ -144,15 +139,13 @@ print("__ROW__" + json.dumps(out))
         result = subprocess.run(
             [python_exe, "-c", code],
             capture_output=True, text=True, env=env,
-            timeout=max(300, int(wall_cap_min * 120))  # at least 5 min for import+load overhead
+            timeout=max(300, int(wall_cap_min * 120))
         )
         elapsed = time.time() - t0
-        # Extract the JSON row from stdout.
         for line in result.stdout.splitlines():
             if line.startswith("__ROW__"):
                 row = json.loads(line[len("__ROW__"):])
                 return row, elapsed
-        # No row produced — surface the stderr tail for debugging.
         print(f"  [seed={seed} {modality}/{model}] no __ROW__ in stdout. stderr tail:")
         for l in result.stderr.splitlines()[-20:]:
             print("   ", l)
@@ -206,7 +199,6 @@ def _rebuild_unified(modality, model_name, row):
             if c not in existing.columns:
                 existing[c] = ""
         existing = existing[UNIFIED_COLUMNS]
-        # Target only this modality's matching DL row (cnn/effnet_b0), leaving classical rows.
         drop_mask = (
             existing["model"].isin(["cnn", "effnet_b0"])
             & (existing["modality"] == modality)
@@ -238,7 +230,6 @@ def _rebuild_volumetrics(modality, model_name, row):
             if c not in existing.columns:
                 existing[c] = ""
         existing = existing[VOLUMETRICS_COLUMNS]
-        # Drop only this modality × model volumetrics row.
         existing = existing[~((existing["modality"] == modality) & (existing["model"] == model_name))]
         combined = pd.concat([existing, new], ignore_index=True)
     else:
@@ -266,7 +257,6 @@ def main():
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     python_exe = args.python
 
-    # Load HPO best configs (if present); fall back to defaults per key otherwise.
     hpo_best_config = _load_hpo_best_configs()
 
     jobs = list(product(args.modalities, args.models, args.seeds))
@@ -274,7 +264,6 @@ def main():
     print(f"[multiseed] GPUs=0-{NUM_GPUS-1}, wall_cap={args.wall_cap_min}min/job")
 
     all_rows = []
-    # seed=42 rows per (modality, model) are kept as the representative run for figures.
     seed42_rows = {}
 
     for idx, (modality, model, seed) in enumerate(jobs):
@@ -313,7 +302,6 @@ def main():
     raw_df = pd.DataFrame(all_rows)
     print(f"\n[multiseed] Collected {len(raw_df)} rows from {len(jobs)} jobs.")
 
-    # Aggregate mean±std per (modality, model) across seeds; normalise Se/Sp aliases first.
     for alias in ("sensitivity", "se"):
         if alias in raw_df.columns and "Se" not in raw_df.columns:
             raw_df["Se"] = raw_df[alias]
@@ -348,21 +336,17 @@ def main():
     summary_df.to_csv(MULTISEED_CSV, index=False)
     print(f"\n[wrote] {MULTISEED_CSV} ({len(summary_df)} rows)")
 
-    # Also save the raw per-seed results for provenance.
     raw_out = TABLES_DIR / "metrics_multiseed_raw.csv"
     safe_cols = [c for c in raw_df.columns if raw_df[c].dtype != object
                  or raw_df[c].apply(lambda x: isinstance(x, (str, type(None)))).all()]
     raw_df[safe_cols].to_csv(raw_out, index=False)
     print(f"[wrote] {raw_out} ({len(raw_df)} raw rows)")
 
-    # Replace the DL rows in unified_comparison.csv with the multi-seed mean; the classical
-    # rows are preserved by the drop-mask.
     print("\n[multiseed] Updating unified_comparison.csv (DL rows → multi-seed mean) ...")
     for _, srow in summary_df.iterrows():
         modality = srow["modality"]
         model_name = srow["model"]
 
-        # Representative raw row supplies n_train, n_test, feature_set.
         rep_rows = raw_df[(raw_df["modality"] == modality) & (raw_df["model"] == model_name)]
         rep = rep_rows.iloc[0] if len(rep_rows) > 0 else {}
 
@@ -371,7 +355,7 @@ def main():
             "feature_set": rep.get("feature_set", "log_mel_64x128") if isinstance(rep, pd.Series) else "log_mel_64x128",
             "model": model_name,
             "primary_metric_name": srow.get("primary_metric_name", "primary_metric"),
-            "primary_metric": srow["mean"],  # multi-seed mean
+            "primary_metric": srow["mean"],
             "Se": srow.get("Se_mean", ""),
             "Sp": srow.get("Sp_mean", ""),
             "macro_f1": srow.get("macro_f1_mean", ""),
@@ -382,7 +366,6 @@ def main():
         }
         _rebuild_unified(modality, model_name, unified_row)
 
-    # Sanity-check the row count after the update.
     if UNIFIED_CSV.exists():
         df_u = pd.read_csv(UNIFIED_CSV)
         n_rows = len(df_u)
@@ -391,19 +374,16 @@ def main():
         if n_rows != 20:
             print(f"  WARNING: expected 20 rows, got {n_rows}")
 
-    # Move figures from the seed=42 run to the canonical flat names.
     print("\n[multiseed] Refreshing figures from seed=42 runs ...")
     for (modality, model_name), row in seed42_rows.items():
         row = _stable_figure_names(modality, model_name, row)
         print(f"  [{modality}/{model_name}] learning_curve -> {row.get('learning_curve_png')}")
         print(f"  [{modality}/{model_name}] cm -> {row.get('cm_figure_path')}")
 
-    # Update volumetrics with mean train_time_s + params from each DL row.
     print("\n[multiseed] Updating volumetrics_cnn.csv ...")
     for (modality, model_name), grp in raw_df.groupby(["modality", "model"]):
         rep = grp.iloc[0]
         vrow = dict(rep)
-        # Mean train time across seeds.
         vrow["train_time_s"] = round(float(grp["train_time_s"].mean()), 1) if "train_time_s" in grp.columns else ""
         vrow["fallback_from"] = rep.get("fallback_from", "")
         _rebuild_volumetrics(modality, model_name, vrow)

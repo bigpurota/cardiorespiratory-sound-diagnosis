@@ -16,7 +16,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-from src import config  # noqa: F401  import FIRST (seeds RNGs, exposes paths)
+from src import config
 
 import numpy as np
 import pandas as pd
@@ -52,7 +52,6 @@ def build(modality):
     """Build and cache the feature matrix for ``modality``; print volumetrics."""
     df, splits = _load_inputs(modality)
 
-    # Re-check patient-level separation before extracting anything.
     train_ids = splits.loc[splits.split == "train", "patient_id"]
     test_ids = splits.loc[splits.split == "test", "patient_id"]
     assert_no_patient_leakage(train_ids, test_ids)
@@ -64,7 +63,6 @@ def build(modality):
     out_path = os.path.join(FEATURES_DIR, f"{modality}_classical.npy")
     np.save(out_path, payload, allow_pickle=True)
 
-    # Report segment/cycle counts, recordings and patients.
     split_arr = payload["split"]
     rec_arr = payload["recording_id"]
     pid_arr = payload["patient_id"]

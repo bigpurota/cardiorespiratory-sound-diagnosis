@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Run the deep-learning experiments per modality and write the result CSVs.
 
@@ -23,9 +22,6 @@ crashing. The same script runs on CPU and GPU; device auto-detection lives in
 """
 import os
 
-# macOS duplicate-OpenMP-runtime guard: torch and sklearn/xgboost each bundle their own
-# libomp.dylib; capping OpenMP threads and allowing the duplicate runtime avoids the
-# collision segfault. Must run before the first ``import torch``.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -37,13 +33,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src import config  # noqa: E402,F401 — import FIRST (seeds RNGs, exposes paths)
+from src import config
 
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
+import numpy as np
+import pandas as pd
 
-from src.split import assert_no_patient_leakage  # noqa: E402
-from src.train_cnn import run_modality as train_run_modality  # noqa: E402
+from src.split import assert_no_patient_leakage
+from src.train_cnn import run_modality as train_run_modality
 
 FEATURES_DIR = os.path.join(config.PROJECT_ROOT, "features")
 TABLES_DIR = os.path.join(config.RESULTS_DIR, "tables")
@@ -52,16 +48,13 @@ FIGURES_DIR = os.path.join(config.RESULTS_DIR, "figures")
 UNIFIED_CSV = os.path.join(TABLES_DIR, "unified_comparison.csv")
 VOLUMETRICS_CSV = os.path.join(TABLES_DIR, "volumetrics_cnn.csv")
 
-# unified_comparison.csv column order (12-column schema shared with the classical driver).
 UNIFIED_COLUMNS = [
     "modality", "feature_set", "model", "primary_metric_name", "primary_metric",
     "Se", "Sp", "macro_f1", "auc_roc", "accuracy", "n_train", "n_test",
 ]
 
-# DL models written by this driver (the drop-mask target).
 DL_MODELS = ["cnn", "effnet_b0"]
 
-# volumetrics_cnn.csv column order — classical columns plus a ``params`` column.
 VOLUMETRICS_COLUMNS = [
     "modality", "feature_set", "model", "train_time_s",
     "n_train_segments", "n_test_segments",
@@ -70,8 +63,6 @@ VOLUMETRICS_COLUMNS = [
     "params", "fallback_from", "data_volume_mb",
 ]
 
-# Per-modality metrics CSV columns (full suite; the primary metric is the headline column).
-# DL extras vs classical: ``params`` and ``fallback_from`` provenance.
 METRICS_COLUMNS = {
     "heart": [
         "feature_set", "model", "primary_metric_name", "primary_metric",
@@ -86,8 +77,6 @@ METRICS_COLUMNS = {
     ],
 }
 
-# best_val_score below which an EffNet run is judged non-converged: heart binary chance
-# MAcc ~= 0.5; lung 4-class ICBHI Score chance ~= 0.5.
 _CHANCE_THRESHOLD = {"heart": 0.5, "lung": 0.5}
 
 
@@ -139,7 +128,6 @@ def _rebuild_unified(modality, rows):
             if c not in existing.columns:
                 existing[c] = ""
         existing = existing[UNIFIED_COLUMNS]
-        # Drop only this modality's DL rows (keep other modality + all 16 classical rows).
         drop_mask = (
             (existing["modality"] == modality)
             & (existing["model"].isin(["cnn", "effnet_b0"]))
@@ -263,7 +251,6 @@ def run_modality(modality, models, wall_cap_s):
     os.makedirs(FIGURES_DIR, exist_ok=True)
     cache, cache_path = _load_cache(modality)
 
-    # Re-assert no patient leakage at startup (logs the [leakage-check OK] line).
     pid = np.asarray(list(map(str, cache["patient_id"])), dtype=object)
     split = np.asarray(cache["split"], dtype=object)
     assert_no_patient_leakage(pid[split == "train"], pid[split == "test"])
@@ -271,11 +258,10 @@ def run_modality(modality, models, wall_cap_s):
     print(f"[run_cnn] modality={modality} models={models} cache={cache_path} "
           f"wall_cap_s={wall_cap_s}")
 
-    # CNN before EffNet so the small-CNN row is the fallback.
     ordered = [m for m in ("cnn", "effnet") if m in models]
 
     rows = []
-    cnn_row = None  # cached for the EffNet→small-CNN fallback.
+    cnn_row = None
     for model in ordered:
         if model == "cnn":
             print(f"  [#{'5' if modality == 'heart' else '8'}] {modality} small CNN ...")
@@ -285,7 +271,7 @@ def run_modality(modality, models, wall_cap_s):
             print(f"    cnn best_val_score={row.get('best_val_score'):.4f} "
                   f"primary={row.get('primary_metric'):.4f} "
                   f"epochs={row.get('epochs_ran')} params={row.get('params')}")
-        else:  # effnet
+        else:
             tag = "9" if modality == "heart" else "10"
             print(f"  [#{tag}] {modality} EfficientNet-B0 ...")
             try:
@@ -298,17 +284,14 @@ def run_modality(modality, models, wall_cap_s):
                 print(f"    effnet best_val_score={row.get('best_val_score'):.4f} "
                       f"primary={row.get('primary_metric'):.4f} "
                       f"epochs={row.get('epochs_ran')} params={row.get('params')}")
-            except Exception as exc:  # EffNet→small-CNN fallback (no crash).
+            except Exception as exc:
                 print(f"    [fallback] EffNet #{tag} failed/overran: {exc}")
                 if cnn_row is None:
-                    # CNN not selected — train one now so the fallback row exists.
                     print("    [fallback] training a small CNN to fill the row ...")
                     cnn_row = _run_experiment(cache, modality, "cnn", wall_cap_s)
                 fb = dict(cnn_row)
-                fb["model"] = "effnet_b0"          # report under the EffNet slot
-                fb["fallback_from"] = "cnn"         # machine-readable provenance
-                # Copy (not move) the small-CNN figures to the effnet names so the genuine
-                # CNN figures stay intact while the effnet figures also exist.
+                fb["model"] = "effnet_b0"
+                fb["fallback_from"] = "cnn"
                 fb = _copy_figures_for_fallback(modality, fb)
                 rows.append(fb)
                 print(f"    [fallback] wrote small-CNN result as effnet_b0 row "

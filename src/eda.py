@@ -10,22 +10,22 @@ waveform + log-mel panels per class.
 This module is read-only: it never modifies splits, the manifest, params, or any cache.
 The matplotlib Agg backend is selected before importing pyplot so the script runs headless.
 """
-from src import config  # noqa: F401 — import FIRST for the SEED=42 side effect (determinism)
+from src import config
 
 import os
 
 import matplotlib
 
-matplotlib.use("Agg")  # headless backend, must precede the pyplot import
-import matplotlib.pyplot as plt  # noqa: E402
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
-import seaborn as sns  # noqa: E402
-import soundfile as sf  # noqa: E402
-import librosa  # noqa: E402
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import soundfile as sf
+import librosa
 
-from src.preprocess import load_resampled  # noqa: E402
+from src.preprocess import load_resampled
 
 __all__ = [
     "EDA_DIR",
@@ -41,17 +41,12 @@ __all__ = [
     "main",
 ]
 
-# Output directory for all EDA figures.
 EDA_DIR = os.path.join(config.RESULTS_DIR, "figures", "eda")
 
-# Heart label mapping: -1 = normal, 1 = abnormal in the CinC 2016 manifest.
 HEART_LABEL_NAMES = {-1.0: "normal", 1.0: "abnormal"}
 
-# Fixed lung 4-class ordering for consistent figure colours and axes.
 LUNG_CLASS_ORDER = ["normal", "crackle", "wheeze", "both"]
 
-# Single accent colour (steel-blue, matching the "Blues" colormap used by the confusion
-# matrices) so every report figure shares one visual style.
 ACCENT = "#3b6ea5"
 
 
@@ -98,7 +93,6 @@ def load_tables():
     return manifest, cycles
 
 
-# Class-distribution figures
 def plot_class_dist_heart(manifest):
     """Heart recording class distribution (normal vs abnormal)."""
     heart = manifest[manifest["modality"] == "heart"].copy()
@@ -128,7 +122,6 @@ def plot_class_dist_lung(cycles):
     return _save(fig, "class_dist_lung.png")
 
 
-# Duration histograms
 def plot_duration_hist_heart(manifest):
     """Heart recording duration histogram (seconds)."""
     heart = manifest[manifest["modality"] == "heart"]
@@ -151,7 +144,6 @@ def plot_duration_hist_lung(manifest):
     return _save(fig, "duration_hist_lung.png")
 
 
-# Per-database / per-class breakdowns
 def plot_heart_per_db(manifest):
     """Heart per-database (A–E) recording counts."""
     heart = manifest[manifest["modality"] == "heart"].copy()
@@ -181,7 +173,6 @@ def plot_lung_per_class(cycles):
     return _save(fig, "lung_per_class_counts.png")
 
 
-# Native sampling-rate heterogeneity (ICBHI)
 def plot_icbhi_native_sr(manifest):
     """Distribution of ICBHI native sampling rates (header-only via sf.info)."""
     lung = manifest[manifest["modality"] == "lung"]
@@ -204,7 +195,6 @@ def plot_icbhi_native_sr(manifest):
     return _save(fig, "icbhi_native_sr_hist.png")
 
 
-# Example waveform + log-mel panels
 def _waveform_logmel_panel(path, sr, title, out_name):
     """Render a (waveform, log-mel) 2-panel figure for one representative file."""
     y = load_resampled(path, target_sr=sr)
@@ -230,7 +220,6 @@ def plot_example_panels(manifest, cycles):
     """One example waveform+log-mel panel per class for each modality."""
     outputs = []
 
-    # Heart: one representative recording per class.
     heart = manifest[manifest["modality"] == "heart"]
     for label_val, label_name in HEART_LABEL_NAMES.items():
         subset = heart[heart["label"] == label_val]
@@ -241,7 +230,6 @@ def plot_example_panels(manifest, cycles):
             path, config.SR_HEART, f"Heart {label_name}",
             f"example_panel_heart_{label_name}.png"))
 
-    # Lung: one representative cycle per class (full recording shown for context).
     for cls in LUNG_CLASS_ORDER:
         subset = cycles[cycles["label"] == cls]
         if subset.empty:

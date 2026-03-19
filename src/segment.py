@@ -6,7 +6,7 @@ tail and near-silent windows, and returns in-memory ndarrays (nothing is written
 to disk). Every emitted segment has the same shape ``(int(win_s*fs),)`` — 12000
 samples for the heart 3.0 s @ 4000 Hz default.
 """
-from src import config  # noqa: F401 — import first to seed RNGs deterministically
+from src import config
 
 import numpy as np
 
@@ -44,9 +44,9 @@ def segment_fixed(y, win_s=3.0, hop_s=1.5, fs=4000, max_silence_fraction=0.8, ep
     for start in range(0, max(1, len(y) - win + 1), hop):
         seg = y[start:start + win]
         if len(seg) < win:
-            continue  # drop ragged tail
+            continue
         if np.mean(np.abs(seg) < eps) > max_silence_fraction:
-            continue  # silence guard
+            continue
         segs.append(seg)
 
     if segs:

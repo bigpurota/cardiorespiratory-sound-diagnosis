@@ -16,10 +16,8 @@ import urllib.request
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-from src import config  # imported first to seed RNGs and expose paths
+from src import config
 
-# Canonical source is Harvard Dataverse DOI 10.7910/DVN/HT6PKI; in practice we
-# fetch the raymin0223 mirror (920 rows, roughly a 62/38 train/test split).
 MIRRORS = [
     "https://raw.githubusercontent.com/raymin0223/patch-mix_contrastive_learning/"
     "main/data/icbhi_dataset/official_split.txt",
@@ -88,14 +86,13 @@ def fetch_official_split(timeout=15):
     for url in MIRRORS:
         try:
             txt = urllib.request.urlopen(url, timeout=timeout).read().decode()
-        except Exception as exc:  # try the next mirror on any network/HTTP failure
+        except Exception as exc:
             print(f"[WARN] {url} unreachable: {exc}", file=sys.stderr)
             continue
 
         rows = [ln.split() for ln in txt.splitlines() if ln.strip()]
         if _validate(rows):
             return rows, url
-        # validation failed: don't trust this mirror, try the next one
 
     return None, None
 

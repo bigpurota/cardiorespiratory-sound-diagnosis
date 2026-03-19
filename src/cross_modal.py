@@ -20,7 +20,6 @@ scaler, no SMOTE.
 """
 import os
 
-# macOS duplicate-OpenMP-runtime guard; must run before the first ``import torch``.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -28,15 +27,15 @@ import copy
 import time
 import random as _random
 
-from src import config  # noqa: F401 — import first for the SEED=42 side effect (determinism)
+from src import config
 
 import numpy as np
 import torch
 import torch.nn as nn
 
-from src.cnn import SmallCNN, build_efficientnet_b0, count_params  # noqa: F401
-from src.datasets import build_loaders  # noqa: F401
-from src.train_cnn import (  # noqa: F401
+from src.cnn import SmallCNN, build_efficientnet_b0, count_params
+from src.datasets import build_loaders
+from src.train_cnn import (
     train_one_model,
     evaluate,
     run_modality,
@@ -47,7 +46,7 @@ from src.train_cnn import (  # noqa: F401
     LUNG_LABELS,
     LUNG_NORMAL_LABEL,
 )
-from src.metrics import (  # noqa: F401
+from src.metrics import (
     majority_vote,
     heart_macc,
     icbhi_score,
@@ -56,7 +55,7 @@ from src.metrics import (  # noqa: F401
     accuracy,
     save_cm,
 )
-from src.split import assert_no_patient_leakage  # noqa: F401
+from src.split import assert_no_patient_leakage
 
 __all__ = [
     "build_shared_encoder",
@@ -68,8 +67,8 @@ __all__ = [
 ]
 
 import matplotlib
-matplotlib.use("Agg")  # headless backend, must precede the pyplot import
-import matplotlib.pyplot as plt  # noqa: E402
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 RESULTS_DIR = config.RESULTS_DIR
 FIGURES_DIR = os.path.join(RESULTS_DIR, "figures")
@@ -104,15 +103,13 @@ def build_shared_encoder(arch="cnn", for_effnet=False):
         feature_dim = m.num_features
         return m, feature_dim
     else:
-        # CNN: pull features + pool + flatten out of a default SmallCNN; n_classes is
-        # irrelevant here since we discard the head.
         _tmp = SmallCNN(n_classes=2)
         encoder = nn.Sequential(
             _tmp.features,
             _tmp.pool,
             nn.Flatten(),
         )
-        feature_dim = 128  # widths[-1] of the default (16, 32, 64, 128)
+        feature_dim = 128
         return encoder, feature_dim
 
 
@@ -179,7 +176,6 @@ def transfer_modality(
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # Source loaders (build_loaders re-asserts leakage internally).
     src_loaders = build_loaders(
         source_cache, source_modality,
         for_effnet=for_effnet, batch_size=batch_size, seed=seed,
@@ -190,7 +186,6 @@ def transfer_modality(
     src_pid = np.asarray(source_cache["patient_id"])
     assert_no_patient_leakage(src_pid[src_split == "train"], src_pid[src_split == "test"])
 
-    # Build encoder + source-sized head and pretrain on the source.
     encoder, feature_dim = build_shared_encoder(arch, for_effnet=for_effnet)
     source_model = _EncoderWithHead(encoder, feature_dim, src_n_classes)
 
@@ -213,7 +208,6 @@ def transfer_modality(
         curve_png=os.path.join(out_dir, f"curve_pretrain_{source_modality}_{model_name}.png"),
     )
 
-    # Target loaders.
     tgt_loaders = build_loaders(
         target_cache, target_modality,
         for_effnet=for_effnet, batch_size=batch_size, seed=seed,
@@ -224,15 +218,12 @@ def transfer_modality(
     tgt_pid = np.asarray(target_cache["patient_id"])
     assert_no_patient_leakage(tgt_pid[tgt_split == "train"], tgt_pid[tgt_split == "test"])
 
-    # Head swap: keep the pretrained encoder, replace the head with a fresh one sized to
-    # the target class count.
     transfer_model = _EncoderWithHead(
         source_model.encoder,
         feature_dim,
         tgt_n_classes,
     )
 
-    # Fine-tune the encoder + new head on the target.
     tgt_criterion = nn.CrossEntropyLoss(
         weight=tgt_loaders["class_weights"].to(device)
     )
@@ -252,7 +243,6 @@ def transfer_modality(
         curve_png=os.path.join(out_dir, f"curve_finetune_{target_modality}_{model_name}.png"),
     )
 
-    # Evaluate on the target test loader.
     transfer_model.eval()
     y_test, preds, win_score = _predict_test(transfer_model, tgt_loaders["test_loader"], device)
 
@@ -267,7 +257,7 @@ def transfer_modality(
         try:
             save_cm(y_true_rec, y_pred_rec, HEART_LABELS, f"transfer {source_modality}→{target_modality}", cm_png)
         except AssertionError:
-            pass  # skip a degenerate confusion matrix on tiny runs
+            pass
         primary_metric_name = "MAcc"
         primary_metric = float(m["MAcc"])
         Se = float(m["Se"])
@@ -370,7 +360,6 @@ def train_joint(
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # Leakage-safe loaders for both modalities.
     heart_loaders = build_loaders(
         heart_cache, "heart",
         for_effnet=for_effnet, batch_size=batch_size, seed=seed,
@@ -407,14 +396,12 @@ def train_joint(
         run_loss = 0.0
         seen = 0
 
-        # Interleave heart and lung TRAIN batches deterministically (zip cycling shorter).
         heart_iter = iter(heart_loaders["train_loader"])
         lung_iter = iter(lung_loaders["train_loader"])
         h_len = len(heart_loaders["train_loader"])
         l_len = len(lung_loaders["train_loader"])
         n_batches = max(h_len, l_len)
 
-        # Cycle whichever loader is shorter.
         import itertools
         if h_len >= l_len:
             paired = zip(
@@ -429,7 +416,6 @@ def train_joint(
 
         capped = False
         for (xh, yh), (xl, yl) in paired:
-            # Heart batch
             xh, yh = xh.to(device), yh.to(device)
             opt.zero_grad()
             out_h = model(xh, "heart")
@@ -439,7 +425,6 @@ def train_joint(
             run_loss += loss_h.item() * xh.size(0)
             seen += xh.size(0)
 
-            # Lung batch
             xl, yl = xl.to(device), yl.to(device)
             opt.zero_grad()
             out_l = model(xl, "lung")
@@ -455,10 +440,8 @@ def train_joint(
 
         epoch_list.append(run_loss / max(1, seen))
 
-        # Validation: heart MAcc + lung ICBHI.
         model.eval()
         with torch.no_grad():
-            # Heart
             h_pred, h_true = [], []
             for xb, yb in heart_loaders["val_loader"]:
                 h_pred.append(model(xb.to(device), "heart").argmax(1).cpu())
@@ -467,7 +450,6 @@ def train_joint(
             h_true = torch.cat(h_true).numpy()
             val_heart = _val_macc(h_true, h_pred)
 
-            # Lung
             l_pred, l_true = [], []
             for xb, yb in lung_loaders["val_loader"]:
                 l_pred.append(model(xb.to(device), "lung").argmax(1).cpu())
@@ -520,7 +502,6 @@ def evaluate_joint(
 
     rows = []
 
-    # Heart test: recording-level majority vote -> MAcc.
     y_h, p_h, s_h = _predict_test(
         _ModalityAdapter(model, "heart"),
         heart_loaders["test_loader"],
@@ -552,7 +533,6 @@ def evaluate_joint(
         "n_test": heart_loaders["n_test"],
     })
 
-    # Lung test: cycle-level ICBHI score.
     y_l, p_l, _s_l = _predict_test(
         _ModalityAdapter(model, "lung"),
         lung_loaders["test_loader"],

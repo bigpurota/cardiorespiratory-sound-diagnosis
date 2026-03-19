@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Bounded random hyperparameter search, selecting strictly on the validation metric.
 
@@ -51,29 +50,24 @@ TABLES_DIR = PROJECT_ROOT / "results" / "tables"
 HPO_CSV = TABLES_DIR / "hpo_results.csv"
 HPO_JSON = TABLES_DIR / "hpo_best_configs.json"
 
-# Trials are round-robin assigned across GPUs 0..NUM_GPUS-1.
 NUM_GPUS = 4
 
-# Bounded search space; sampled per trial, reproducible given the search seed.
 SEARCH_SPACE = {
     "batch_size": [16, 32, 64],
     "aug_strength": [0.5, 1.0, 1.5],
     "label_smoothing": [0.0, 0.05, 0.1],
     "imbalance": ["class_weight", "weighted_sampler"],
     "patience": [5, 7, 10],
-    # CNN-only knobs
     "cnn_widths": [(16, 32, 64, 128), (32, 64, 128, 256)],
     "p": [0.3, 0.5],
 }
 
-# Learning rate ranges (log-uniform; model-specific, modality-independent).
 LR_BOUNDS = {
-    "cnn":   (3e-4, 3e-3),   # centre ~1e-3
-    "effnet": (3e-5, 3e-4),  # centre ~1e-4
+    "cnn":   (3e-4, 3e-3),
+    "effnet": (3e-5, 3e-4),
 }
 
-# weight_decay: log-uniform [1e-6, 1e-3] ∪ {0.0} — sample uniformly between 0.0 and log-range.
-WEIGHT_DECAY_INCLUDE_ZERO_PROB = 0.2   # 20% chance of exactly 0.0 (L2 off)
+WEIGHT_DECAY_INCLUDE_ZERO_PROB = 0.2
 WEIGHT_DECAY_LOG_BOUNDS = (1e-6, 1e-3)
 
 
@@ -90,25 +84,22 @@ def _sample_config(model_key, rng):
     config["sampler_mode"] = str(rng.choice(SEARCH_SPACE["imbalance"]))
     config["patience"] = int(rng.choice(SEARCH_SPACE["patience"]))
 
-    # Learning rate: log-uniform within model-specific bounds.
     lo, hi = LR_BOUNDS[model_key]
     config["lr"] = float(np.exp(rng.uniform(np.log(lo), np.log(hi))))
 
-    # Weight decay: 0.0 with prob WEIGHT_DECAY_INCLUDE_ZERO_PROB, else log-uniform.
     if rng.uniform() < WEIGHT_DECAY_INCLUDE_ZERO_PROB:
         config["weight_decay"] = 0.0
     else:
         lo_wd, hi_wd = WEIGHT_DECAY_LOG_BOUNDS
         config["weight_decay"] = float(np.exp(rng.uniform(np.log(lo_wd), np.log(hi_wd))))
 
-    # CNN-only knobs (ignored for effnet).
     if model_key == "cnn":
         idx = int(rng.choice(len(SEARCH_SPACE["cnn_widths"])))
         config["cnn_widths"] = list(SEARCH_SPACE["cnn_widths"][idx])
         config["p"] = float(rng.choice(SEARCH_SPACE["p"]))
     else:
         config["cnn_widths"] = None
-        config["p"] = 0.3  # unused for effnet; carries a default
+        config["p"] = 0.3
 
     return config
 
@@ -160,7 +151,7 @@ print("__ROW__" + json.dumps(out))
         result = subprocess.run(
             [python_exe, "-c", code],
             capture_output=True, text=True, env=env,
-            timeout=max(300, int(wall_cap_min * 120))  # at least 5 min for import+load overhead
+            timeout=max(300, int(wall_cap_min * 120))
         )
         elapsed = time.time() - t0
         for line in result.stdout.splitlines():
@@ -203,26 +194,23 @@ def main():
     n_trials = args.n_trials
 
     configs_to_run = list(product(args.modalities, args.models))
-    search_seed = args.seeds[0]  # first seed drives the search RNG
+    search_seed = args.seeds[0]
 
     print(f"[hpo] {len(configs_to_run)} configs × {n_trials} trials, "
           f"wall_cap={args.wall_cap_min}min/trial, search_seed={search_seed}")
     print(f"[hpo] GPUs=0-{NUM_GPUS-1}, modalities={args.modalities}, models={args.models}")
 
     all_trial_rows = []
-    best_configs = {}  # keyed "{modality}_{model}"
+    best_configs = {}
 
     for modality, model in configs_to_run:
         model_key = "effnet" if model in ("effnet", "effnet_b0") else "cnn"
         config_key = f"{modality}_{model_key}"
         print(f"\n[hpo] *** {modality}/{model} — {n_trials} trials ***")
 
-        # Per-combo seeded RNG for reproducible config sampling.
         combo_seed = search_seed + abs(hash((modality, model))) % 1000
         rng = np.random.default_rng(combo_seed)
 
-        # Pre-sample all configs up front so the sequence is deterministic regardless of
-        # trial execution order.
         all_hparams = [_sample_config(model_key, rng) for _ in range(n_trials)]
 
         trial_rows = []
@@ -244,7 +232,6 @@ def main():
             )
             return trial_idx, row, elapsed, gpu_id, hp
 
-        # Run up to NUM_GPUS trials in parallel to saturate the GPUs.
         with concurrent.futures.ThreadPoolExecutor(max_workers=NUM_GPUS) as executor:
             futures = {executor.submit(_run_trial_wrapper, i): i for i in range(n_trials)}
             for fut in concurrent.futures.as_completed(futures):
@@ -263,8 +250,6 @@ def main():
                         "patience": hp["patience"],
                         "cnn_widths": str(hp.get("cnn_widths")),
                         "p": hp.get("p", 0.3),
-                        # Selection is on best_val_score; primary_metric_test is recorded for
-                        # reference only and never used to choose a winner.
                         "best_val_score": row.get("best_val_score"),
                         "primary_metric_test": row.get("primary_metric"),
                         "epochs_ran": row.get("epochs_ran"),
@@ -280,12 +265,10 @@ def main():
                 else:
                     print(f"  [trial {trial_idx+1} FAILED] elapsed={elapsed:.0f}s", flush=True)
 
-        # Write all trial rows so far (cumulative).
         trial_df = pd.DataFrame(all_trial_rows)
         trial_df.to_csv(HPO_CSV, index=False)
 
         if trial_rows:
-            # Winner = argmax of best_val_score; the test metric is never the selection key.
             best_row = max(trial_rows, key=lambda r: r["best_val_score"])
             best_hparam = {
                 "learning_rate": best_row["learning_rate"],
@@ -319,7 +302,6 @@ def main():
     if all_trial_rows:
         df = pd.DataFrame(all_trial_rows)
         for (modality, model), grp in df.groupby(["modality", "model"]):
-            # Sort by best_val_score, the only selection signal.
             top = grp.sort_values("best_val_score", ascending=False).head(3)
             print(f"\n  {modality}/{model}:")
             for _, r in top.iterrows():

@@ -8,23 +8,16 @@ import pathlib
 
 import pytest
 
-# ---------------------------------------------------------------------------
-# Path constants
-# ---------------------------------------------------------------------------
 PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 
 CINC_ROOT = PROJECT_ROOT / "data" / "raw" / "cinc2016"
 ICBHI_ROOT = PROJECT_ROOT / "data" / "raw" / "icbhi2017"
 
-# ---------------------------------------------------------------------------
-# Expected dataset counts
-# ---------------------------------------------------------------------------
-CINC_EXPECTED = 3126  # total WAVs across training-a through training-e (A-E only, not F)
+CINC_EXPECTED = 3126
 
-ICBHI_EXPECTED_WAV = 920   # WAV files in ICBHI 2017
-ICBHI_EXPECTED_TXT = 920   # annotation TXT files (one per WAV)
+ICBHI_EXPECTED_WAV = 920
+ICBHI_EXPECTED_TXT = 920
 
-# Per-database recording counts for CinC 2016 (PMC7199391 Table 4)
 CINC_DB_COUNTS = {
     "training-a": 409,
     "training-b": 490,
@@ -33,10 +26,6 @@ CINC_DB_COUNTS = {
     "training-e": 2141,
 }
 
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 
 @pytest.fixture
 def cinc_available():
@@ -50,10 +39,6 @@ def icbhi_available():
     return ICBHI_ROOT.exists()
 
 
-# ---------------------------------------------------------------------------
-# Custom markers
-# ---------------------------------------------------------------------------
-
 def pytest_configure(config):
     """Register custom marks so pytest does not warn about unknown marks."""
     config.addinivalue_line(
@@ -61,10 +46,6 @@ def pytest_configure(config):
         "needs_data: mark test as requiring downloaded dataset(s) — skip if data absent",
     )
 
-
-# ---------------------------------------------------------------------------
-# Synthetic-signal fixture (no data dependency)
-# ---------------------------------------------------------------------------
 
 @pytest.fixture
 def synthetic_signal():
@@ -77,23 +58,19 @@ def synthetic_signal():
     low-amplitude Gaussian noise, as ``float32``. Returns a dict with the array
     and its native sampling rate so callers do not hard-code the SR.
     """
-    import numpy as np  # keep imports local so conftest stays config-free
+    import numpy as np
 
     rng = np.random.default_rng(42)
-    fs = 2000           # native rate (PhysioNet/CinC 2016 raw rate)
+    fs = 2000
     duration_s = 5.0
-    n = int(duration_s * fs)            # 10000 samples
+    n = int(duration_s * fs)
     t = np.arange(n, dtype=np.float64) / fs
-    tone = np.sin(2.0 * np.pi * 100.0 * t)        # 100 Hz cardiac-band tone
+    tone = np.sin(2.0 * np.pi * 100.0 * t)
     noise = 0.05 * rng.standard_normal(n)
     y = (tone + noise).astype("float32")
 
     return {"y": y, "sr": fs, "duration_s": duration_s, "n": n}
 
-
-# ---------------------------------------------------------------------------
-# Synthetic feature-matrix fixture (no data dependency)
-# ---------------------------------------------------------------------------
 
 @pytest.fixture
 def synthetic_feature_matrix():
@@ -116,29 +93,23 @@ def synthetic_feature_matrix():
     A mild class-dependent shift is added to ``X`` so the toy classifiers are not
     degenerate, while the fixed seed keeps the matrix fully reproducible.
     """
-    import numpy as np  # keep imports local so conftest stays config-free
+    import numpy as np
 
     rng = np.random.default_rng(42)
     n_groups = 12
     rows_per_group = 5
-    n_rows = n_groups * rows_per_group        # 60
+    n_rows = n_groups * rows_per_group
     n_features = 12
 
-    groups = np.repeat(np.arange(n_groups), rows_per_group)   # 12 groups × 5 rows
-    # Binary label per group (both classes present), expanded to per-row.
-    group_labels = np.array([g % 2 for g in range(n_groups)])  # 0,1,0,1,...
+    groups = np.repeat(np.arange(n_groups), rows_per_group)
+    group_labels = np.array([g % 2 for g in range(n_groups)])
     y = group_labels[groups].astype(int)
 
     X = rng.standard_normal((n_rows, n_features)).astype("float64")
-    # Add a small class-dependent shift so classifiers are separable (non-degenerate).
     X[y == 1] += 0.8
 
     return X, y, groups
 
-
-# ---------------------------------------------------------------------------
-# Synthetic spectrogram-cache fixture (no audio dependency)
-# ---------------------------------------------------------------------------
 
 @pytest.fixture
 def synthetic_spectrogram_cache():
@@ -171,7 +142,7 @@ def synthetic_spectrogram_cache():
     cache fully reproducible. ``N`` is kept small (heart 40, lung 64 rows) so smoke
     training runs in seconds on CPU.
     """
-    import numpy as np  # keep imports local so conftest stays config-free
+    import numpy as np
 
     rng = np.random.default_rng(42)
 
@@ -182,20 +153,15 @@ def synthetic_spectrogram_cache():
         for cls in range(n_classes):
             for g in range(groups_per_class):
                 pid = f"{id_prefix}{cls}_{g:02d}"
-                # Patient-level split: alternate whole patients into train/test so a
-                # patient never spans both folds (no patient leakage by construction).
                 this_split = "train" if (g % 2 == 0) else "test"
                 rows = n_per_class // groups_per_class
                 for r in range(rows):
                     spec = rng.standard_normal((H, W)).astype("float32")
-                    # Class-dependent shift -> separable, non-degenerate smoke model.
                     spec += float(cls) * 0.8
                     X_list.append(spec)
                     labels.append(cls)
                     patient_id.append(pid)
                     split.append(this_split)
-                    # Heart: one recording per patient (recording_id == patient_id).
-                    # Lung: several cycles per WAV-stem recording.
                     recording_id.append(pid if heart_like else f"{pid}.wav")
         X = np.stack(X_list).astype("float32")
         return {
@@ -206,10 +172,8 @@ def synthetic_spectrogram_cache():
             "recording_id": np.asarray(recording_id, dtype=object),
         }
 
-    # Heart: 2 classes × 4 groups × 5 rows = 40 rows (>=4 groups for the val carve).
     heart = _build(n_classes=2, n_per_class=20, groups_per_class=4,
                    id_prefix="h", heart_like=True)
-    # Lung: 4 classes × 4 groups × 4 rows = 64 rows (all 4 cycle classes present).
     lung = _build(n_classes=4, n_per_class=16, groups_per_class=4,
                   id_prefix="l", heart_like=False)
 

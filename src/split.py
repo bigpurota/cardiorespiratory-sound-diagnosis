@@ -15,20 +15,17 @@ log provenance. If the fetch or validation fails, fall back to a seeded patient-
 import os
 import sys
 
-from src import config  # import first — seeds RNGs and exposes paths
+from src import config
 
-sys.path.insert(0, config.PROJECT_ROOT)  # allow `import scripts.fetch_icbhi_split`
+sys.path.insert(0, config.PROJECT_ROOT)
 
 DEFAULT_MANIFEST = os.path.join(config.DATA_PROCESSED, "manifest.csv")
 HEART_SPLITS_CSV = os.path.join(config.SPLITS_DIR, "heart_splits.csv")
 LUNG_SPLITS_CSV = os.path.join(config.SPLITS_DIR, "lung_splits.csv")
 LUNG_PROVENANCE = os.path.join(config.SPLITS_DIR, "lung_split_provenance.txt")
 
-# The official ICBHI split places these 2 patients in both train and test; force all
-# their recordings to the train side.
 OVERLAP_PATIENTS = {"156", "218"}
 
-# CinC 2016 training databases; the heart split is computed within these only.
 HEART_DBS = {"a", "b", "c", "d", "e"}
 
 
@@ -66,7 +63,6 @@ def make_heart_splits(
     df = pd.read_csv(manifest_csv)
     df = df[df.modality == "heart"].copy()
     df["db_source"] = df["db_source"].astype(str)
-    # Compute the split within A-E only; the private test set is never re-split.
     df = df[df["db_source"].isin(HEART_DBS)].copy()
     df["patient_id"] = df["patient_id"].astype(str)
 
@@ -112,14 +108,11 @@ def make_lung_splits(
     rows, source_url = fetch_official_split()
 
     if rows is not None:
-        # Official path: stem<TAB>train|test -> patient_id = stem.split('_')[0]
         rec = pd.DataFrame(rows, columns=["stem", "split"])
         rec["patient_id"] = rec["stem"].str.split("_").str[0].astype(str)
         rec["split"] = rec["split"].astype(str)
 
         out = rec[["patient_id", "split"]].copy()
-        # Force all recordings of the overlap patients (156, 218) to train so each patient
-        # lands on exactly one side and the disjoint assertion passes.
         repair_mask = out["patient_id"].isin(OVERLAP_PATIENTS)
         out.loc[repair_mask, "split"] = "train"
         out = out.drop_duplicates(subset=["patient_id"])
@@ -132,7 +125,6 @@ def make_lung_splits(
             "integrity; deviates from the official split by 2 patients.\n"
         )
     else:
-        # Fallback: seeded patient-level GroupShuffleSplit 60/40.
         from sklearn.model_selection import GroupShuffleSplit
 
         lung["split"] = "train"

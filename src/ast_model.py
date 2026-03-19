@@ -6,21 +6,18 @@ Wraps a pretrained AudioSet AST checkpoint so it exposes the same
 shared training and evaluation loop drive it unchanged. ``count_params`` is
 re-exported from ``src.cnn``.
 """
-from src import config  # noqa: F401 — import first to seed RNGs deterministically
+from src import config
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.cnn import count_params  # noqa: F401 — re-export
+from src.cnn import count_params
 
 __all__ = ["build_ast", "_to_ast_input", "ASTWrapper", "count_params"]
 
-# Default pretrained AudioSet AST checkpoint (public HF Hub, no token needed).
 _DEFAULT_CHECKPOINT = "MIT/ast-finetuned-audioset-10-10-0.4593"
 
-# AST checkpoint's expected mel/time dimensions. Read off the loaded config at
-# build time; exposed as constants so _to_ast_input can be used without the model.
 _AST_NUM_MEL_BINS = 128
 _AST_MAX_LENGTH = 1024
 
@@ -42,20 +39,16 @@ def _to_ast_input(spec, num_mel_bins=_AST_NUM_MEL_BINS, max_length=_AST_MAX_LENG
     torch.Tensor, shape ``(max_length, num_mel_bins)``
         ``input_values`` tensor for ``ASTForAudioClassification.forward``.
     """
-    # DataLoader yields (1, 64, 128); accept bare (64, 128) when called directly.
     if spec.dim() == 3:
         spec = spec.squeeze(0)
 
-    # Per-clip min-max scaling to [0, 1] (only this clip's stats).
     s = (spec - spec.min()) / (spec.max() - spec.min() + 1e-8)
 
-    # Frequency interpolation 64 -> num_mel_bins; treat spec as a (1, 1, H, W) image.
     s_4d = s.unsqueeze(0).unsqueeze(0)
     s_resized = F.interpolate(
         s_4d, size=(num_mel_bins, 128), mode="bilinear", align_corners=False
     ).squeeze(0).squeeze(0)
 
-    # Time axis: right-pad with zeros to max_length, or trim.
     T = s_resized.shape[1]
     if T < max_length:
         pad_cols = max_length - T
@@ -63,7 +56,6 @@ def _to_ast_input(spec, num_mel_bins=_AST_NUM_MEL_BINS, max_length=_AST_MAX_LENG
     else:
         s_time = s_resized[:, :max_length]
 
-    # AST expects input_values as (max_length, num_mel_bins).
     return s_time.transpose(0, 1).contiguous()
 
 
@@ -82,7 +74,6 @@ class ASTWrapper(nn.Module):
 
     def forward(self, x):
         """``(B, 1, 64, 128)`` -> raw logits ``(B, n_classes)`` (no softmax)."""
-        # Adapt each sample independently (per-clip scaling).
         adapted = torch.stack(
             [_to_ast_input(x[i], self.num_mel_bins, self.max_length) for i in range(x.shape[0])]
         )
@@ -120,10 +111,9 @@ def build_ast(n_classes, checkpoint=_DEFAULT_CHECKPOINT):
     hf_model = AutoModelForAudioClassification.from_pretrained(
         checkpoint,
         num_labels=n_classes,
-        ignore_mismatched_sizes=True,  # replaces the 527-class AudioSet head
+        ignore_mismatched_sizes=True,
     )
 
-    # Read mel/time dimensions from the loaded config to stay consistent with weights.
     cfg = hf_model.config
     num_mel_bins = getattr(cfg, "num_mel_bins", _AST_NUM_MEL_BINS)
     max_length = getattr(cfg, "max_length", _AST_MAX_LENGTH)

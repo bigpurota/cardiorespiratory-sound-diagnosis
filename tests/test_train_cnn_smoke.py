@@ -28,7 +28,7 @@ def _import(module_name):
     """Import `module_name`, skipping (not erroring) if absent."""
     try:
         return importlib.import_module(module_name)
-    except Exception as exc:  # pragma: no cover - defensive (module absent)
+    except Exception as exc:
         pytest.skip(f"{module_name} not implemented yet: {exc}")
 
 
@@ -68,7 +68,6 @@ def _run(entry, payload, modality, tmp_path, **over):
         result = entry(**kwargs)
     except TypeError as exc:
         pytest.skip(f"src.train_cnn smoke entry signature not finalized yet: {exc}")
-    # Normalize to a metrics dict.
     if isinstance(result, tuple):
         for part in result:
             if isinstance(part, dict):
@@ -78,8 +77,6 @@ def _run(entry, payload, modality, tmp_path, **over):
         return result
     pytest.skip("src.train_cnn run return shape not recognized yet")
 
-
-# Metric suite: correct primary metric + full suite for both modalities
 
 def test_metric_suite(synthetic_spectrogram_cache, tmp_path):
     """A tiny heart + lung run carries the correct primary metric + full metric suite.
@@ -104,8 +101,6 @@ def test_metric_suite(synthetic_spectrogram_cache, tmp_path):
             assert col in m, f"{modality}: metric dict missing '{col}'"
 
 
-# One tiny run writes a learning-curve PNG
-
 def test_learning_curve_png(synthetic_spectrogram_cache, tmp_path):
     """A tiny training run writes a learning-curve PNG to the output dir."""
     train_cnn = _import("src.train_cnn")
@@ -114,7 +109,6 @@ def test_learning_curve_png(synthetic_spectrogram_cache, tmp_path):
     out_dir = tmp_path / "heart"
     m = _run(entry, synthetic_spectrogram_cache["heart"], "heart", out_dir)
 
-    # Prefer an explicit path in the returned dict; otherwise scan the out dir.
     png = m.get("curve_png") or m.get("learning_curve_png")
     if png:
         assert os.path.exists(png), f"learning-curve PNG not written: {png}"
@@ -124,8 +118,6 @@ def test_learning_curve_png(synthetic_spectrogram_cache, tmp_path):
             f"no learning-curve PNG found under {out_dir}"
         )
 
-
-# Early stop: epochs_ran <= max_epochs and patience is honored
 
 def test_early_stop(synthetic_spectrogram_cache, tmp_path):
     """A plateauing run with patience=1 stops at/before max_epochs (early-stop honored).
@@ -149,8 +141,6 @@ def test_early_stop(synthetic_spectrogram_cache, tmp_path):
         "early-stop / wall-cap must bound the loop."
     )
 
-
-# The tiny run's TEST-set confusion matrix is non-degenerate
 
 def test_non_degenerate_cm(synthetic_spectrogram_cache, tmp_path):
     """``save_cm`` on the tiny run's TEST predictions does not raise (>=2 CM columns).
@@ -178,6 +168,5 @@ def test_non_degenerate_cm(synthetic_spectrogram_cache, tmp_path):
     y_pred = np.asarray(y_pred)
     labels = sorted(set(y_true.tolist()) | set(y_pred.tolist()))
     out_png = tmp_path / "cm_heart_cnn.png"
-    # save_cm calls assert_not_degenerate first; this must NOT raise for the smoke run.
     cols_used = metrics.save_cm(y_true, y_pred, labels, "smoke heart cnn", str(out_png))
     assert cols_used >= 2, "smoke run CM is degenerate (<2 predicted columns)"

@@ -12,7 +12,7 @@ if _np_spec is not None:
 
 
 def _run_seeded():
-    from src import config  # importing config seeds all RNGs
+    from src import config
     import numpy as _np
     rng = _np.random.RandomState(config.SEED)
     data = rng.randn(1000)

@@ -15,7 +15,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))
 MANIFEST_PATH = PROJECT_ROOT / "data" / "processed" / "manifest.csv"
 LUNG_CYCLES_PATH = PROJECT_ROOT / "data" / "processed" / "lung_cycles.csv"
 
-# Exact, order-sensitive manifest header.
 EXPECTED_COLUMNS = [
     "filepath",
     "patient_id",
@@ -26,11 +25,9 @@ EXPECTED_COLUMNS = [
     "segment_id",
 ]
 
-# Heart label distribution across databases A–E.
-HEART_NORMAL_COUNT = 2495    # label == -1
-HEART_ABNORMAL_COUNT = 631   # label == 1
+HEART_NORMAL_COUNT = 2495
+HEART_ABNORMAL_COUNT = 631
 
-# ICBHI cycle-level 4-class distribution.
 LUNG_CLASS_COUNTS = {
     "normal": 3642,
     "crackle": 1864,
@@ -46,8 +43,6 @@ def _read_csv(path):
     import pandas as pd
     return pd.read_csv(path)
 
-
-# Schema + total join
 
 def test_columns():
     """manifest.csv header must equal the expected columns, in order."""
@@ -72,8 +67,6 @@ def test_files_exist():
         f"{len(missing)} manifest filepaths do not exist on disk, e.g. {missing[:5]}"
     )
 
-
-# Label distributions
 
 def test_heart_label_dist():
     """Heart rows: 2495 normal(-1) / 631 abnormal(1); zero unsure(0) rows."""

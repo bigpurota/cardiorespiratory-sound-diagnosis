@@ -17,8 +17,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))
 TABLES_DIR = PROJECT_ROOT / "results" / "tables"
 UNIFIED_CSV = TABLES_DIR / "unified_comparison.csv"
 
-# unified_comparison.csv column set — identical to scripts/run_classical.py's
-# UNIFIED_COLUMNS (exact order, 12 columns "modality" … "n_test").
 UNIFIED_COLUMNS = [
     "modality", "feature_set", "model", "primary_metric_name", "primary_metric",
     "Se", "Sp", "macro_f1", "auc_roc", "accuracy", "n_train", "n_test",
@@ -26,9 +24,9 @@ UNIFIED_COLUMNS = [
 
 CLASSICAL_MODELS = ["logreg", "svm", "rf", "xgb"]
 DL_MODELS = ["cnn", "effnet_b0"]
-UNIFIED_CLASSICAL_ROWS = 16   # 2 modalities × 2 feature sets × 4 models
-UNIFIED_DL_ROWS = 4           # cnn/effnet_b0 × heart/lung
-UNIFIED_TOTAL_ROWS = 20       # 16 classical + 4 DL (long format)
+UNIFIED_CLASSICAL_ROWS = 16
+UNIFIED_DL_ROWS = 4
+UNIFIED_TOTAL_ROWS = 20
 
 
 def _read_csv(path):
@@ -49,8 +47,6 @@ def _skip_if_not_dl_updated(df):
         )
 
 
-# DL-appended unified_comparison.csv matches UNIFIED_COLUMNS exactly
-
 def test_unified_schema():
     """unified_comparison.csv columns == UNIFIED_COLUMNS in EXACT order after the DL merge.
 
@@ -66,8 +62,6 @@ def test_unified_schema():
     )
 
 
-# Matrix complete: all 4 DL rows present + 16 classical rows survive
-
 def test_matrix_complete():
     """After the DL merge: cnn+effnet_b0 rows exist for BOTH modalities; classical rows survive.
 
@@ -80,7 +74,6 @@ def test_matrix_complete():
 
     assert "modality" in df.columns, "unified_comparison.csv missing 'modality' column"
 
-    # Each DL model must appear for BOTH heart and lung.
     for model in DL_MODELS:
         for modality in ("heart", "lung"):
             present = (
@@ -95,7 +88,6 @@ def test_matrix_complete():
         f"expected {UNIFIED_DL_ROWS} DL rows (2 models × 2 modalities); got {len(dl)}"
     )
 
-    # The 16 classical rows must survive the DL merge (long-format preservation).
     classical = df[df["model"].isin(CLASSICAL_MODELS)]
     assert len(classical) == UNIFIED_CLASSICAL_ROWS, (
         f"the {UNIFIED_CLASSICAL_ROWS} classical rows must survive the DL merge; "

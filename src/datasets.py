@@ -8,7 +8,7 @@ split and re-checked for patient leakage. Class weights come from train labels o
 """
 import warnings
 
-from src import config  # noqa: F401 — import FIRST for the SEED=42 side effect (determinism)
+from src import config
 
 import numpy as np
 import torch
@@ -27,14 +27,12 @@ __all__ = [
     "build_loaders",
 ]
 
-# ImageNet normalisation for the EfficientNet-B0 transfer path (timm default cfg).
 _IMAGENET_MEAN = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
 _IMAGENET_STD = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
 
-# SpecAugment + noise defaults (conservative).
-_FREQ_MASK_PARAM = 8   # mask up to 8 of 64 mel bins
-_TIME_MASK_PARAM = 16  # mask up to 16 of 128 frames
-_NOISE_SIGMA = 0.05    # dB-domain Gaussian-noise std (light)
+_FREQ_MASK_PARAM = 8
+_TIME_MASK_PARAM = 16
+_NOISE_SIGMA = 0.05
 
 
 def _to_effnet_image(spec):
@@ -44,11 +42,11 @@ def _to_effnet_image(spec):
     tile 1->3 channels, bilinearly resize to 224x224, then ImageNet mean/std normalise.
     """
     s = (spec - spec.min()) / (spec.max() - spec.min() + 1e-8)
-    img = s.unsqueeze(0).repeat(3, 1, 1)  # (3,64,128)
+    img = s.unsqueeze(0).repeat(3, 1, 1)
     img = F.interpolate(
         img.unsqueeze(0), size=(224, 224), mode="bilinear", align_corners=False
     ).squeeze(0)
-    return (img - _IMAGENET_MEAN) / _IMAGENET_STD  # (3,224,224)
+    return (img - _IMAGENET_MEAN) / _IMAGENET_STD
 
 
 class SpectrogramDataset(Dataset):
@@ -65,7 +63,6 @@ class SpectrogramDataset(Dataset):
         self.y = np.asarray(y, dtype=int)
         self.augment = augment
         self.for_effnet = for_effnet
-        # Transforms are built unconditionally but only invoked when self.augment is True.
         self.freq_mask = T.FrequencyMasking(freq_mask_param=_FREQ_MASK_PARAM)
         self.time_mask = T.TimeMasking(time_mask_param=_TIME_MASK_PARAM)
         self.noise_sigma = _NOISE_SIGMA
@@ -74,15 +71,15 @@ class SpectrogramDataset(Dataset):
         return len(self.y)
 
     def __getitem__(self, i):
-        spec = torch.as_tensor(self.X[i], dtype=torch.float32)  # (64,128)
+        spec = torch.as_tensor(self.X[i], dtype=torch.float32)
         if self.augment:
             spec = self.freq_mask(spec.unsqueeze(0)).squeeze(0)
             spec = self.time_mask(spec.unsqueeze(0)).squeeze(0)
             spec = spec + torch.randn_like(spec) * self.noise_sigma
         if self.for_effnet:
-            x = _to_effnet_image(spec)              # (3,224,224)
+            x = _to_effnet_image(spec)
         else:
-            x = spec.unsqueeze(0)                   # (1,64,128) for the small CNN
+            x = spec.unsqueeze(0)
         return x, int(self.y[i])
 
 
@@ -106,7 +103,6 @@ def carve_val(X_train, y_train, pid_train, test_size=0.2, seed=42, n_classes=Non
 
     tr_idx, va_idx = _split(test_size)
 
-    # Class-presence guard for the 4-class lung modality.
     if n_classes is not None and n_classes > 2:
         present = set(np.unique(y_train[va_idx]).tolist())
         if len(present) < n_classes:
@@ -184,7 +180,6 @@ def build_loaders(
 
     assert_no_patient_leakage(pid_tr_all, pid_te)
 
-    # carve_val also re-checks (train, val) leakage internally.
     tr_idx, va_idx = carve_val(
         X_tr_all, y_tr_all, pid_tr_all, test_size=0.2, seed=seed, n_classes=n_classes
     )
@@ -192,14 +187,11 @@ def build_loaders(
     X_tr, y_tr = X_tr_all[tr_idx], y_tr_all[tr_idx]
     X_va, y_va = X_tr_all[va_idx], y_tr_all[va_idx]
 
-    # Scale augmentation params for the train set only; val/test stay un-augmented.
     scaled_freq = max(1, round(_FREQ_MASK_PARAM * aug_strength))
     scaled_time = max(1, round(_TIME_MASK_PARAM * aug_strength))
     scaled_noise = float(_NOISE_SIGMA * aug_strength)
 
     train_ds = SpectrogramDataset(X_tr, y_tr, augment=True, for_effnet=for_effnet)
-    # Override params on the instance only; module constants stay unchanged so no global
-    # state is mutated (safe for concurrent subprocess runs).
     train_ds.freq_mask = T.FrequencyMasking(freq_mask_param=scaled_freq)
     train_ds.time_mask = T.TimeMasking(time_mask_param=scaled_time)
     train_ds.noise_sigma = scaled_noise
@@ -211,10 +203,8 @@ def build_loaders(
 
     gen = torch.Generator().manual_seed(seed)
     if sampler_mode == "weighted_sampler":
-        # Per-sample weights from train inverse class frequency; seeded generator for
-        # reproducibility. shuffle=False because the sampler sets the sampling order.
         class_freq = np.bincount(y_tr, minlength=n_classes).astype(float)
-        class_freq = np.where(class_freq == 0, 1.0, class_freq)  # avoid /0
+        class_freq = np.where(class_freq == 0, 1.0, class_freq)
         inv_freq = 1.0 / class_freq
         sample_weights = torch.tensor([inv_freq[yi] for yi in y_tr], dtype=torch.double)
         sampler = WeightedRandomSampler(
@@ -224,7 +214,6 @@ def build_loaders(
             train_ds, batch_size=batch_size, sampler=sampler, num_workers=0
         )
     else:
-        # Default "class_weight" path: seeded shuffle=True.
         train_loader = DataLoader(
             train_ds, batch_size=batch_size, shuffle=True, generator=gen, num_workers=0
         )

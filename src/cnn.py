@@ -6,12 +6,12 @@ Model definitions and builders only — no training logic (that lives in
 EfficientNet-B0 transfer model, and ``count_params``. The EfficientNet image
 adapter is re-exported from ``src.datasets``.
 """
-from src import config  # noqa: F401 — import first to seed RNGs deterministically
+from src import config
 
 import torch.nn as nn
 import timm
 
-from src.datasets import _to_effnet_image  # noqa: F401 — re-export
+from src.datasets import _to_effnet_image
 
 __all__ = ["SmallCNN", "build_efficientnet_b0", "count_params", "_to_effnet_image"]
 
@@ -28,7 +28,6 @@ class SmallCNN(nn.Module):
     def __init__(self, n_classes, p=0.3, widths=(16, 32, 64, 128)):
         super().__init__()
         if p < 0.3:
-            # Keep enough dropout to regularise the from-scratch baseline.
             raise ValueError(f"SmallCNN dropout p must be >= 0.3; got {p}")
         widths = tuple(widths)
         if len(widths) != 4:

@@ -47,13 +47,9 @@ id_ed25519.pub
 .env
 *.pem
 
-# Local reference materials (official course annexes + title-page templates —
-# bulky / course-copyright; kept locally under reference/, documented in reference/README.md)
-reference/*.pdf
-reference/*.docx
-reference/*.zip
-# official FCS LaTeX template (reference only)
-reference/CourseworkTemplateEng/
+# Local reference materials (official course annexes, templates, admin docs) —
+# kept locally only, not part of the committed deliverable
+reference/
 
 # DO NOT gitignore the following: uv.lock, requirements.txt, .python-version, params/, results/tables/, results/figures/
 # uv.lock               — exact dependency lockfile (commit this)

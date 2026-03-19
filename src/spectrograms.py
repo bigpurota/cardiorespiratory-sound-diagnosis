@@ -10,7 +10,7 @@ frames. ``n_fft=512`` (not 256) avoids torchaudio's empty-mel-filterbank warning
 the narrow heart 20–400 Hz band; it is used for both modalities. fmin/fmax come from
 the per-modality bandpass: heart ``make_mel(20, 400)``, lung ``make_mel(200, 1800)``.
 """
-from src import config  # noqa: F401 — import first to seed RNGs deterministically
+from src import config
 
 import numpy as np
 import torch
@@ -18,10 +18,9 @@ import torchaudio.transforms as T
 
 __all__ = ["make_mel", "window_to_logmel"]
 
-# Fixed contract: 12000-sample window -> (64 mel bins, 128 frames).
 N_MELS = 64
 N_FRAMES = 128
-WINDOW_SAMPLES = 12000  # 3.0 s @ 4000 Hz
+WINDOW_SAMPLES = 12000
 
 
 def make_mel(fmin, fmax, sr=4000, n_fft=512, hop=94, n_mels=64):
@@ -59,6 +58,6 @@ def window_to_logmel(window_12000, mel):
     The caller must pad/trim lung cycles to exactly 12000 samples before this call.
     """
     x = torch.as_tensor(window_12000, dtype=torch.float32)
-    spec = mel(x)  # (64, 128) dB
+    spec = mel(x)
     assert spec.shape == (64, 128), f"log-mel shape drift: expected (64, 128) got {tuple(spec.shape)}"
     return spec.numpy().astype("float32")

@@ -6,16 +6,16 @@ Provides recording-level majority voting, the CinC 2016 heart MAcc, the official
 small per-class/F1/accuracy helpers. The matplotlib Agg backend is set before importing
 pyplot so figures render with no display.
 """
-from src import config  # noqa: F401 — import FIRST for the SEED=42 side effect (determinism)
+from src import config
 
 import numpy as np
 import pandas as pd
 
 import matplotlib
-matplotlib.use("Agg")  # MUST precede pyplot import — headless (§Pattern 7)
-import matplotlib.pyplot as plt  # noqa: E402
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
-from sklearn.metrics import (  # noqa: E402
+from sklearn.metrics import (
     confusion_matrix,
     roc_auc_score,
     f1_score,
@@ -55,8 +55,8 @@ def heart_macc(y_true_rec, y_pred_rec, y_score_rec=None):
     y_true_rec = np.asarray(y_true_rec)
     y_pred_rec = np.asarray(y_pred_rec)
     tn, fp, fn, tp = confusion_matrix(y_true_rec, y_pred_rec, labels=[0, 1]).ravel()
-    Se = tp / (tp + fn) if (tp + fn) else 0.0   # recall abnormal
-    Sp = tn / (tn + fp) if (tn + fp) else 0.0   # recall normal
+    Se = tp / (tp + fn) if (tp + fn) else 0.0
+    Sp = tn / (tn + fp) if (tn + fp) else 0.0
     out = {
         "MAcc": (Se + Sp) / 2,
         "Se": Se,
@@ -65,8 +65,6 @@ def heart_macc(y_true_rec, y_pred_rec, y_score_rec=None):
         "accuracy": float((y_true_rec == y_pred_rec).mean()),
     }
     if y_score_rec is not None:
-        # AUC needs a recording-level score (mean abnormal-class probability per recording);
-        # guard the single-class case where roc_auc_score is undefined.
         try:
             out["auc_roc"] = roc_auc_score(y_true_rec, y_score_rec)
         except ValueError:
@@ -90,7 +88,6 @@ def icbhi_score(y_true, y_pred, normal_label=3):
     return {"ICBHI_Score": (Se + Sp) / 2, "Se": float(Se), "Sp": float(Sp)}
 
 
-# Secondary helpers
 def per_class_se(y_true, y_pred, labels):
     """Per-class recall (sensitivity) as a {label: recall} dict."""
     rec = recall_score(y_true, y_pred, labels=labels, average=None, zero_division=0)
@@ -129,8 +126,6 @@ def save_cm(y_true, y_pred, labels, title, out_png):
     ConfusionMatrixDisplay(cm, display_labels=labels).plot(
         ax=ax, colorbar=False, cmap="Blues", values_format="d")
     ax.grid(False)
-    # No chart title: the report figure caption serves that role. `title` is kept in the
-    # signature for call-site compatibility.
     _ = title
     fig.tight_layout()
     fig.savefig(out_png, dpi=150, bbox_inches="tight")

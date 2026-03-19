@@ -20,28 +20,24 @@ import pytest
 
 PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(pathlib.Path(__file__).parent))  # conftest import parity
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
 
 def _import(module_name):
     """Import ``module_name``, skipping (not erroring) if it is absent."""
     try:
         return importlib.import_module(module_name)
-    except Exception as exc:  # pragma: no cover — defensive (module not yet present)
+    except Exception as exc:
         pytest.skip(f"{module_name} not implemented yet or missing dependency: {exc}")
 
 
 def _require_transformers():
     """Skip the test if ``transformers`` is not installed."""
     try:
-        import transformers  # noqa: F401
+        import transformers
     except ImportError:
         pytest.skip("transformers not installed — skipping AST tests")
 
-
-# ---------------------------------------------------------------------------
-# _to_ast_input adapter shape (no transformers needed)
-# ---------------------------------------------------------------------------
 
 def test_ast_input_adapter_shape():
     """``_to_ast_input((64,128))`` returns a 2-D ``(max_length, num_mel_bins)`` tensor.
@@ -55,31 +51,25 @@ def test_ast_input_adapter_shape():
     if not hasattr(ast_mod, "_to_ast_input"):
         pytest.skip("src.ast_model._to_ast_input not implemented yet")
 
-    import torch  # noqa: E402
+    import torch
 
-    # Default AST checkpoint dimensions: num_mel_bins=128, max_length=1024.
     num_mel_bins = 128
     max_length = 1024
 
     spec = torch.randn(64, 128)
     out = ast_mod._to_ast_input(spec, num_mel_bins=num_mel_bins, max_length=max_length)
-    expected_shape = (max_length, num_mel_bins)  # (1024, 128)
+    expected_shape = (max_length, num_mel_bins)
     assert out.dim() == 2, f"_to_ast_input must return a 2-D tensor; got shape {tuple(out.shape)}"
     assert tuple(out.shape) == expected_shape, (
         f"_to_ast_input must return shape {expected_shape}; got {tuple(out.shape)}"
     )
 
-    # Also accept (1, 64, 128) input (DataLoader adds the channel dim).
     spec_chan = torch.randn(1, 64, 128)
     out_chan = ast_mod._to_ast_input(spec_chan, num_mel_bins=num_mel_bins, max_length=max_length)
     assert tuple(out_chan.shape) == expected_shape, (
         f"_to_ast_input must handle (1,64,128) input; got {tuple(out_chan.shape)}"
     )
 
-
-# ---------------------------------------------------------------------------
-# build_ast forward shape: (B,1,64,128) -> (B,n_classes)  [needs transformers]
-# ---------------------------------------------------------------------------
 
 def test_build_ast_forward_shape():
     """``build_ast(n_classes).forward((B,1,64,128))`` → ``(B,n_classes)``.
@@ -93,7 +83,7 @@ def test_build_ast_forward_shape():
     if not hasattr(ast_mod, "build_ast"):
         pytest.skip("src.ast_model.build_ast not implemented yet")
 
-    import torch  # noqa: E402
+    import torch
 
     B = 2
     n_classes = 2
@@ -107,7 +97,6 @@ def test_build_ast_forward_shape():
         f"build_ast forward must emit (B,{n_classes}); got {tuple(out.shape)}"
     )
 
-    # 4-class head (lung modality).
     n_lung = 4
     model4 = ast_mod.build_ast(n_lung)
     model4.eval()
@@ -118,10 +107,6 @@ def test_build_ast_forward_shape():
     )
 
 
-# ---------------------------------------------------------------------------
-# unified_comparison.csv gains model='ast' rows, prior rows preserved
-# ---------------------------------------------------------------------------
-
 def test_unified_adds_ast():
     """``unified_comparison.csv`` gains ``model=='ast'`` rows once the AST run lands.
 
@@ -129,12 +114,11 @@ def test_unified_adds_ast():
     the 16 classical + 4 cnn/effnet rows (20 prior rows) are still intact so the
     idempotent merge has not clobbered earlier results.
     """
-    import pathlib  # noqa: E402
-    import sys  # noqa: E402
+    import pathlib
+    import sys
 
-    # pandas may or may not be available; skip cleanly if absent.
     try:
-        import pandas as pd  # noqa: E402
+        import pandas as pd
     except ImportError:
         pytest.skip("pandas not installed — skipping unified_adds_ast check.")
 
@@ -144,7 +128,6 @@ def test_unified_adds_ast():
 
     df = pd.read_csv(csv_path)
 
-    # No AST rows yet means the AST run hasn't happened — skip gracefully.
     n_ast = int((df["model"] == "ast").sum())
     if n_ast == 0:
         pytest.skip(
@@ -152,19 +135,16 @@ def test_unified_adds_ast():
             "Re-run this test after scripts/run_ast.py completes."
         )
 
-    # At least one AST row exists: verify the prior 20 rows are still present.
     n_prior = int((df["model"] != "ast").sum())
     assert n_prior >= 20, (
         f"Expected >= 20 non-AST rows (16 classical + 4 cnn/effnet) to be preserved; "
         f"got {n_prior}. The merge may have clobbered prior rows."
     )
 
-    # Expect one AST row per modality once the full run completed.
     assert n_ast in (1, 2), (
         f"Expected 1 or 2 model='ast' rows (1 per modality); got {n_ast}."
     )
 
-    # Total row count: 20 prior + 1–2 AST.
     total = len(df)
     assert 20 <= total <= 22, (
         f"Expected 20–22 total rows in unified_comparison.csv; got {total}."

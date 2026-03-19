@@ -4,7 +4,7 @@ Pure audio preprocessing primitives.
 resample -> zero-phase Butterworth bandpass -> peak-normalize, all as pure
 ndarray -> ndarray functions (nothing is written to disk here).
 """
-from src import config  # noqa: F401 — import first to seed RNGs deterministically
+from src import config
 
 import numpy as np
 import librosa
@@ -41,8 +41,7 @@ def bandpass_sos(y, fmin, fmax, fs=4000, order=4):
     y = np.asarray(y, dtype="float32")
     sos = butter(order, [fmin, fmax], btype="band", fs=fs, output="sos")
 
-    # sosfiltfilt requires len(y) > padlen; fall back to sosfilt at/below it.
-    padlen = 3 * (2 * sos.shape[0])  # scipy default filtfilt pad length
+    padlen = 3 * (2 * sos.shape[0])
     if y.shape[0] <= padlen:
         out = sosfilt(sos, y)
     else:

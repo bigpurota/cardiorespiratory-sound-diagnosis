@@ -18,7 +18,6 @@ import pytest
 PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 EDA_DIR = PROJECT_ROOT / "results" / "figures" / "eda"
 
-# Substrings expected in the EDA PNG filenames (one figure per concern).
 EXPECTED_FIGURE_KEYWORDS = [
     "class_dist_heart",
     "class_dist_lung",
@@ -40,7 +39,6 @@ def test_eda_figures_exist():
     pngs = list(EDA_DIR.glob("*.png"))
     names = [p.name.lower() for p in pngs]
 
-    # Every expected concern must be represented by at least one non-empty PNG.
     missing = []
     for keyword in EXPECTED_FIGURE_KEYWORDS:
         matches = [p for p in pngs if keyword in p.name.lower()]

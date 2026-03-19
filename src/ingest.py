@@ -9,7 +9,7 @@ Per-respiratory-cycle lung labels go to a separate ``lung_cycles.csv`` so the
 manifest stays one row per recording. Durations come from
 ``soundfile.info().duration`` (header-only, no full decode).
 """
-from src import config  # noqa: F401 — import first to seed RNGs deterministically
+from src import config
 
 import csv
 import pathlib
@@ -21,7 +21,6 @@ from src.config_loader import load_params
 
 __all__ = ["heart_records", "lung_records", "build_manifest"]
 
-# Order-sensitive manifest header.
 MANIFEST_COLUMNS = [
     "filepath",
     "patient_id",
@@ -33,14 +32,10 @@ MANIFEST_COLUMNS = [
 ]
 LUNG_CYCLE_COLUMNS = ["filepath", "patient_id", "cycle_idx", "start_s", "end_s", "label"]
 
-# CinC databases A–E.
 CINC_DBS = ["training-a", "training-b", "training-c", "training-d", "training-e"]
 
-# 4-class ICBHI cycle label from the two binary annotation flags [crackle, wheeze]:
-# 00 → normal, 10 → crackle, 01 → wheeze, 11 → both.
 FLAGS_TO_LABEL = {(0, 0): "normal", (1, 0): "crackle", (0, 1): "wheeze", (1, 1): "both"}
 
-# Default audio directory inside the ICBHI mirror layout.
 ICBHI_AUDIO_SUBPATH = pathlib.Path(
     "Respiratory_Sound_Database"
 ) / "Respiratory_Sound_Database" / "audio_and_txt_files"
@@ -64,12 +59,12 @@ def heart_records(cinc_root, sr_target=4000):
         with open(ref_path, newline="") as fh:
             ref = {r[0]: int(r[1]) for r in csv.reader(fh) if r}
         for stem, label in ref.items():
-            if label == 0:  # "unsure" — excluded from binary targets
+            if label == 0:
                 n_unsure += 1
                 continue
             wav = ddir / f"{stem}.wav"
             assert wav.exists(), f"missing heart wav for REFERENCE entry: {wav}"
-            dur = sf.info(wav).duration  # header read, no full decode
+            dur = sf.info(wav).duration
             if label == -1:
                 n_normal += 1
             elif label == 1:
@@ -77,12 +72,12 @@ def heart_records(cinc_root, sr_target=4000):
             rows.append(
                 dict(
                     filepath=str(wav),
-                    patient_id=stem,        # DB-prefixed stem, e.g. a0001
-                    label=label,            # -1 = normal, 1 = abnormal
+                    patient_id=stem,
+                    label=label,
                     modality="heart",
                     duration_s=round(dur, 3),
-                    db_source=db[-1],       # a..e
-                    segment_id=None,        # windows are cut later
+                    db_source=db[-1],
+                    segment_id=None,
                 )
             )
 
@@ -115,7 +110,7 @@ def lung_records(audio_dir):
     cycle_rows = []
 
     for wav in sorted(audio_dir.glob("*.wav")):
-        patient_id = wav.stem.split("_")[0]  # leading numeric, e.g. "101"
+        patient_id = wav.stem.split("_")[0]
         txt = wav.with_suffix(".txt")
         dur = sf.info(wav).duration
 
@@ -123,11 +118,11 @@ def lung_records(audio_dir):
             dict(
                 filepath=str(wav),
                 patient_id=patient_id,
-                label=None,                 # cycle labels live in lung_cycles.csv
+                label=None,
                 modality="lung",
                 duration_s=round(dur, 3),
                 db_source="icbhi",
-                segment_id=None,            # one row per recording
+                segment_id=None,
             )
         )
 
@@ -148,7 +143,6 @@ def lung_records(audio_dir):
                     )
                 )
 
-    # 4-class cycle distribution sanity check (expected 3642/1864/886/506).
     dist = pd.Series([r["label"] for r in cycle_rows]).value_counts().to_dict()
     print(
         f"[lung] recordings={len(manifest_rows)} cycles={len(cycle_rows)} "

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Fine-tune a pretrained Audio Spectrogram Transformer (AST) on heart and lung sounds.
 
@@ -17,9 +16,6 @@ into ``unified_comparison.csv``, so the unified table never carries a fabricated
 """
 import os
 
-# macOS duplicate-OpenMP-runtime guard: torch and sklearn/xgboost each bundle their own
-# libomp.dylib; capping OpenMP threads and allowing the duplicate runtime avoids the
-# collision segfault. Must run before the first ``import torch``.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -32,17 +28,17 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src import config  # noqa: E402,F401 — import FIRST (seeds RNGs, exposes paths)
+from src import config
 
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
-import torch  # noqa: E402
-import torch.nn as nn  # noqa: E402
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
 
-from src.split import assert_no_patient_leakage  # noqa: E402
-from src.datasets import build_loaders  # noqa: E402
-from src.ast_model import build_ast, count_params  # noqa: E402
-from src.train_cnn import train_one_model, evaluate, _val_macc, _val_icbhi  # noqa: E402
+from src.split import assert_no_patient_leakage
+from src.datasets import build_loaders
+from src.ast_model import build_ast, count_params
+from src.train_cnn import train_one_model, evaluate, _val_macc, _val_icbhi
 
 FEATURES_DIR = os.path.join(config.PROJECT_ROOT, "features")
 TABLES_DIR = os.path.join(config.RESULTS_DIR, "tables")
@@ -51,13 +47,11 @@ FIGURES_DIR = os.path.join(config.RESULTS_DIR, "figures")
 UNIFIED_CSV = os.path.join(TABLES_DIR, "unified_comparison.csv")
 VOLUMETRICS_CSV = os.path.join(TABLES_DIR, "volumetrics_cnn.csv")
 
-# unified_comparison.csv column order (12-column schema shared with the other drivers).
 UNIFIED_COLUMNS = [
     "modality", "feature_set", "model", "primary_metric_name", "primary_metric",
     "Se", "Sp", "macro_f1", "auc_roc", "accuracy", "n_train", "n_test",
 ]
 
-# volumetrics_cnn.csv column order.
 VOLUMETRICS_COLUMNS = [
     "modality", "feature_set", "model", "train_time_s",
     "n_train_segments", "n_test_segments",
@@ -66,7 +60,6 @@ VOLUMETRICS_COLUMNS = [
     "params", "fallback_from", "data_volume_mb",
 ]
 
-# Per-modality metrics CSV columns (full suite + a fallback_from provenance column).
 METRICS_COLUMNS = {
     "heart": [
         "feature_set", "model", "primary_metric_name", "primary_metric",
@@ -81,13 +74,10 @@ METRICS_COLUMNS = {
     ],
 }
 
-# Chance-level threshold below which a run is judged non-converged.
 _CHANCE_THRESHOLD = {"heart": 0.5, "lung": 0.5}
 
-# Feature-set label for AST rows in unified_comparison.csv.
 _AST_FS_LABEL = "log_mel_64x128"
 
-# Default fine-tune learning rate (transformers fine-tune much lower than a CNN).
 _DEFAULT_LR = 1e-5
 
 
@@ -122,10 +112,8 @@ def _write_metrics_csv(modality, rows):
     out = os.path.join(TABLES_DIR, "metrics_ast.csv")
     if os.path.exists(out):
         existing = pd.read_csv(out)
-        # Drop existing rows for this modality so re-runs are idempotent.
         if "modality" in existing.columns:
             existing = existing[existing["modality"] != modality]
-        # Add modality column to new rows for tracking.
         df_new.insert(0, "modality", modality)
         existing_has_modality = "modality" in pd.read_csv(out).columns
         if existing_has_modality:
@@ -155,7 +143,6 @@ def _rebuild_unified(modality, rows):
             if c not in existing.columns:
                 existing[c] = ""
         existing = existing[UNIFIED_COLUMNS]
-        # Drop only this modality's AST rows so re-runs are idempotent.
         drop_mask = (
             (existing["modality"] == modality)
             & (existing["model"] == "ast")
@@ -188,7 +175,6 @@ def _rebuild_volumetrics(modality, rows, cache_path):
             if c not in existing.columns:
                 existing[c] = ""
         existing = existing[VOLUMETRICS_COLUMNS]
-        # Drop existing AST rows for this modality so re-runs are idempotent.
         drop_mask = (existing["modality"] == modality) & (existing["model"] == "ast")
         existing = existing[~drop_mask]
         combined = pd.concat([existing, new], ignore_index=True)
@@ -247,7 +233,6 @@ def _run_ast_modality(cache, modality, lr, wall_cap_s, batch_size=32, seed=42):
     )
     n_classes = loaders["n_classes"]
 
-    # Defence-in-depth leakage guard before training.
     split = np.asarray(cache["split"])
     pid = np.asarray(cache["patient_id"])
     assert_no_patient_leakage(pid[split == "train"], pid[split == "test"])
@@ -263,7 +248,6 @@ def _run_ast_modality(cache, modality, lr, wall_cap_s, batch_size=32, seed=42):
         "n_test_patients": len(set(map(str, pid[is_te]))),
     }
 
-    # Build AST model (downloads / loads from HF cache on first call).
     print(f"  [run_ast] loading AST checkpoint (MIT/ast-finetuned-audioset-10-10-0.4593) ...")
     net = build_ast(n_classes)
     params_count = count_params(net)
@@ -272,7 +256,6 @@ def _run_ast_modality(cache, modality, lr, wall_cap_s, batch_size=32, seed=42):
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"  [run_ast] device={dev}")
 
-    # Weighted cross-entropy using train-only class weights.
     criterion = nn.CrossEntropyLoss(weight=loaders["class_weights"].to(dev))
 
     val_metric_fn = _val_macc if modality == "heart" else _val_icbhi
@@ -291,7 +274,7 @@ def _run_ast_modality(cache, modality, lr, wall_cap_s, batch_size=32, seed=42):
         lr=lr,
         val_metric_fn=val_metric_fn,
         max_epochs=30,
-        patience=10,  # larger model converges slower than the small CNN
+        patience=10,
         wall_cap_s=wall_cap_s,
         ckpt_path=ckpt_path,
         curve_png=curve_png,
@@ -335,7 +318,6 @@ def run_modality(modality, lr, wall_cap_s):
     os.makedirs(FIGURES_DIR, exist_ok=True)
     cache, cache_path = _load_cache(modality)
 
-    # Re-assert no patient leakage at startup (logs the [leakage-check OK] line).
     pid = np.asarray(list(map(str, cache["patient_id"])), dtype=object)
     split = np.asarray(cache["split"], dtype=object)
     assert_no_patient_leakage(pid[split == "train"], pid[split == "test"])
@@ -360,7 +342,6 @@ def run_modality(modality, lr, wall_cap_s):
             )
             return []
 
-        # Success: normalise figure names to the canonical flat names.
         row = _stable_figure_names(modality, row)
 
         print(
@@ -375,8 +356,6 @@ def run_modality(modality, lr, wall_cap_s):
         return [row]
 
     except Exception as exc:
-        # Catch download failures, OOM, and any other error; classify into a
-        # machine-readable code for the fallback_from column.
         exc_str = str(exc).lower()
         if "download" in exc_str or "connection" in exc_str or "http" in exc_str or "hf_" in exc_str:
             failure_code = "hf_download_failed"
@@ -391,7 +370,6 @@ def run_modality(modality, lr, wall_cap_s):
             f"  Add to report Limitations section."
         )
 
-        # Limitation row with a NaN primary metric.
         n_classes = 2 if modality == "heart" else 4
         primary_name = "MAcc" if modality == "heart" else "ICBHI_Score"
         limit_row = {

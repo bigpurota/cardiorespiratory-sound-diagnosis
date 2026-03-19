@@ -17,18 +17,16 @@ PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
-WINDOW_SAMPLES = 12000  # 3.0 s @ 4000 Hz — the fixed window (matches features)
+WINDOW_SAMPLES = 12000
 
 
 def _import(module_name):
     """Import `module_name`, skipping (not erroring) if absent."""
     try:
         return importlib.import_module(module_name)
-    except Exception as exc:  # pragma: no cover - defensive (module absent)
+    except Exception as exc:
         pytest.skip(f"{module_name} not implemented yet: {exc}")
 
-
-# window_to_logmel returns the expected (64,128) float32 dB image
 
 def test_shape_dtype():
     """``window_to_logmel(window, make_mel(20,400))`` returns shape (64,128) dtype float32.
@@ -54,8 +52,6 @@ def test_shape_dtype():
     assert spec.dtype == np.float32, f"expected float32, got {spec.dtype}"
 
 
-# n_fft=512 emits no empty-mel-filterbank warning
-
 def test_no_filterbank_warning():
     """Building the heart 20–400 Hz mel (n_fft=512) emits NO empty-filterbank warning.
 
@@ -76,7 +72,7 @@ def test_no_filterbank_warning():
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        mel = spectrograms.make_mel(20, 400)        # heart band → n_fft must be 512
+        mel = spectrograms.make_mel(20, 400)
         spectrograms.window_to_logmel(window, mel)
 
     offenders = [

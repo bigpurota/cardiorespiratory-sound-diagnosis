@@ -20,9 +20,8 @@ import pytest
 
 PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(pathlib.Path(__file__).parent))  # conftest import parity
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
-# EfficientNet-B0 total params (timm 1.0.27).
 EFFNET_B0_PARAMS = 4_010_110
 
 
@@ -30,13 +29,9 @@ def _import(module_name):
     """Import `module_name`, skipping (not erroring) if it is absent."""
     try:
         return importlib.import_module(module_name)
-    except Exception as exc:  # pragma: no cover - defensive (module not yet present)
+    except Exception as exc:
         pytest.skip(f"{module_name} not implemented yet: {exc}")
 
-
-# ---------------------------------------------------------------------------
-# param counts: SmallCNN > 0; EfficientNet-B0 == 4,010,110
-# ---------------------------------------------------------------------------
 
 def test_param_counts():
     """``count_params(SmallCNN(2)) > 0`` and ``count_params(build_efficientnet_b0(2)) == 4_010_110``.
@@ -58,22 +53,16 @@ def test_param_counts():
         f"(timm efficientnet_b0, num_classes=2); got {cnn.count_params(effnet)}"
     )
 
-    # Default widths must reproduce the exact same param count as SmallCNN(2).
     small_explicit = cnn.SmallCNN(n_classes=2, widths=(16, 32, 64, 128))
     assert cnn.count_params(small_explicit) == cnn.count_params(small), (
         "SmallCNN(2, widths=(16,32,64,128)) must have the same param count as SmallCNN(2)"
     )
 
-    # A wider net must have strictly more parameters.
     wider = cnn.SmallCNN(n_classes=2, widths=(32, 64, 128, 256))
     assert cnn.count_params(wider) > cnn.count_params(small), (
         "SmallCNN with widths=(32,64,128,256) must have more params than the default net"
     )
 
-
-# ---------------------------------------------------------------------------
-# forward shapes: (B,1,64,128) -> (B,n_classes) for both models
-# ---------------------------------------------------------------------------
 
 def test_forward_shape():
     """SmallCNN maps (B,1,64,128) -> (B,2); the effnet path maps the same batch -> (B,n_classes).
@@ -97,8 +86,6 @@ def test_forward_shape():
         out = small(batch)
     assert tuple(out.shape) == (B, 2), f"SmallCNN forward must emit (B,2); got {tuple(out.shape)}"
 
-    # EfficientNet path: route the (B,1,64,128) batch through the image adapter, then
-    # the timm backbone -> (B, n_classes).
     if not hasattr(cnn, "build_efficientnet_b0"):
         pytest.skip("src.cnn.build_efficientnet_b0 not implemented yet")
 
@@ -113,7 +100,6 @@ def test_forward_shape():
     n_classes = 2
     effnet = cnn.build_efficientnet_b0(n_classes)
     effnet.eval()
-    # Adapt each (1,64,128) sample -> (3,224,224), then stack into the effnet batch.
     imgs = torch.stack([adapter(batch[i].squeeze(0)) for i in range(B)])
     assert tuple(imgs.shape) == (B, 3, 224, 224), (
         f"effnet image adapter must emit (B,3,224,224); got {tuple(imgs.shape)}"

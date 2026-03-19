@@ -10,22 +10,16 @@ score). CSV writing lives in ``scripts/run_classical.py``, not here.
 """
 import os
 
-# macOS duplicate-OpenMP-runtime guard: sklearn, torch and xgboost each bundle their own
-# libomp.dylib, and when several are loaded in one process the OpenMP runtimes collide and
-# xgboost's `.fit` segfaults inside `_meta_from_numpy`. Capping OpenMP to a single team
-# (and allowing the duplicate runtime) lets every model run. Must run before importing torch.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 import time
 
-from src import config  # noqa: F401 — import first for the SEED=42 side effect (determinism)
+from src import config
 
 import numpy as np
 
-# Import xgboost before sklearn: making xgboost's libomp the canonical OpenMP runtime
-# avoids the duplicate-runtime segfault that occurs when its runtime loads after sklearn's.
-import xgboost  # noqa: F401 — load order matters (see comment above)
+import xgboost
 from xgboost import XGBClassifier
 
 from sklearn.pipeline import Pipeline
@@ -64,27 +58,21 @@ FIGURES_DIR = os.path.join(RESULTS_DIR, "figures")
 
 MODEL_NAMES = ["logreg", "svm", "rf", "xgb"]
 
-# Feature-set registry: (id, cache_key, label used in CSVs).
 FEATURE_SETS = [
     ("A", "X_A", "A_mfcc_delta"),
     ("B", "X_B", "B_mfcc_delta_spectral"),
 ]
 
-# Small tuning grids; SVM-RBF is the O(n^2) bottleneck.
 SVM_GRID = {"clf__C": [1, 10], "clf__gamma": ["scale", 0.01]}
 XGB_GRID = {"clf__n_estimators": [200, 400], "clf__max_depth": [3, 6]}
 
-# SVM tuning sub-sample cap (patient-grouped, train-only, seeded). Only the inner CV uses
-# the subsample; the final SVM refits on the full train set, so this is not a leakage
-# shortcut, just a tuning-speed choice.
 SVM_TUNE_MAX_WINDOWS = 7000
 
-LUNG_NORMAL_LABEL = 3  # {crackle:0, wheeze:1, both:2, normal:3} — pooled-abnormal = label != 3
+LUNG_NORMAL_LABEL = 3
 LUNG_LABELS = [0, 1, 2, 3]
 HEART_LABELS = [0, 1]
 
 
-# Per-model Pipeline(StandardScaler -> clf) with imbalance handling.
 def build_pipeline(model_name, n_classes, y_train=None, seed=SEED):
     """Return a ``Pipeline([("scaler", StandardScaler()), ("clf", clf)])`` for ``model_name``.
 
@@ -107,7 +95,6 @@ def build_pipeline(model_name, n_classes, y_train=None, seed=SEED):
         )
     elif name == "xgb":
         if n_classes <= 2:
-            # Binary heart: scale_pos_weight = n_neg / n_pos.
             spw = 1.0
             if y_train is not None:
                 y_arr = np.asarray(y_train)
@@ -124,8 +111,6 @@ def build_pipeline(model_name, n_classes, y_train=None, seed=SEED):
                 n_jobs=-1,
             )
         else:
-            # 4-class lung: XGBClassifier has no class_weight, so the caller passes
-            # clf__sample_weight=compute_sample_weight("balanced", y_train) to pipe.fit.
             clf = XGBClassifier(
                 n_estimators=300,
                 max_depth=4,
@@ -142,7 +127,6 @@ def build_pipeline(model_name, n_classes, y_train=None, seed=SEED):
     return Pipeline([("scaler", StandardScaler()), ("clf", clf)])
 
 
-# Leakage-safe inner-CV tuning (SVM and XGB only).
 def _grouped_cv(n_classes, n_splits=3):
     """Return a patient-grouped CV: StratifiedGroupKFold, with GroupKFold for binary.
 
@@ -183,11 +167,9 @@ def build_search(model_name, n_classes, y_train=None, seed=SEED):
     )
 
 
-# Backwards-compatible alias.
 tune_pipeline = build_search
 
 
-# Tuning fit helpers (SVM subsampling, fallback when a class is absent).
 def _subsample_groups(X, y, groups, cap, seed=SEED):
     """Patient-grouped, seeded train-only sub-sample capping the row count at ``cap``.
 
@@ -209,7 +191,6 @@ def _subsample_groups(X, y, groups, cap, seed=SEED):
         kept += int(gmask.sum())
         if kept >= cap:
             break
-    # Guard: keep at least 2 classes so GroupKFold can run.
     if len(set(np.asarray(y)[keep_mask])) < 2:
         return X, y, groups
     return X[keep_mask], np.asarray(y)[keep_mask], np.asarray(groups)[keep_mask]
@@ -235,13 +216,11 @@ def _fit_tuned(model_name, n_classes, X_train, y_train, train_groups, seed=SEED)
             search.cv = GroupKFold(n_splits=3)
             search.fit(Xs, ys, groups=gs)
         best_params = search.best_params_
-        # Refit the final SVM with the chosen hyper-params on the full train set.
         final = build_pipeline("svm", n_classes, y_train=y_train, seed=seed)
         final.set_params(**best_params)
         final.fit(X_train, y_train)
         return final, best_params
 
-    # xgb
     search = build_search("xgb", n_classes, y_train=y_train, seed=seed)
     fit_kw = {"groups": train_groups}
     if n_classes > 2:
@@ -290,7 +269,6 @@ def _abnormal_proba(estimator, X, classes):
     return np.asarray(estimator.predict(X), dtype=float)
 
 
-# Orchestration: 8 experiments per modality.
 def run_experiments(modality, cache_dict, figures_dir=FIGURES_DIR):
     """Run the 8 (feature_set x model) experiments for ``modality``; return row dicts.
 
@@ -312,7 +290,6 @@ def run_experiments(modality, cache_dict, figures_dir=FIGURES_DIR):
     tr = split_arr == "train"
     te = split_arr == "test"
 
-    # Re-assert zero patient leakage on the cached train/test patient groups.
     assert_no_patient_leakage(pid[tr], pid[te])
 
     y_train = labels[tr]
@@ -320,7 +297,6 @@ def run_experiments(modality, cache_dict, figures_dir=FIGURES_DIR):
     groups_train = pid[tr]
     rec_test = rec[te]
 
-    # Segment/recording/patient counts (constant across the 8 runs of a modality).
     n_train_segments = int(tr.sum())
     n_test_segments = int(te.sum())
     n_train_recordings = len(set(rec[tr]))
@@ -348,13 +324,10 @@ def run_experiments(modality, cache_dict, figures_dir=FIGURES_DIR):
             classes = getattr(estimator, "classes_", np.unique(y_train))
 
             if modality == "heart":
-                # Recording-level majority vote -> MAcc; the true label is constant within
-                # a heart recording.
-                pred_rec = majority_vote(preds, rec_test)            # Series idx=recording_id
+                pred_rec = majority_vote(preds, rec_test)
                 true_rec = (
                     majority_vote(y_test, rec_test).reindex(pred_rec.index)
                 )
-                # Per-recording abnormal score = mean window abnormal-prob.
                 win_score = _abnormal_proba(estimator, X_test, classes)
                 import pandas as pd
 
@@ -392,7 +365,6 @@ def run_experiments(modality, cache_dict, figures_dir=FIGURES_DIR):
                     "cm_figure": os.path.basename(cm_png),
                 }
             else:
-                # Cycle-level ICBHI score; no recording aggregation.
                 m = icbhi_score(y_test, preds, normal_label=LUNG_NORMAL_LABEL)
                 pcs = per_class_se(y_test, preds, LUNG_LABELS)
                 cm_png = os.path.join(
@@ -412,7 +384,7 @@ def run_experiments(modality, cache_dict, figures_dir=FIGURES_DIR):
                     "Se": float(m["Se"]),
                     "Sp": float(m["Sp"]),
                     "macro_f1": float(macro_f1(y_test, preds)),
-                    "auc_roc": "",  # AUC undefined for the 4-class ICBHI headline metric
+                    "auc_roc": "",
                     "accuracy": float(accuracy(y_test, preds)),
                     "se_crackle": pcs[0],
                     "se_wheeze": pcs[1],
@@ -424,7 +396,6 @@ def run_experiments(modality, cache_dict, figures_dir=FIGURES_DIR):
                     "cm_figure": os.path.basename(cm_png),
                 }
 
-            # Volumetric fields (shared shape across modalities).
             row.update(
                 {
                     "train_time_s": float(train_time_s),

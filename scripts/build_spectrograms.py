@@ -22,7 +22,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-from src import config  # noqa: F401  import FIRST (seeds RNGs, exposes paths)
+from src import config
 
 import numpy as np
 import pandas as pd
@@ -40,7 +40,7 @@ HEART_SPLITS_CSV = os.path.join(config.SPLITS_DIR, "heart_splits.csv")
 LUNG_SPLITS_CSV = os.path.join(config.SPLITS_DIR, "lung_splits.csv")
 FEATURES_DIR = os.path.join(config.PROJECT_ROOT, "features")
 
-WINDOW_SAMPLES = 12000  # 3.0 s @ 4000 Hz — fixed log-mel input length
+WINDOW_SAMPLES = 12000
 
 
 def _load_inputs(modality):
@@ -75,7 +75,7 @@ def _extract_spectrograms(modality, df, splits, params):
     order = int(params.get("bandpass_order", 4))
     sr = int(params.get("sample_rate", 4000))
 
-    mel = make_mel(fmin, fmax, sr=sr)  # built once, reused for every row
+    mel = make_mel(fmin, fmax, sr=sr)
 
     split_lookup = {str(r.patient_id): str(r.split) for r in splits.itertuples()}
 
@@ -86,13 +86,12 @@ def _extract_spectrograms(modality, df, splits, params):
             pid = str(row.patient_id)
             split = split_lookup.get(pid)
             if split is None:
-                continue  # recording not in the split
+                continue
             label = HEART_LABEL_MAP.get(float(row.label))
             if label is None:
-                continue  # unsure / out-of-domain label
+                continue
             y = load_resampled(row.filepath, target_sr=sr)
             yb = peak_normalize(bandpass_sos(y, fmin, fmax, fs=sr, order=order))
-            # 50% overlap on train, none on test (same as the classical path).
             hop_s = 1.5 if split == "train" else 3.0
             for w in segment_fixed(yb, win_s=3.0, hop_s=hop_s, fs=sr):
                 spec = window_to_logmel(w, mel)
@@ -100,9 +99,8 @@ def _extract_spectrograms(modality, df, splits, params):
                 labels.append(label)
                 pids.append(pid)
                 splits_out.append(split)
-                rec_ids.append(pid)  # heart recording_id == patient_id
+                rec_ids.append(pid)
     elif modality == "lung":
-        # Preprocess each recording once, then slice all of its cycles.
         for filepath, grp in df.groupby("filepath"):
             first = grp.iloc[0]
             pid = str(first.patient_id)
@@ -115,10 +113,9 @@ def _extract_spectrograms(modality, df, splits, params):
             for cyc in grp.itertuples():
                 label = LUNG_LABEL_MAP.get(str(cyc.label).strip().lower())
                 if label is None:
-                    continue  # unknown label string
+                    continue
                 s, e = int(float(cyc.start_s) * sr), int(float(cyc.end_s) * sr)
                 clip = yb[s:e]
-                # Pad/trim to exactly 12000 samples, matching lung_cycle_vector.
                 if len(clip) < WINDOW_SAMPLES:
                     clip = np.pad(clip, (0, WINDOW_SAMPLES - len(clip)))
                 else:
@@ -151,7 +148,6 @@ def build(modality):
     """Build and cache the spectrogram tensor for ``modality``; print volumetrics."""
     df, splits = _load_inputs(modality)
 
-    # Re-check patient-level separation before extracting anything.
     train_ids = splits.loc[splits.split == "train", "patient_id"]
     test_ids = splits.loc[splits.split == "test", "patient_id"]
     assert_no_patient_leakage(train_ids, test_ids)
@@ -163,7 +159,6 @@ def build(modality):
     out_path = os.path.join(FEATURES_DIR, f"{modality}_spectrograms.npy")
     np.save(out_path, payload, allow_pickle=True)
 
-    # Report window/cycle counts, recordings and patients.
     split_arr = payload["split"]
     rec_arr = payload["recording_id"]
     pid_arr = payload["patient_id"]

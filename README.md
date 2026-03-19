@@ -64,7 +64,7 @@ Transformer) для диагностики патологий кардиорес
 
 | Документ | Файл |
 |----------|------|
-| Итоговый отчёт (research report, EN) | [Отчёт.pdf](docs/pdf/Отчёт.pdf) |
+| Итоговый отчёт (research report, EN) | [main.pdf](docs/pdf/main.pdf) |
 | Исходный код отчёта (Typst) | [report/](report) |
 
 # Основные результаты
@@ -183,8 +183,7 @@ tests/                   # тесты на утечку / детерминизм
 params/                  # heart.yaml / lung.yaml — параметры препроцессинга
 results/{tables,figures,splits}   # CSV результатов, рисунки, членство в разбиениях
 report/                  # исходник отчёта на Typst (main.typ, sections/, refs.bib, *.csl)
-docs/pdf/                # собранный отчёт (Отчёт.pdf) — итоговый деливерабл
-notebooks/               # разведочный анализ + ноутбук GPU-запуска
+docs/pdf/                # собранный отчёт (main.pdf) — итоговый деливерабл
 reference/               # материалы курса (приложения, шаблоны) — git-ignored
 ```
 

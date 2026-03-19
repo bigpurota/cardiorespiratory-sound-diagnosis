@@ -14,13 +14,8 @@ import sys
 
 import pytest
 
-# Make conftest constants available regardless of how pytest resolves the package.
-# When tests/ is a package and conftest.py lives in it, pytest injects conftest
-# into sys.modules under the key "conftest" at collection time. The sys.path
-# insertion below ensures the import also works when running pytest directly from
-# the project root with python3 -m pytest.
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
-from conftest import (  # noqa: E501
+from conftest import (
     CINC_ROOT,
     CINC_DB_COUNTS,
     CINC_EXPECTED,
@@ -29,10 +24,6 @@ from conftest import (  # noqa: E501
     ICBHI_EXPECTED_TXT,
 )
 
-
-# ---------------------------------------------------------------------------
-# CinC 2016 — heart sound
-# ---------------------------------------------------------------------------
 
 def test_cinc2016_count():
     """Exactly 3,126 WAV recordings in training-A through -E."""
@@ -67,10 +58,6 @@ def test_cinc2016_references():
         )
 
 
-# ---------------------------------------------------------------------------
-# ICBHI 2017 — lung sound
-# ---------------------------------------------------------------------------
-
 def test_icbhi_wav_count():
     """Exactly 920 WAV files in ICBHI 2017."""
     if not ICBHI_ROOT.exists():
@@ -92,7 +79,6 @@ def test_icbhi_annotation_count():
         )
 
     wav_stems = {p.stem for p in ICBHI_ROOT.rglob("*.wav")}
-    # Only count TXT files whose stem matches a WAV file (exclude metadata TXTs)
     txt_stems = {p.stem for p in ICBHI_ROOT.rglob("*.txt") if p.stem in wav_stems}
 
     assert len(txt_stems) == ICBHI_EXPECTED_TXT, (

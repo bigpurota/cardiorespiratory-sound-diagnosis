@@ -21,7 +21,7 @@ import pytest
 
 PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(pathlib.Path(__file__).parent))  # conftest import parity
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
 DATASETS_SRC = PROJECT_ROOT / "src" / "datasets.py"
 
@@ -30,7 +30,7 @@ def _import(module_name):
     """Import `module_name`, skipping (not erroring) if it is absent."""
     try:
         return importlib.import_module(module_name)
-    except Exception as exc:  # pragma: no cover - defensive (module not yet present)
+    except Exception as exc:
         pytest.skip(f"{module_name} not implemented yet: {exc}")
 
 
@@ -39,10 +39,6 @@ def _train_mask(payload):
     import numpy as np
     return np.asarray(payload["split"]) == "train"
 
-
-# ---------------------------------------------------------------------------
-# augmentation is TRAIN-only; val/test Datasets have augment=False
-# ---------------------------------------------------------------------------
 
 def test_augment_train_only(synthetic_spectrogram_cache):
     """Train Dataset augments; val/test Datasets are built with ``augment=False``.
@@ -70,12 +66,10 @@ def test_augment_train_only(synthetic_spectrogram_cache):
     assert getattr(val_ds, "augment") is False, "val Dataset must NOT augment"
     assert getattr(test_ds, "augment") is False, "test Dataset must NOT augment"
 
-    # Length contract sanity (no rows dropped).
     assert len(val_ds) == X.shape[0]
 
-    _ = np  # keep numpy import meaningful even if asserts above short-circuit
+    _ = np
 
-    # Source check: the val/test loaders are constructed with augment=False.
     if DATASETS_SRC.exists():
         source = DATASETS_SRC.read_text(encoding="utf-8")
         assert "augment=False" in source, (
@@ -83,10 +77,6 @@ def test_augment_train_only(synthetic_spectrogram_cache):
             "augment=False (train-only augmentation contract)."
         )
 
-
-# ---------------------------------------------------------------------------
-# patient-grouped val/test carve leaks no patient (overlap == 0)
-# ---------------------------------------------------------------------------
 
 def test_no_patient_leakage_val(synthetic_spectrogram_cache):
     """The patient-grouped val carve keeps train/val and train/test patients disjoint.
@@ -109,9 +99,8 @@ def test_no_patient_leakage_val(synthetic_spectrogram_cache):
 
     leak_guard = getattr(datasets, "assert_no_patient_leakage", None)
     if leak_guard is None:
-        # Fall back to the canonical split helper if datasets re-exports it elsewhere.
         try:
-            from src.split import assert_no_patient_leakage as leak_guard  # type: ignore
+            from src.split import assert_no_patient_leakage as leak_guard
         except Exception:
             pytest.skip("assert_no_patient_leakage not importable yet")
 
@@ -124,16 +113,13 @@ def test_no_patient_leakage_val(synthetic_spectrogram_cache):
     train_pid = pid[split == "train"]
     test_pid = pid[split == "test"]
 
-    # Carve a patient-disjoint val set out of the TRAIN patients only.
     carve = splitter(
         heart["X"][split == "train"],
         heart["labels"][split == "train"],
         train_pid,
     )
-    # The helper returns at least the train/val patient-id arrays in some structured form.
     tr_pid_inner, va_pid_inner = _extract_val_pids(carve, train_pid)
 
-    # train vs val (inner carve) and train vs held-out test must both be leakage-free.
     leak_guard(tr_pid_inner, va_pid_inner)
     leak_guard(train_pid, test_pid)
 
@@ -144,8 +130,6 @@ def test_no_patient_leakage_val(synthetic_spectrogram_cache):
 def _extract_val_pids(carve, train_pid):
     """Best-effort extraction of (train_pids, val_pids) from a flexible carve return."""
     import numpy as np
-    # Common shapes: (train_idx, val_idx), or a dict with 'train'/'val' pid arrays, or
-    # an object exposing .train_pid / .val_pid.
     if isinstance(carve, dict):
         if "train_pid" in carve and "val_pid" in carve:
             return np.asarray(carve["train_pid"]), np.asarray(carve["val_pid"])
@@ -154,7 +138,6 @@ def _extract_val_pids(carve, train_pid):
     if isinstance(carve, (tuple, list)) and len(carve) >= 2:
         tr, va = carve[0], carve[1]
         tr, va = np.asarray(tr), np.asarray(va)
-        # If these are integer index arrays into train_pid, map them to patient ids.
         if tr.dtype.kind in "iu" and va.dtype.kind in "iu":
             return np.asarray(train_pid)[tr], np.asarray(train_pid)[va]
         return tr, va
@@ -163,10 +146,6 @@ def _extract_val_pids(carve, train_pid):
             return np.asarray(getattr(carve, tr_attr)), np.asarray(getattr(carve, va_attr))
     pytest.skip("val-carve return shape not recognized")
 
-
-# ---------------------------------------------------------------------------
-# class weights are computed from TRAIN-fold labels only
-# ---------------------------------------------------------------------------
 
 def test_class_weights_train_only(synthetic_spectrogram_cache):
     """``train_class_weights`` consumes ONLY train-fold labels (never the full set).
@@ -191,15 +170,8 @@ def test_class_weights_train_only(synthetic_spectrogram_cache):
     w_train = np.asarray(weight_fn(y_train, n_classes), dtype=float)
     assert w_train.shape == (n_classes,), "weights must have one entry per class"
     assert np.all(np.isfinite(w_train)), "weights must be finite"
-    # Balanced weights are inversely proportional to class frequency -> not all equal
-    # unless the train fold is perfectly balanced; the fixture is balanced per class so
-    # we assert the helper at minimum runs on the TRAIN subset without touching test rows.
     assert len(y_train) < len(y_all), "fixture must hold held-out test rows"
 
-
-# ---------------------------------------------------------------------------
-# HPO knobs: aug_strength + sampler_mode in build_loaders
-# ---------------------------------------------------------------------------
 
 def test_build_loaders_aug_strength(synthetic_spectrogram_cache):
     """build_loaders with aug_strength != 1.0 scales SpecAugment params on the TRAIN dataset.
@@ -215,12 +187,10 @@ def test_build_loaders_aug_strength(synthetic_spectrogram_cache):
     loaders_default = datasets.build_loaders(heart, "heart", aug_strength=1.0, seed=42)
     loaders_strong = datasets.build_loaders(heart, "heart", aug_strength=1.5, seed=42)
 
-    # Default path: aug_strength=1.0 must return valid loaders.
     assert "train_loader" in loaders_default
     assert "val_loader" in loaders_default
     assert "test_loader" in loaders_default
 
-    # Val/test datasets are always augment=False regardless of aug_strength.
     assert loaders_strong["val_loader"].dataset.augment is False, (
         "val dataset must NOT augment even with aug_strength != 1.0"
     )
@@ -228,7 +198,6 @@ def test_build_loaders_aug_strength(synthetic_spectrogram_cache):
         "test dataset must NOT augment even with aug_strength != 1.0"
     )
 
-    # The TRAIN dataset for aug_strength=1.5 should have a larger freq_mask_param than 1.0.
     train_ds_default = loaders_default["train_loader"].dataset
     train_ds_strong = loaders_strong["train_loader"].dataset
     assert train_ds_strong.freq_mask.mask_param >= train_ds_default.freq_mask.mask_param, (
@@ -253,13 +222,10 @@ def test_build_loaders_weighted_sampler(synthetic_spectrogram_cache):
         heart, "heart", sampler_mode="weighted_sampler", seed=42
     )
 
-    # Must return valid loaders with class_weights (still useful for bookkeeping).
     assert "train_loader" in loaders
     assert "class_weights" in loaders
     assert loaders["class_weights"] is not None
 
-    # Leakage must still hold: (train, test) and (train, val).
-    # Reconstruct patient IDs from the raw cache to verify.
     pid = np.asarray(heart["patient_id"])
     split = np.asarray(heart["split"])
     assert_no_patient_leakage(pid[split == "train"], pid[split == "test"])

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Run the classical (features + classifiers) experiments per modality and write the CSVs.
 
@@ -26,13 +25,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src import config  # noqa: E402,F401 — import FIRST (seeds RNGs, exposes paths)
+from src import config
 
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
+import numpy as np
+import pandas as pd
 
-from src.split import assert_no_patient_leakage  # noqa: E402
-from src.train_classical import run_experiments, MODEL_NAMES  # noqa: E402
+from src.split import assert_no_patient_leakage
+from src.train_classical import run_experiments, MODEL_NAMES
 
 FEATURES_DIR = os.path.join(config.PROJECT_ROOT, "features")
 TABLES_DIR = os.path.join(config.RESULTS_DIR, "tables")
@@ -40,13 +39,11 @@ TABLES_DIR = os.path.join(config.RESULTS_DIR, "tables")
 UNIFIED_CSV = os.path.join(TABLES_DIR, "unified_comparison.csv")
 VOLUMETRICS_CSV = os.path.join(TABLES_DIR, "volumetrics_classical.csv")
 
-# unified_comparison.csv column order (long format; extended by the DL drivers later).
 UNIFIED_COLUMNS = [
     "modality", "feature_set", "model", "primary_metric_name", "primary_metric",
     "Se", "Sp", "macro_f1", "auc_roc", "accuracy", "n_train", "n_test",
 ]
 
-# volumetrics_classical.csv column order.
 VOLUMETRICS_COLUMNS = [
     "modality", "feature_set", "model", "train_time_s",
     "n_train_segments", "n_test_segments",
@@ -55,7 +52,6 @@ VOLUMETRICS_COLUMNS = [
     "data_volume_mb",
 ]
 
-# Per-modality metrics CSV columns (full suite; primary metric is the headline column).
 METRICS_COLUMNS = {
     "heart": [
         "feature_set", "model", "primary_metric_name", "primary_metric",
@@ -110,7 +106,6 @@ def _rebuild_unified(modality, rows):
             if c not in existing.columns:
                 existing[c] = ""
         existing = existing[UNIFIED_COLUMNS]
-        # Drop only this modality's classical rows (keep other modality + any DL rows).
         drop_mask = (
             (existing["modality"] == modality)
             & (existing["model"].isin(MODEL_NAMES))
@@ -159,7 +154,6 @@ def run_modality(modality):
     os.makedirs(TABLES_DIR, exist_ok=True)
     cache, cache_path = _load_cache(modality)
 
-    # Re-assert no patient leakage at startup (logs the [leakage-check OK] line).
     pid = np.asarray(list(map(str, cache["patient_id"])), dtype=object)
     split = np.asarray(cache["split"], dtype=object)
     assert_no_patient_leakage(pid[split == "train"], pid[split == "test"])

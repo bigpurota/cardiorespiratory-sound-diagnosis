@@ -3,7 +3,6 @@
 import pathlib
 import yaml
 
-# PARAMS_DIR comes from config so the path is defined in one place.
 from src.config import PARAMS_DIR
 
 

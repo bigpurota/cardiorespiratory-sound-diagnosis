@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-from src import config  # noqa: F401  import FIRST (seeds, paths)
+from src import config
 from src.split import make_heart_splits, make_lung_splits
 
 

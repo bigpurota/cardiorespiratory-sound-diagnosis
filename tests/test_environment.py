@@ -6,9 +6,6 @@ the project's pyproject.toml specification.
 import importlib
 import pytest
 
-# ---------------------------------------------------------------------------
-# Skip the whole module if torch is not importable (pre-install state)
-# ---------------------------------------------------------------------------
 torch_spec = importlib.util.find_spec("torch")
 _torch_missing = torch_spec is None
 
@@ -44,10 +41,10 @@ def test_imports():
 )
 def test_versions():
     """Pinned versions match pyproject.toml."""
-    import torch  # noqa: E501
-    import librosa  # noqa: E501
-    import sklearn  # noqa: E501
-    import xgboost  # noqa: E501
+    import torch
+    import librosa
+    import sklearn
+    import xgboost
 
     assert torch.__version__.startswith("2.11"), (
         f"torch version mismatch: expected 2.11.x, got {torch.__version__}"

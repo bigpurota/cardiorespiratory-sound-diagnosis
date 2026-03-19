@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Generate the descriptive EDA figures.
 
@@ -11,12 +10,11 @@ modify splits, the manifest, or params.
 import sys
 from pathlib import Path
 
-# Make the project root importable regardless of the invocation cwd.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.eda import main  # noqa: E402
+from src.eda import main
 
 if __name__ == "__main__":
     main()

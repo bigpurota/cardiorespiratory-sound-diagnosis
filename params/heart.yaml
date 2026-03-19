@@ -1,33 +1,14 @@
-# params/heart.yaml
-# PhysioNet/CinC Challenge 2016 — Heart Sound (PCG) preprocessing parameters
-
 dataset: cinc2016
 modality: heart
-
-# Audio loading
-sample_rate: 4000          # Hz — common cross-modal target (D-01); heart is
-                            # upsampled from the native 2000 Hz to 4000 Hz so
-                            # heart and lung share one feature space.
-
-# Bandpass filter (Butterworth)
-bandpass_low_hz: 20        # lower cutoff (removes DC / sub-cardiac noise)
-bandpass_high_hz: 400      # upper cutoff (S1/S2 energy is 20-150 Hz; 400 Hz keeps murmurs)
+sample_rate: 4000
+bandpass_low_hz: 20
+bandpass_high_hz: 400
 bandpass_order: 4
-
-# Segmentation
-segment_length_s: 3.0      # seconds per window
-segment_hop_s: 1.5         # 50% overlap for training; no overlap for test
-max_silence_fraction: 0.8  # discard window if >80% is near-zero
-
-# Labels
-# D-08: PhysioNet/CinC 2016 convention is -1 = normal, 1 = abnormal (de-inverted
-# from the previous inverted mapping). Verified against REFERENCE.csv across A–E
-# (2495× -1 / 631× 1) and the .hea `# Normal`/`# Abnormal` comments.
+segment_length_s: 3.0
+segment_hop_s: 1.5
+max_silence_fraction: 0.8
 label_map:
   -1: "normal"
-  1:  "abnormal"
-  0:  "unsure"   # exclude from training targets (log exclusion count).
-                 # D-09: no 0-labels exist on disk → exclusion count is 0.
-
-# Primary metric
-primary_metric: macc        # MAcc = (Se + Sp) / 2 — official CinC 2016 metric
+  1: "abnormal"
+  0: "unsure"
+primary_metric: macc

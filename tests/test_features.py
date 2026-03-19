@@ -20,20 +20,19 @@ import pytest
 
 PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(pathlib.Path(__file__).parent))  # conftest import parity
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
-# Feature-vector dimension contract.
-DIM_SET_A = 240   # 6 * 40 = (mean+std) × (MFCC, Δ, ΔΔ), n_mfcc=40
-DIM_SET_B = 250   # Set A + 5 spectral stats × (mean, std)
+DIM_SET_A = 240
+DIM_SET_B = 250
 FS = 4000
-HEART_WINDOW = 12000   # int(3.0 * 4000)
+HEART_WINDOW = 12000
 
 
 def _import(module_name):
     """Import `module_name`, skipping (not erroring) if it is absent."""
     try:
         return importlib.import_module(module_name)
-    except Exception as exc:  # pragma: no cover - defensive (module not yet present)
+    except Exception as exc:
         pytest.skip(f"{module_name} not implemented yet: {exc}")
 
 
@@ -44,14 +43,10 @@ def _synthetic_window(n=HEART_WINDOW, seed=42):
     """
     rng = np.random.default_rng(seed)
     t = np.arange(n, dtype=np.float64) / FS
-    tone = np.sin(2.0 * np.pi * 100.0 * t)        # cardiac-band tone
+    tone = np.sin(2.0 * np.pi * 100.0 * t)
     noise = 0.05 * rng.standard_normal(n)
     return (tone + noise).astype("float32")
 
-
-# ---------------------------------------------------------------------------
-# Heart window feature-vector dimensions — 240 (Set A) / 250 (Set B)
-# ---------------------------------------------------------------------------
 
 def test_heart_vector_dims():
     """A 12000-sample heart window yields a 240-d (Set A) / 250-d (Set B) float32 vector."""
@@ -73,10 +68,6 @@ def test_heart_vector_dims():
     )
 
 
-# ---------------------------------------------------------------------------
-# Lung short cycle — PAD BEFORE EXTRACT (no ParameterError on shortest cycle)
-# ---------------------------------------------------------------------------
-
 def test_lung_short_cycle_pad():
     """A 0.2-s lung cycle is padded to 3.0 s BEFORE MFCC → delta succeeds, finite vector.
 
@@ -88,13 +79,11 @@ def test_lung_short_cycle_pad():
     if not hasattr(features, "lung_cycle_vector"):
         pytest.skip("src.features.lung_cycle_vector not implemented yet")
 
-    # A SHORT cycle: 0.2 s = 800 samples, embedded in a slightly longer buffer.
     rng = np.random.default_rng(7)
-    short_n = int(0.2 * FS)                       # 800 samples
+    short_n = int(0.2 * FS)
     buf = (np.sin(2.0 * np.pi * 300.0 * np.arange(short_n, dtype=np.float64) / FS)
            + 0.05 * rng.standard_normal(short_n)).astype("float32")
 
-    # Must NOT raise ParameterError (pad-before-delta); returns a finite Set A vector.
     vec = np.asarray(
         features.lung_cycle_vector(buf, start_s=0.0, end_s=0.2, sr=FS, include_spectral=False)
     )
@@ -103,10 +92,6 @@ def test_lung_short_cycle_pad():
     )
     assert np.all(np.isfinite(vec)), "padded lung cycle vector contains NaN/Inf"
 
-
-# ---------------------------------------------------------------------------
-# Vectors are NaN/Inf free
-# ---------------------------------------------------------------------------
 
 def test_vectors_nan_free():
     """Heart and lung feature vectors are entirely finite (no NaN / Inf)."""
