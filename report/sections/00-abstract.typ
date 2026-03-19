@@ -12,8 +12,9 @@ Two modalities are examined under one unified, leakage-safe pipeline: heart soun
 (phonocardiograms) from PhysioNet/CinC 2016 and respiratory sounds from ICBHI 2017.
 A third modality, arterial bruits, is treated analytically, as no public dataset
 suitable for supervised learning exists. The central methodological contribution is
-an identical evaluation protocol for both modalities: strictly grouped, leakage-safe
-partitioning that prevents the leakage inflating many published results, and a
+an identical evaluation protocol for both modalities: strictly grouped
+partitioning (patient-level for lung, recording-level for heart) that prevents the
+window-level leakage inflating many results, and a
 shared balanced metric, the mean accuracy
 $"MAcc" = ("Se" + "Sp") \/ 2$, that makes the tasks directly comparable. Two method families
 are contrasted: classical pipelines (MFCC with delta and spectral features, fed to
@@ -27,8 +28,8 @@ On lung sounds all methods occupy one performance tier ($"ICBHI" approx 0.54"–
 with EfficientNet-B0 marginally best at $0.555 plus.minus 0.016$. The cross-modal analysis
 reveals asymmetric transfer: lung-pretrained features carry over strongly to heart,
 whereas heart→lung transfer is near-neutral, and a joint multi-task model roughly
-preserves both. An Audio Spectrogram Transformer is integrated and verified at the
-code level, with full fine-tuning left to future work. The study is scoped as honest,
+preserves both. An Audio Spectrogram Transformer is integrated and code-verified,
+with full fine-tuning left to future work. The study is scoped as honest,
 leakage-free baselines, and a limitations section sets out what the results do
 and do not clinically support.
 

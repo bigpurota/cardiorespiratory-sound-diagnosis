@@ -281,9 +281,9 @@ protocol ($4$ classical algorithms $times 2$ feature sets $+ 2$ deep models, on
 each of the two modalities); each deep configuration is additionally the outcome
 of a $128$-trial hyperparameter search and is reported as a mean over $3$ seeds, so
 the deep results alone rest on several hundred individual training runs. Beyond the
-data and model sizes, the experimental pipeline itself comprises $7 thin 012$ lines
-of Python across $31$ modules in `src/` and `scripts/` (approximately $290$ KB of
-source code), supported by a further $2 thin 961$ lines of automated tests.
+data and model sizes, the experimental pipeline itself comprises $5 thin 977$ lines
+of Python across $31$ modules in `src/` and `scripts/` (approximately $214$ KB of
+source code), supported by a further $2 thin 443$ lines of automated tests.
 Full details including per-class cycle counts appear in Annex B.
 
 #figure(

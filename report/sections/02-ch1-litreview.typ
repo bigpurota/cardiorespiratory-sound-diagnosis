@@ -81,9 +81,10 @@ sources for this study.
 === PhysioNet/CinC 2016: heart sounds
 
 The 2016 PhysioNet/Computing-in-Cardiology Challenge distributed a public training
-pool assembled from five separately collected cohorts, conventionally labelled A–E;
+pool assembled from six separately collected cohorts, conventionally labelled A–F;
 pooled, these supply on the order of $3240$ phonocardiograms originating from $764$
-distinct individuals @cinc2016 @liu2016. Clip durations vary widely (the shortest
+distinct individuals @cinc2016 @liu2016. The present study draws on the five cohorts
+A–E ($3126$ recordings); the small F cohort is left out. Clip durations vary widely (the shortest
 last a few seconds, the longest around two minutes) because the audio was captured
 with consumer-grade electronic stethoscopes in working clinics and homes rather than
 under laboratory control, a choice that deliberately exposes a model to the ambient
