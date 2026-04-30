@@ -1,0 +1,184 @@
+// 03-ch2-methods.typ — Chapter 2: Methods. FULLY DRAFTED — every statement is
+// derived from the actual code (config.py, src/preprocess.py, src/segment.py,
+// src/split.py, src/features.py, src/spectrograms.py, src/cnn.py,
+// src/train_cnn.py, src/metrics.py) and the params/{heart,lung}.yaml files.
+// Numbers here are pipeline parameters (factual), not experimental outcomes, so
+// they are stated directly. Only headline experimental results carry [TODO].
+
+#import "../helpers.typ": *
+
+= Methodology
+
+This chapter specifies the experimental pipeline in enough detail to reproduce
+every reported number. The design principle is *one shared, configuration-driven
+codebase* applied identically to both modalities, with all randomness fixed and
+all dependency versions pinned. The pipeline is organised as independent stages —
+ingest, preprocess, segment, feature extraction, patient-level split, training
+and evaluation — each writing its output to disk so any single stage is
+re-runnable in isolation.
+
+== Datasets and patient-level splits
+
+Heart sounds are taken from the PhysioNet/CinC 2016 training databases (subsets A
+through E); respiratory sounds from the ICBHI 2017 database. The two raw
+collections are indexed into a single recording-level manifest carrying, for each
+recording, a patient identifier, a class label, the modality and the file path; a
+separate cycle-level table records the annotated respiratory cycles of ICBHI with
+their start and end times and one of four labels.
+
+The single most important correctness requirement is *patient-level* (not
+recording-level) partitioning, which prevents the data leakage that inflates many
+published results. For heart sounds the split is a seeded
+`GroupShuffleSplit` (test fraction 0.20, random state 42) computed *within*
+databases A–E, grouping by patient identifier; the never-released private test
+set is not touched. For lung sounds the official ICBHI 60/40 patient-independent
+split is adopted and then *repaired*: two patients whom the official file places
+on both sides of the split (identifiers 156 and 218) have all of their recordings
+forced to the training side, so that every patient lands on exactly one side. If
+the official split cannot be fetched and validated, the pipeline falls back to a
+seeded patient-level `GroupShuffleSplit` at the same 60/40 ratio. Either way the
+provenance of the split is logged.
+
+Before any model is trained, a reusable assertion verifies that the training and
+test patient sets are disjoint:
+
+```python
+def assert_no_patient_leakage(train_ids, test_ids):
+    train, test = set(map(str, train_ids)), set(map(str, test_ids))
+    overlap = train & test
+    assert not overlap, f"PATIENT LEAKAGE: {len(overlap)} shared ids ..."
+```
+
+This check runs at the start of every experiment script, and its
+`[leakage-check OK] ... overlap=0` line is recorded in the experiment logs.
+
+== Preprocessing
+
+All audio is loaded at its native sampling rate and resampled to a single common
+rate of 4000 Hz for both modalities, so that heart and lung sounds share one
+feature space (heart recordings are upsampled from their native 2000 Hz; lung
+recordings are downsampled from mixed native rates). At 4000 Hz the Nyquist limit
+of 2000 Hz comfortably covers the diagnostic bands of both modalities.
+
+Each signal is then band-limited with a zero-phase Butterworth bandpass applied
+through second-order sections. The cutoffs are modality-specific: 20–400 Hz for
+heart sounds (retaining S1/S2 energy and murmurs while removing sub-cardiac
+drift) and 200–1800 Hz for lung sounds (the band of crackles and wheezes). The
+filter is fourth order and is applied with forward–backward filtering to preserve
+waveform timing; for segments too short for the forward–backward padding length
+the pipeline falls back to a single causal pass so that very short inputs remain
+finite and same-length. Finally each clip is peak-normalised to the range
+([-1, 1]); near-silent clips are left unchanged to avoid division blow-up. No
+global normaliser is fitted at this stage — feature-space standardisation is
+fitted on the training fold only (Section 2.4).
+
+== Segmentation
+
+Heart recordings are sliced into fixed 3.0-second windows (12000 samples at
+4000 Hz). Training recordings use a 1.5-second hop (50% overlap) to increase the
+number of training windows, whereas test recordings use a 3.0-second hop (no
+overlap); this affects only the denominator of the recording-level majority vote,
+not correctness. A ragged final window is dropped, and a window in which more than
+80% of samples are near-zero is discarded as silence. Respiratory sounds are not
+windowed but segmented at the *annotated cycle* boundaries supplied with ICBHI;
+each cycle is zero-padded (or trimmed) to a fixed 3.0-second length so that the
+downstream feature extractor sees a uniform input.
+
+== Feature extraction
+
+Two parallel representations are produced from each fixed-length segment.
+
+*Classical features.* From each segment we compute 40 mel-frequency cepstral
+coefficients together with their first- and second-order temporal deltas; each of
+these three blocks is summarised across frames by its mean and its standard
+deviation, yielding a 240-dimensional vector (feature set A). An extended set
+(set B, 250-dimensional) appends the mean and standard deviation of five spectral
+statistics — spectral centroid, roll-off, bandwidth, zero-crossing rate and
+RMS energy. For respiratory cycles the segment is padded to 3.0 seconds *before*
+the cepstral transform; this is mandatory, because a raw short cycle yields too
+few analysis frames for the delta operator and would otherwise raise an error.
+Every emitted vector is asserted to have the expected dimension and to be free of
+non-finite values.
+
+*Deep-learning features.* The same fixed 3.0-second segment is transformed into a
+$64 times 128$ log-mel "image": a mel spectrogram (power spectrogram, 64 mel
+bands, 512-point FFT, hop 94) followed by amplitude-to-decibel conversion with an
+80 dB dynamic range. The hop of 94 samples on a 12000-sample window produces
+exactly 128 time frames. The mel band limits match the per-modality bandpass
+cutoffs (20–400 Hz for heart, 200–1800 Hz for lung); a 512-point FFT is used for
+both modalities to avoid an empty mel-filterbank warning that the narrow heart
+band triggers at smaller FFT sizes.
+
+== Models and training protocol
+
+*Classical models.* Both feature sets are fed to four classifiers — logistic
+regression, an RBF-kernel support-vector machine, a random forest and gradient
+boosting (XGBoost). Standardisation is fitted on the training fold only, inside a
+single scikit-learn pipeline, so no test-set statistics leak into training.
+Hyper-parameter tuning uses patient-grouped cross-validation, and class
+imbalance is handled by class weighting.
+
+*Deep models.* The compact convolutional network consists of four
+convolution–batch-normalisation–ReLU–max-pool blocks (channel widths
+$1 arrow.r 16 arrow.r 32 arrow.r 64 arrow.r 128$), an adaptive average pool, and a head with
+dropout (at least 0.3) before a linear classifier. The transfer-learning model is
+an EfficientNet-B0 backbone pre-trained on ImageNet (about 4.0 million
+parameters), with the single-channel log-mel image lifted to the three-channel
+$224 times 224$ input the backbone expects; an optional frozen-backbone mode
+trains only the classifier head as a CPU-feasible fallback. Deep models are
+trained with the Adam optimiser and a class-weighted cross-entropy loss, with
+early stopping on the validation primary metric, a wall-clock cap for deadline
+protection, and best-checkpoint restoration; a train-versus-validation
+learning-curve figure is saved for each run to check for overfitting.
+
+== Evaluation
+
+The two tasks share the metric family ((Se + Sp) / 2), which makes them directly
+comparable while remaining robust to class imbalance.
+
+For heart sounds the primary metric is the *mean accuracy*
+(MAcc = (Se + Sp) / 2), where sensitivity (Se) is recall on the abnormal class
+and specificity (Sp) is recall on the normal class — the official CinC 2016
+metric. Per-window predictions are reduced to one prediction per recording by
+*majority vote* before the metric is computed, because the recording is the
+clinically meaningful unit; sensitivity, specificity, macro-F1, accuracy and,
+where a recording-level score is available, AUC-ROC are reported alongside.
+
+For lung sounds the primary metric is the official *ICBHI score*, again
+((Se + Sp) / 2) but with sensitivity pooled over the abnormal classes
+(crackle, wheeze, both) and specificity measured on the normal class; this scores
+normal-versus-abnormal discrimination rather than four-way accuracy. Per-class
+sensitivities and macro-F1 are reported in support.
+
+Every model is additionally checked against a degenerate "predict-one-class"
+failure (predictions must occupy at least two confusion-matrix columns), and a
+confusion-matrix figure is saved for each run. Volumetric characteristics —
+sample counts per split, model parameter counts and training wall-clock times —
+are logged for the report's volumetric table (Annex B).
+
+== Reproducibility
+
+A single configuration module is imported first by every script; its import side
+effect seeds Python's `random`, NumPy and PyTorch generators with the value 42
+and disables non-deterministic cuDNN behaviour. The software stack is pinned:
+Python 3.11, librosa 0.11.0, scikit-learn 1.8.0, XGBoost 3.2.0, PyTorch 2.11.0
+with torchaudio 2.11.0, timm ($gt.eq$ 1.0), imbalanced-learn 0.14.1, with the exact
+versions captured in a committed `requirements.txt`. Patient-level splits are
+written to disk and reloaded rather than regenerated, so that the partition is
+identical across runs. The full pinned environment is reproduced in Annex B.
+
+=== Chapter summary
+
+The methodology is a single configuration-driven pipeline applied identically to
+both modalities, with patient-level splits and an explicit zero-leakage
+assertion, modality-matched preprocessing and features, a common
+classical-versus-deep model set, and a shared ((Se + Sp) / 2) metric family. This
+uniformity is what makes the cross-modal comparison of Chapter 4 meaningful.
+
+#team-note[
+  The data acquisition and exploratory analysis were carried out by #MEMBER("04")
+  (heart) and #MEMBER("05") (lung); preprocessing, segmentation and the
+  patient-level splits by #MEMBER("06"); feature engineering by #MEMBER("07"); the
+  classical models by #MEMBER("08") and the deep-learning models by #MEMBER("09").
+  The shared evaluation framework was implemented by #MEMBER("10").
+]

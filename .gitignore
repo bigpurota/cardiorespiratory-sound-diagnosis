@@ -36,3 +36,6 @@ data/
 # params/               — modality-specific preprocessing parameters
 # results/tables/       — experiment result CSVs for the report
 # results/figures/      — report figures
+
+# Typst build artifact (regenerate with: typst compile report/main.typ report/main.pdf)
+report/main.pdf

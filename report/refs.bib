@@ -1,0 +1,111 @@
+% refs.bib — bibliography seeded from .planning/research/SUMMARY.md §Sources.
+% Only REAL sources from the research summary are listed. Citation keys match the
+% @keys used in report/sections/02-ch1-litreview.typ and 05-ch4-novelty.typ.
+% IEEE style → numbered [n] in order of first appearance (Annex 7 §1.4.4).
+% NOTE: some bibliographic fields (exact pages, accessed dates) are marked TODO in
+% comments where the SUMMARY did not record them; fill before final submission.
+
+@inproceedings{cinc2016,
+  author    = {Clifford, Gari D. and Liu, Chengyu and Springer, David and others},
+  title     = {Classification of Normal/Abnormal Heart Sound Recordings: The {PhysioNet/CinC} Challenge 2016},
+  booktitle = {Computing in Cardiology (CinC)},
+  year      = {2016},
+  note      = {Official challenge paper; MAcc = (Se+Sp)/2 metric; top-3 MAcc ~0.86}
+}
+
+@article{liu2016,
+  author  = {Liu, Chengyu and Springer, David and Li, Qiao and others},
+  title    = {An open access database for the evaluation of heart sound algorithms},
+  journal  = {Physiological Measurement},
+  year     = {2016},
+  note     = {PMC7199391; per-database subject/recording counts and class distribution}
+}
+
+@misc{circor2022,
+  author       = {Oliveira, Jorge and Renna, Francesco and Costa, Paulo and others},
+  title        = {The {CirCor} {DigiScope} Phonocardiogram Dataset, v1.0.3},
+  howpublished = {PhysioNet},
+  year         = {2022},
+  note         = {https://physionet.org/content/circor-heart-sound/1.0.3/ ; murmur metadata}
+}
+
+@article{rocha2019,
+  author  = {Rocha, Bruno M. and Filos, Dimitris and Mendes, Luis and others},
+  title    = {An open access database for the evaluation of respiratory sound classification algorithms},
+  journal  = {Physiological Measurement},
+  volume   = {40},
+  number   = {3},
+  pages    = {035001},
+  year     = {2019},
+  note     = {ICBHI 2017; 6898 cycles, 4-class distribution, official 60/40 split}
+}
+
+@article{cnn_lstm,
+  author  = {Demir, Fatih and others},
+  title    = {A {CNN-LSTM} model with focal loss for respiratory sound classification},
+  journal  = {Sensors},
+  year     = {2022},
+  note     = {PMC8838187; ICBHI score 64.92\% on official 60/40 split}
+}
+
+@misc{ast_patchmix,
+  author       = {Chang, Sangmin and others},
+  title        = {Patch-Mix Contrastive Learning with Audio Spectrogram Transformer for Respiratory Sound Classification},
+  howpublished = {arXiv:2305.14032},
+  year         = {2023},
+  note         = {Current SOTA-range ICBHI (~68\%+)}
+}
+
+@article{mfcc_svm,
+  author  = {{Anonymous (per SUMMARY)}},
+  title    = {Multi-domain {MFCC} features for heart-sound classification},
+  journal  = {PMC12324590},
+  year     = {2024},
+  note     = {MFCC 72.86\% discriminative weight; SVM best predictor (91.67\%) — TODO: confirm full citation}
+}
+
+@article{xgboost_heart,
+  author  = {{Anonymous (per SUMMARY)}},
+  title    = {Gradient-boosted trees for heart-sound classification on engineered acoustic features},
+  journal  = {PMC12845986},
+  year     = {2024},
+  note     = {XGBoost outperforms other classifiers — TODO: confirm full citation}
+}
+
+@misc{unified_heartlung,
+  title        = {Towards a unified heart-and-lung sound classification model},
+  howpublished = {arXiv:2301.06078},
+  year         = {2023},
+  note         = {Confirms cross-modal auscultation pipelines are novel territory}
+}
+
+@misc{auscultabase,
+  title        = {{AuscultaBase}: a foundation model for auscultation},
+  howpublished = {arXiv:2411.07547},
+  year         = {2024},
+  note         = {Recent unified auscultation pipeline}
+}
+
+@article{stroke2024,
+  author  = {{AHA Stroke authors (per SUMMARY)}},
+  title    = {Smartphone detection of carotid stenosis from arterial sound},
+  journal  = {Stroke},
+  year     = {2024},
+  note     = {DOI 10.1161/STROKEAHA.124.048410; confirms proprietary (no open) arterial dataset}
+}
+
+@article{carotid_pmc,
+  author  = {{Authors (per SUMMARY)}},
+  title    = {A carotid auscultation system for bruit detection},
+  journal  = {PMC7642592},
+  year     = {2020},
+  note     = {Confirms no open arterial data release}
+}
+
+@misc{lones2021,
+  author       = {Lones, Michael A.},
+  title        = {How to avoid machine learning pitfalls: a guide for academic researchers},
+  howpublished = {arXiv:2108.02497},
+  year         = {2021},
+  note         = {Reproducibility and leakage-safe evaluation checklist}
+}
