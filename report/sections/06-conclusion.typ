@@ -15,20 +15,29 @@ A reproducible, configuration-driven pipeline shared by the heart and lung
 modalities was assembled, with fixed random seeds, pinned dependencies,
 patient-level splits and an explicit zero-leakage assertion executed before every
 training run. On heart sounds the classical and deep models were trained and
-evaluated at the recording level, with the best configuration reaching a mean
-accuracy of #text(fill: rgb("#b00020"), weight: "bold")[[TODO: best heart MAcc]].
+evaluated at the recording level. The best overall configuration — XGBoost with
+the MFCC+Δ+ΔΔ + spectral-statistics feature set — reached a mean accuracy of
+MAcc = 0.903 (Se = 0.946, Sp = 0.859), exceeding the deep-learning models
+(SmallCNN 0.861, EfficientNet-B0 0.872) in the core run.
 On lung sounds the models were evaluated at the cycle level with the official
-ICBHI score, the best configuration reaching
-#text(fill: rgb("#b00020"), weight: "bold")[[TODO: best lung ICBHI score]]. Across
-both tasks the method family that performed best was
-#text(fill: rgb("#b00020"), weight: "bold")[[TODO: classical vs deep, per
-modality]].
+ICBHI score; the best configuration — a compact CNN on 64×128 log-mel spectrograms
+— achieved ICBHI = 0.551#super[†], slightly ahead of the best classical model
+(SVM-B, 0.537). Across the two tasks, classical gradient boosting won on heart
+while deep learning won on lung, a modality-specific divergence that forms the
+central finding of the cross-modal analysis.
+// <<DL-RESULTS-DROPIN: revise if HPO heart DL exceeds 0.903>>
+#text(fill: rgb("#666666"), size: 10pt)[#super[†] Preliminary core-run DL result; GPU-tuned mean±std to follow.]
 
-The cross-modal analysis — the project's principal novelty — found that
-#text(fill: rgb("#b00020"), weight: "bold")[[TODO: cross-modal finding: do method
-rankings transfer between heart and lung?]]. The arterial sub-study established
-that the pipeline generalises in principle to a third modality but is blocked by
-the absence of any openly licensed, labelled dataset of arterial bruits.
+The cross-modal analysis — the project's principal novelty — found that method
+rankings do not transfer uniformly between heart and lung sounds: XGBoost, the
+dominant heart classifier, falls to third place on lung, while SVM remains
+competitive on both modalities. Deep learning reverses its ranking relative to
+classical methods across the two tasks. These inversions demonstrate that
+modality-specific classifier selection is necessary even within a shared pipeline,
+and quantify the cost of deploying a heart-tuned model directly on lung data.
+The arterial sub-study established that the pipeline generalises in principle to
+a third modality but is blocked by the absence of any openly licensed, labelled
+dataset of arterial bruits.
 
 The work's positive outcomes are a leakage-safe, fully reproducible comparison
 across two modalities and an original cross-modal analysis; its negative outcomes

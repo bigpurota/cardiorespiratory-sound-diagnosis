@@ -23,8 +23,10 @@ frequency cepstral coefficients with delta features and spectral statistics,
 fed to logistic regression, support-vector machines, random forests and gradient
 boosting) and deep learning on log-mel spectrograms (a compact convolutional
 network and an EfficientNet-B0 transfer model). On heart sounds the best
-classical model reaches a mean accuracy of #text(fill: rgb("#b00020"))[[TODO: final MAcc, e.g. 0.90]];
-on lung sounds the ICBHI score is #text(fill: rgb("#b00020"))[[TODO: final ICBHI score]].
+classical model (XGBoost with extended spectral features) reaches a mean accuracy of 0.903
+(Se = 0.946, Sp = 0.859); on lung sounds the best model (a compact convolutional network
+on log-mel spectrograms) achieves an ICBHI score of 0.551#super[†].
+#text(fill: rgb("#666666"), size: 10pt)[#super[†] Preliminary — GPU-tuned result to follow.]
 We additionally analyse how method rankings transfer across the two modalities.
 The study is intentionally scoped as honest, leakage-free baselines rather than
 state-of-the-art tuning, and a dedicated limitations section delineates what the
@@ -53,10 +55,9 @@ data leakage, comparative study.
 кепстральные коэффициенты с дельта-признаками и спектральными статистиками,
 подаваемые в логистическую регрессию, метод опорных векторов, случайный лес и
 градиентный бустинг) и глубокое обучение на лог-мел спектрограммах (компактная
-свёрточная сеть и трансферная модель EfficientNet-B0). Лучшее качество на тонах
-сердца составляет #text(fill: rgb("#b00020"))[[TODO: итоговое MAcc]];
-на дыхательных шумах оценка ICBHI равна
-#text(fill: rgb("#b00020"))[[TODO: итоговая оценка ICBHI]]. Отдельно
+свёрточная сеть и трансферная модель EfficientNet-B0). Лучшее качество на тонах сердца составляет MAcc = 0.903
+(Se = 0.946, Sp = 0.859); на дыхательных шумах оценка ICBHI равна 0.551#super[†].
+#text(fill: rgb("#666666"), size: 10pt)[#super[†] Предварительный результат — уточняется по итогам GPU-оптимизации.] Отдельно
 анализируется перенос ранжирования методов между модальностями.
 
 *Ключевые слова:* аускультация, фонокардиограмма, дыхательный шум, машинное
