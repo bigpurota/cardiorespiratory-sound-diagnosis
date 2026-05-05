@@ -87,8 +87,11 @@ downstream feature extractor sees a uniform input.
 == Feature extraction
 
 Two parallel representations are produced from each fixed-length segment.
+Feature extraction is implemented with librosa 0.11.0 @librosa for the classical
+path and torchaudio for the spectrogram path.
 
-*Classical features.* From each segment we compute 40 mel-frequency cepstral
+*Classical features.* MFCC extraction follows the standard mel-filterbank + DCT
+formulation @mfcc_standard. From each segment we compute 40 mel-frequency cepstral
 coefficients together with their first- and second-order temporal deltas; each of
 these three blocks is summarised across frames by its mean and its standard
 deviation, yielding a 240-dimensional vector (feature set A). An extended set
@@ -111,25 +114,28 @@ band triggers at smaller FFT sizes.
 
 == Models and training protocol
 
-*Classical models.* Both feature sets are fed to four classifiers — logistic
-regression, an RBF-kernel support-vector machine, a random forest and gradient
-boosting (XGBoost). Standardisation is fitted on the training fold only, inside a
-single scikit-learn pipeline, so no test-set statistics leak into training.
-Hyper-parameter tuning uses patient-grouped cross-validation, and class
-imbalance is handled by class weighting.
+*Classical models.* Both feature sets are fed to four classifiers implemented in
+scikit-learn @sklearn: logistic regression, an RBF-kernel support-vector machine
+@cortes1995, a random forest @breiman2001 and gradient boosting (XGBoost @chen2016).
+Standardisation is fitted on the training fold only, inside a single scikit-learn
+pipeline, so no test-set statistics leak into training. Hyper-parameter tuning
+uses patient-grouped cross-validation, and class imbalance is handled by class
+weighting and SMOTE @smote applied strictly inside the training fold.
 
-*Deep models.* The compact convolutional network consists of four
+*Deep models.* All deep models are implemented in PyTorch @pytorch. The compact
+convolutional network (SmallCNN) consists of four
 convolution–batch-normalisation–ReLU–max-pool blocks (channel widths
 $1 arrow.r 16 arrow.r 32 arrow.r 64 arrow.r 128$), an adaptive average pool, and a head with
 dropout (at least 0.3) before a linear classifier. The transfer-learning model is
-an EfficientNet-B0 backbone pre-trained on ImageNet (about 4.0 million
-parameters), with the single-channel log-mel image lifted to the three-channel
-$224 times 224$ input the backbone expects; an optional frozen-backbone mode
-trains only the classifier head as a CPU-feasible fallback. Deep models are
-trained with the Adam optimiser and a class-weighted cross-entropy loss, with
-early stopping on the validation primary metric, a wall-clock cap for deadline
-protection, and best-checkpoint restoration; a train-versus-validation
-learning-curve figure is saved for each run to check for overfitting.
+an EfficientNet-B0 backbone @efficientnet pre-trained on ImageNet @imagenet
+(approximately 4.0 million parameters), with the single-channel log-mel image
+lifted to the three-channel $224 times 224$ input the backbone expects via
+channel replication; an optional frozen-backbone mode trains only the classifier
+head as a CPU-feasible fallback. Deep models are trained with the Adam optimiser
+and a class-weighted cross-entropy loss, with early stopping on the validation
+primary metric, a wall-clock cap for deadline protection, and best-checkpoint
+restoration; a train-versus-validation learning-curve figure is saved for each run
+to check for overfitting.
 
 == Evaluation
 

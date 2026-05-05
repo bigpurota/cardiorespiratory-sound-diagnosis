@@ -76,9 +76,9 @@ deep models is a drop-in item — see DL-RESULTS-DROPIN comment in this file.]
 
 === Summary of cross-modal findings
 
-The Spearman rank correlation between the per-classifier ICBHI scores (lung) and
-the corresponding MAcc scores (heart) — computed over the four classifier types at
-feature set A — is negative or near-zero, reflecting that XGBoost's dominance on
+The Spearman rank correlation @wilcoxon1945 between the per-classifier ICBHI scores
+(lung) and the corresponding MAcc scores (heart) — computed over the four classifier
+types at feature set A — is negative or near-zero, reflecting that XGBoost's dominance on
 heart does not transfer to lung, while SVM's moderate heart performance does
 transfer. This finding supports the methodological argument for cross-modal
 evaluation: a researcher who tuned on heart data and deployed the same model on

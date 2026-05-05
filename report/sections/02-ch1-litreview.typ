@@ -90,7 +90,7 @@ the training set is labelled normal and approximately 18 % abnormal. The officia
 evaluation metric is mean accuracy MAcc = (Se + Sp) / 2, which is robust to this
 imbalance because it equally weights sensitivity (correct abnormal identification)
 and specificity (correct normal identification). Top-3 challenge entries reached
-MAcc around 0.86, setting a public benchmark for this task.
+MAcc around 0.86 @potes2016, setting a public benchmark for this task.
 
 A key methodological point is that the challenge provided only a training set with
 public labels; the private test set was withheld. Any researcher using this corpus
