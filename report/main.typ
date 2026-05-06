@@ -139,7 +139,7 @@
     #text(size: 12pt)[Tsember Andrei Alekseevich] \
     #v(1.2cm)
     #text(size: 12pt)[*Assessed by the Project Supervisor:*] \
-    #text(size: 12pt, fill: rgb("#b00000"))[[supervisor — surname first-name patronymic]] \
+    #text(size: 12pt)[Tomashchuk Kornei Kirillovich] \
     #text(size: 12pt)[Lecturer] \
     #text(size: 12pt)[Faculty of Computer Science, HSE University]
   ]
