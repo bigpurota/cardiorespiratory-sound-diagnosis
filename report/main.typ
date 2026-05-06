@@ -111,28 +111,42 @@
 )
 
 // =============================================================================
-// TITLE PAGE (unnumbered). The official HSE title-page template
-// (Title pages (research).zip / "Research team project AMI - Report Title Page")
-// will replace this placeholder at final submission.
+// TITLE PAGE (unnumbered) — official HSE / Faculty of Computer Science
+// individual Research Project format (per "Title page (Research project) ind,
+// 1 supervisor.docx" from Title pages (research).zip).
 // =============================================================================
-#align(center)[
-  #v(3cm)
-  #text(size: 14pt)[National Research University Higher School of Economics] \
-  #text(size: 12pt)[Faculty of Computer Science — Applied Data Science (DSBA)]
-  #v(4cm)
-  #text(size: 18pt, weight: "bold")[
-    Comparative Machine-Learning Diagnosis of Cardiorespiratory
-    and Arterial Pathologies from Auscultation Sound
+#[
+  #set align(center)
+  #v(1.5cm)
+  #text(size: 14pt)[NATIONAL RESEARCH UNIVERSITY] \
+  #text(size: 14pt)[HIGHER SCHOOL OF ECONOMICS] \
+  #v(0.5cm)
+  #text(size: 12pt)[Faculty of Computer Science] \
+  #text(size: 12pt)[Bachelor's Programme "Data Science and Business Analytics"]
+  #v(3.5cm)
+  #text(size: 13pt)[Research Project Report on the Topic:] \
+  #v(0.5cm)
+  #text(size: 16pt, weight: "bold")[
+    Diagnosis of Pathologies of the Cardiorespiratory System and Main
+    Arteries Based on the Analysis of Sound Data
   ]
-  #v(1cm)
-  #text(size: 13pt)[Year-2 Term Project — Research Project (Group of 11)]
   #v(3cm)
-  #text(size: 12pt)[
-    #TODO[insert official HSE title page from Title pages (research).zip;
-    list all 11 authors, scientific supervisor, year 2025–26]
+
+  #set align(left)
+  #pad(left: 1.5cm)[
+    #text(size: 12pt)[*Fulfilled by:*] \
+    #text(size: 12pt)[Student of the Group БПАД244] \
+    #text(size: 12pt)[Tsember Andrei Alekseevich] \
+    #v(1.2cm)
+    #text(size: 12pt)[*Assessed by the Project Supervisor:*] \
+    #text(size: 12pt, fill: rgb("#b00000"))[[supervisor — surname first-name patronymic]] \
+    #text(size: 12pt)[Lecturer] \
+    #text(size: 12pt)[Faculty of Computer Science, HSE University]
   ]
+
   #v(1fr)
-  #text(size: 12pt)[Moscow, 2026]
+  #set align(center)
+  #text(size: 12pt)[Moscow 2026]
 ]
 #pagebreak()
 

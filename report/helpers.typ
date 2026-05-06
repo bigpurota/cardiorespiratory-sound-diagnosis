@@ -8,10 +8,8 @@
 #let CITE(body) = text(fill: rgb("#0050b0"), weight: "bold")[[CITE: #body]]
 #let MEMBER(id) = text(fill: rgb("#555555"), raw("<MEMBER_" + id + ">"))
 
-// Team-role note block (Annex 5 §2.3): placed at the end of the Introduction and
-// at the end of every chapter to attribute the work to the responsible members.
-#let team-note(body) = block(
-  width: 100%,
-  inset: (top: 6pt),
-  text(size: 11pt, style: "italic")[*Distribution of work.* #body],
-)
+// Project group with a single member (the sole author): there is no work to
+// distribute among multiple people, so the per-chapter team-role note renders
+// nothing. The macro is kept as a no-op so existing #team-note[...] call sites
+// across the chapters need no edits.
+#let team-note(body) = none

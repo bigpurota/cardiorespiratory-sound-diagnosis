@@ -87,23 +87,18 @@ Chapter 4 presents the cross-modal analysis and the arterial sub-study. The
 Conclusion summarises the findings against each objective and states the
 limitations and directions for future work.
 
-// ---- Annex 5 §2.3: distribution of work among all 11 members -----------------
-#figure(
-  caption: [Distribution of work among project participants],
-  table(
-    columns: (auto, 1fr),
-    align: (center + horizon, left + horizon),
-    table.header([*Member*], [*Area of responsibility*]),
-    [`<MEMBER_01>` (lead)], [Project coordination, problem statement, Introduction, integration, repository],
-    [`<MEMBER_02>`], [Literature review — heart-sound classification; English abstract],
-    [`<MEMBER_03>`], [Literature review — lung-sound and arterial; Russian abstract and keywords],
-    [`<MEMBER_04>`], [Data acquisition and exploratory analysis — PhysioNet/CinC 2016 (heart)],
-    [`<MEMBER_05>`], [Data acquisition and exploratory analysis — ICBHI 2017 (lung)],
-    [`<MEMBER_06>`], [Preprocessing, segmentation and patient-level split construction],
-    [`<MEMBER_07>`], [Feature engineering — MFCC, log-mel and spectral/temporal features],
-    [`<MEMBER_08>`], [Classical machine learning — logistic regression, SVM, random forest, gradient boosting],
-    [`<MEMBER_09>`], [Deep learning — convolutional network and EfficientNet-B0 on log-mel spectrograms],
-    [`<MEMBER_10>`], [Evaluation framework and cross-modality transfer analysis (novelty)],
-    [`<MEMBER_11>`], [Arterial analytical sub-study; report formatting, figures, tables and bibliography],
-  ),
-)
+// ---- Annex 5 §2.3: project-group composition (single member) -----------------
+#heading(level: 3, numbering: none, outlined: false)[Project group and contribution]
+
+This research project was carried out within a project group whose sole member is
+the author. Accordingly, all stages of the work were performed by the author,
+Tsember Andrei Alekseevich (group БПАД244): problem formulation and the analytical
+literature review; acquisition and exploratory analysis of the PhysioNet/CinC 2016
+(heart) and ICBHI 2017 (lung) datasets; preprocessing, segmentation and the
+construction of leakage-safe patient-level splits; classical feature engineering
+and the logistic-regression, support-vector-machine, random-forest and
+gradient-boosting experiments; the convolutional-network, EfficientNet-B0 and
+Audio Spectrogram Transformer deep-learning experiments, including the
+hyperparameter search and multi-seed evaluation; the cross-modal transfer
+analysis and the arterial analytical sub-study; and the preparation of this
+report under the department's structural and formatting requirements.
