@@ -1,0 +1,7 @@
+https://github.com/<USERNAME>/<REPOSITORY>
+
+# Repository link for the HSE FCS / DSBA Year-2 Research Project:
+# "Diagnosis of Pathologies of the Cardiorespiratory System and Main Arteries
+#  Based on the Analysis of Sound Data" — Tsember Andrei Alekseevich, БПАД244.
+# Replace the placeholder URL above with the public GitHub URL once the
+# repository is pushed (decision pending — not pushed yet).

@@ -250,7 +250,10 @@ regularisation.
 
 @tab-volumetrics collects the dataset sizes, model parameter counts and training
 times that characterise the experimental scale. These are required by Annex 5
-§2.5. Full details including per-class cycle counts appear in Annex B.
+§2.5. Beyond the data and model sizes, the experimental pipeline itself comprises
+6 976 lines of Python across 31 modules in `src/` and `scripts/` (approximately
+289 KB of source code), supported by a further 2 959 lines of automated tests.
+Full details including per-class cycle counts appear in Annex B.
 
 #figure(
   caption: [Volumetric characteristics of the experiments. Training times are

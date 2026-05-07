@@ -83,10 +83,12 @@
 #set figure(numbering: "1")
 #show figure.caption: it => [
   #set text(size: 11pt)
-  #set align(center)
   #it
 ]
-#set figure.caption(separator: [ — ], position: bottom)
+#set figure.caption(separator: [ – ], position: bottom)
+// Annex 7 §1.4.1: figure captions centred. Table captions are left-aligned
+// (Annex 7 §1.4.2) — handled in the table show rule below.
+#show figure.where(kind: image): set align(center)
 
 // ---- Tables: caption ABOVE, left, no indent; 10 pt; "Table N — Name" ---------
 // (Per Annex 7 §1.4.2 the table title is placed above the table, left-aligned.)
@@ -95,6 +97,7 @@
 #show figure.where(kind: table): it => {
   set text(size: 10pt)
   set par(leading: 0.65em, first-line-indent: 0pt)
+  set align(left)            // Annex 7 §1.4.2: table title left-aligned, no indent
   it
 }
 
