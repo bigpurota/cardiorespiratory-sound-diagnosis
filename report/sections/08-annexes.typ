@@ -43,19 +43,19 @@ beyond the rounded summary in Chapter 3. Numbers are taken directly from
   ),
 ) <tab-annex-heart-classical>
 
-=== Heart-sound metrics (deep-learning models, preliminary core run)
+=== Heart-sound metrics (deep-learning models, HPO-tuned, 3-seed mean)
 
 #figure(
-  caption: [Heart-sound deep-learning metrics (core CPU run — preliminary).
-  // <<DL-RESULTS-DROPIN: replace with HPO mean±std>>
-  ],
+  caption: [Heart-sound deep-learning metrics. HPO-tuned (val-only selection, 128
+  trials); values are the mean over three seeds (1, 2, 42). Parameter counts reflect
+  the HPO-selected architecture (the tuned SmallCNN uses wider 32–256 channels).],
   table(
     columns: (auto, auto, auto, auto, auto, auto, auto),
     align: (left, left, center, center, center, center, center),
     table.header(
       [*Model*], [*Params*], [*MAcc*], [*Se*], [*Sp*], [*macro-F1*], [*AUC*]),
-    [SmallCNN],        [97 890],    [0.8609], [0.9154], [0.8065], [0.7859], [0.9382],
-    [EfficientNet-B0], [4 010 110], [0.8720], [0.9154], [0.8286], [0.8040], [0.9541],
+    [SmallCNN],        [389 314],   [0.871 ± 0.009], [0.910], [0.831], [0.805], [0.946],
+    [EfficientNet-B0], [4 010 110], [0.898 ± 0.008], [0.936], [0.860], [0.837], [0.966],
   ),
 )
 
@@ -80,19 +80,19 @@ beyond the rounded summary in Chapter 3. Numbers are taken directly from
   ),
 ) <tab-annex-lung-classical>
 
-=== Lung-sound metrics (deep-learning models, preliminary core run)
+=== Lung-sound metrics (deep-learning models, HPO-tuned, 3-seed mean)
 
 #figure(
-  caption: [Lung-sound deep-learning metrics (core CPU run — preliminary).
-  // <<DL-RESULTS-DROPIN: replace with HPO mean±std>>
-  ],
+  caption: [Lung-sound deep-learning metrics. HPO-tuned (val-only selection, 128
+  trials); values are the mean over three seeds (1, 2, 42). Per-class sensitivities
+  vary across seeds; representative-run breakdowns appear in Chapter 3.],
   table(
-    columns: (auto, auto, auto, auto, auto, auto, auto, auto),
-    align: (left, auto, center, center, center, center, center, center),
+    columns: (auto, auto, auto, auto, auto, auto),
+    align: (left, auto, center, center, center, center),
     table.header(
-      [*Model*], [*Params*], [*ICBHI*], [*Se*], [*Sp*], [*Se_crk*], [*Se_wh*], [*Se_both*]),
-    [SmallCNN],        [98 148],    [*0.5511*], [0.6784], [0.4237], [0.451], [0.458], [0.105],
-    [EfficientNet-B0], [4 012 672], [0.5491],   [0.5214], [0.5769], [0.399], [0.260], [0.070],
+      [*Model*], [*Params*], [*ICBHI*], [*Se*], [*Sp*], [*macro-F1*]),
+    [SmallCNN],        [98 148],    [0.540 ± 0.022], [0.755], [0.325], [0.301],
+    [EfficientNet-B0], [4 012 672], [*0.555 ± 0.016*], [0.509], [0.601], [0.309],
   ),
 )
 

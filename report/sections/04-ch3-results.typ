@@ -249,8 +249,9 @@ times that characterise the experimental scale. These are required by Annex 5
 Full details including per-class cycle counts appear in Annex B.
 
 #figure(
-  caption: [Volumetric characteristics of the experiments. Training times are
-  wall-clock seconds on CPU (Intel-class laptop, single thread where applicable).],
+  caption: [Volumetric characteristics of the experiments. Classical training times
+  are CPU wall-clock seconds; deep-learning training times are GPU (NVIDIA A100)
+  wall-clock seconds for the HPO-selected configuration.],
   table(
     columns: (2fr, 1fr, 1fr),
     align: (left, center, center),
@@ -261,10 +262,10 @@ Full details including per-class cycle counts appear in Annex B.
     [Test recordings/patients],      [626 / 626],    [369 / 47],
     [Best classical model (SVM-B) train time (s)], [659], [31],
     [Best classical model (XGB-B) train time (s)], [21],  [26],
-    [SmallCNN parameters],           [97 890], [98 148],
-    [SmallCNN train time (s)],       [159],    [42],
-    [EfficientNet-B0 parameters],    [4 010 110], [4 012 672],
-    [EfficientNet-B0 train time (s)],[622],    [187],
+    [SmallCNN parameters (HPO-tuned)], [389 314], [98 148],
+    [SmallCNN train time (s), GPU],    [262],    [26],
+    [EfficientNet-B0 parameters],      [4 010 110], [4 012 672],
+    [EfficientNet-B0 train time (s), GPU],[1 345], [204],
     [Log-mel data volume (MB)],      [1 227],  [226],
     [Classical feature data volume (MB)], [74], [14],
   ),
