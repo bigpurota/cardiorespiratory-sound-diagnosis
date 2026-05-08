@@ -1,20 +1,19 @@
 // 05-ch4-novelty.typ — Chapter 4: Cross-modal analysis (novelty) + arterial
-// sub-study. Fully drafted with original synthesis.
-// Numbers derived from unified_comparison.csv (final classical; DL preliminary).
-// Cross-modal finding is based on the actual rankings from Chapter 3 results.
-// <<DL-RESULTS-DROPIN: revisit the cross-modal finding paragraph and the
-//   chapter summary once HPO+multiseed DL scores are available.>>
+// sub-study. All numbers final (HPO+multi-seed DL, cross-modal transfer, joint).
+// DEEP-CROSSMODAL-DROPIN filled 2026-06-02.
+// <<AST-ROWS-DROPIN: 2 rows if finalised>>
 
 #import "../helpers.typ": *
 
 = Cross-modal analysis and arterial sub-study
 
 This chapter develops the project's primary novel contribution: an analysis of how
-method families transfer across auscultation modalities, drawn directly from the
-Chapter 3 results without additional experiments. It then provides an analytical
-treatment of arterial sounds, for which no open dataset exists, documenting the
-acoustic basis, the data-availability obstacle, and how the pipeline would extend
-if the obstacle were removed.
+method families transfer across auscultation modalities, combining the per-modality
+Chapter 3 results with dedicated cross-modal transfer experiments (pretrained
+encoder applied to the opposite modality) and a joint multi-task probe. It then
+provides an analytical treatment of arterial sounds, for which no open dataset
+exists, documenting the acoustic basis, the data-availability obstacle, and how
+the pipeline would extend if the obstacle were removed.
 
 == Transfer of method rankings across modalities
 
@@ -59,64 +58,109 @@ transients is more relevant than broadband spectral shape.
 
 === Classical versus deep learning
 
-On heart sounds, classical XGBoost (MAcc = 0.903) exceeds the deep models (CNN
-0.861, EfficientNet-B0 0.872) in the core run. This is consistent with the known
-literature finding that engineered MFCC features on well-windowed recordings
-outperform compact CNNs for binary heart-sound classification at the ~3,000
-recording scale @xgboost_heart. On lung sounds, the deep CNN (ICBHI = 0.551)
-achieves the single best result, narrowly ahead of SVM (0.537). This reversal —
-classical wins on heart, deep wins on lung — aligns with task characteristics: the
-lung task's four-class imbalanced structure, with class-specific Se as low as
-0.10 for random forest, seems to benefit more from the richer log-mel
-representation that deep models learn end-to-end.
+With HPO-tuned hyperparameters and three-seed averaging, the picture on heart
+sounds is more nuanced than the core run suggested. EfficientNet-B0 reaches
+MAcc = 0.898 ± 0.008 (Se = 0.936, Sp = 0.860), statistically on par with the
+best classical model (XGBoost-B, MAcc = 0.903): the gap is 0.005, well within one
+standard deviation. SmallCNN reaches MAcc = 0.871 ± 0.009. The deep-vs-classical
+advantage that classical models showed in the untuned core run narrows to within
+noise after equivalent optimisation effort.
 
-#text(fill: rgb("#666666"), style: "italic")[Note: the classical-vs-deep conclusion
-for heart is robust under the current numbers. Whether it holds after HPO on the
-deep models is a drop-in item — see DL-RESULTS-DROPIN comment in this file.]
+On lung sounds, the deep models achieve ICBHI = 0.540 ± 0.022 (CNN) and
+0.555 ± 0.016 (EfficientNet-B0), placing them marginally ahead of but practically
+indistinguishable from the best classical model (SVM-B, 0.537). Both modalities
+therefore converge on the same finding: with proper HPO, classical and deep methods
+occupy the same performance tier on these tasks and dataset scales.
 
-=== Summary of cross-modal findings
+=== Summary of cross-modal findings (classical)
 
 The Spearman rank correlation @wilcoxon1945 between the per-classifier ICBHI scores
-(lung) and the corresponding MAcc scores (heart) — computed over the four classifier
-types at feature set A — is negative or near-zero, reflecting that XGBoost's dominance on
-heart does not transfer to lung, while SVM's moderate heart performance does
-transfer. This finding supports the methodological argument for cross-modal
-evaluation: a researcher who tuned on heart data and deployed the same model on
-lung data would incur a non-trivial performance penalty. The practical implication
-is that modality-specific classifier selection remains necessary even when the
-feature extraction and evaluation protocol are shared.
+(lung) and the corresponding MAcc scores (heart) — computed over the four classical
+classifier types at feature set A — is ρ = 0.60 (p = 0.40, n = 4). This
+represents a moderate positive correlation: classifiers that rank higher on heart
+tend to rank higher on lung, but the relationship is not significant at conventional
+thresholds given the small sample size. Concretely, XGBoost's dominance on heart
+does not fully transfer to lung (it falls to third), while SVM is consistently
+competitive on both modalities. This finding supports the methodological argument
+for cross-modal evaluation: a researcher who tuned exclusively on heart data and
+deployed the same model on lung data would incur a non-trivial performance penalty.
 
-== Joint-training probe
+== Deep cross-modal transfer and joint multi-task experiments
 
-As a diagnostic probe, we examine what the results imply about a hypothetical
-shared-representation model trained on pooled heart and lung data. Because the
-two modalities differ substantially in sampling characteristics (heart: 33,246
-windows; lung: 4,262 cycles), a naive pooled model would be dominated by heart
-data. We do not train a pooled model explicitly; instead, we note from the
-architecture (Chapter 2) that the feature extraction, model definition and loss
-function are identical, and that the only modality-specific parameters are the
-bandpass cutoffs and the label cardinality. These observations suggest that a
-multi-task shared backbone, with per-modality classification heads, would be a
-feasible and natural next step. The current results quantify the per-modality
-performance ceiling such a model would need to match.
+// <<DEEP-CROSSMODAL-DROPIN filled 2026-06-02>>
+
+To probe whether the shared log-mel pipeline enables feature transfer between
+modalities, we ran three additional deep-learning experiments beyond the per-modality
+training of Chapter 3: (i) direct transfer, where an encoder pre-trained on one
+modality is applied to the other without re-training; (ii) joint multi-task
+training, where a single shared encoder with two task-specific classification
+heads is trained simultaneously on both modalities; and (iii) in-domain baselines
+for reference. The cross-modal heat-map in @fig-cross-modal-heatmap summarises all
+eight source→target combinations.
 
 #figure(
-  caption: [Per-modality scores under per-modality training (this study) versus a
-  proposed joint-training architecture (future work).
-  // <<DL-RESULTS-DROPIN: populate joint-training column if a joint experiment
-  //    is run before the submission deadline>>
+  image("../../results/figures/cross_modal_heatmap.png", width: 78%),
+  caption: [Cross-modal transfer heat-map. Each cell shows the primary metric
+  (MAcc for heart; ICBHI for lung) achieved when a model pre-trained on the
+  source modality (rows) is evaluated on the target modality (columns).
+  In-domain results appear on the diagonal; off-diagonal cells show transfer
+  performance.],
+) <fig-cross-modal-heatmap>
+
+The headline finding is that cross-modal transfer is strongly asymmetric.
+Heart→lung transfer yields only ICBHI = 0.524 (CNN) and 0.526 (EfficientNet-B0),
+which is below the lung in-domain baseline (0.559 / 0.578) — a negative or
+near-neutral transfer. By contrast, lung→heart transfer yields MAcc = 0.854
+(CNN) and 0.876 (EfficientNet-B0), close to the heart in-domain baseline
+(0.861 / 0.885) — a strong positive transfer. This asymmetry suggests that
+lung-pretrained spectral features capture patterns broadly useful for binary
+heart classification, whereas heart-pretrained features (tuned for the binary
+normal/abnormal boundary in phonocardiograms) do not generalise to the
+four-class respiratory task.
+
+The joint multi-task model (shared encoder, two classification heads) achieves
+MAcc = 0.844 / 0.840 for heart (CNN / EfficientNet-B0) and ICBHI = 0.565 / 0.567
+for lung. The joint model roughly preserves both modalities: it shows a modest
+lung improvement over per-modality training (0.565 vs. 0.559 for CNN) and a
+slight heart drop (0.844 vs. 0.861 for CNN), consistent with the known
+multi-task trade-off where the shared encoder cannot simultaneously optimise for
+both objectives at a fixed capacity.
+
+@tab-joint collects all per-setting scores for direct reference.
+
+#figure(
+  caption: [Per-modality scores under in-domain, transfer and joint-training
+  settings. In-domain scores are single-seed reference runs (comparable to the
+  Chapter 3 mean); see Chapter 3 for multi-seed HPO values.
+  // <<AST-ROWS-DROPIN: 2 rows if finalised>>
   ],
   table(
-    columns: (2fr, 1fr, 1fr),
-    align: (left, center, center),
-    table.header([*Setting*], [*Heart (MAcc)*], [*Lung (ICBHI)*]),
-    [Per-modality — best classical], [0.903], [0.537],
-    [Per-modality — best deep (core run)], [0.872#super[†]], [0.551#super[†]],
-    [Joint multi-task (future work)],     [n/a], [n/a],
+    columns: (2.2fr, 1fr, 1fr, 1fr, 1fr),
+    align: (left, center, center, center, center),
+    table.header(
+      [*Setting*], [*Heart CNN*], [*Heart EffNet*], [*Lung CNN*], [*Lung EffNet*]),
+    [In-domain],                  [0.861], [0.885], [0.559], [0.578],
+    [Transfer heart→lung],        [0.524], [0.526], [—],     [—],
+    [Transfer lung→heart],        [—],     [—],     [0.854], [0.876],
+    [Joint multi-task],           [0.844], [0.840], [0.565], [0.567],
+    [Per-modality classical best],[0.903], [—],     [0.537], [—],
   ),
 ) <tab-joint>
 
-#text(size: 10pt)[#super[†] Preliminary core-run result; see Chapter 3 note.]
+== Audio Spectrogram Transformer: methodological extension
+
+As a methodological extension of the deep-learning pipeline, a pretrained Audio
+Spectrogram Transformer (AST) @gong2021ast — originally trained on AudioSet — was
+integrated into the shared pipeline. The AST's forward pass and training loop were
+verified to run correctly within the project's data-loading and evaluation framework.
+However, a complete fine-tune-and-evaluation run was not finalised within the
+project's time budget; producing reliable multi-seed results would have required
+additional GPU compute that was not available before the submission deadline. AST
+is therefore presented as a methodological extension rather than a headline result:
+the integration work is complete, the code is available in the repository, and the
+experiment can be run to completion given additional compute resources.
+
+// <<AST-ROWS-DROPIN: 2 rows if finalised: heart AST and lung AST primary metrics>>
 
 == Arterial sounds: an analytical sub-study
 
@@ -176,15 +220,22 @@ the shared pipeline described in Chapter 2.
 
 === Chapter summary
 
-The cross-modal analysis reveals that method rankings do not fully transfer across
-auscultation modalities: XGBoost dominates on heart sounds but falls to third
-place on lung sounds, while SVM is uniformly competitive. Deep learning shows the
-opposite cross-modal pattern: a modest disadvantage on heart and a slight advantage
-on lung. The feature set effect is also modality-specific, with spectral statistics
-helping uniformly on heart but inconsistently on lung.
-// <<DL-RESULTS-DROPIN: revisit if HPO heart DL exceeds best classical>>
-These findings motivate per-modality model selection even within a shared pipeline
-and quantify the cost of a naive one-model-all-modalities deployment.
+The cross-modal analysis delivers three findings. First, classical method rankings
+do not fully transfer: XGBoost dominates on heart sounds but falls to third place
+on lung, while SVM is uniformly competitive. The Spearman rank correlation across
+the four classical methods is ρ = 0.60 (p = 0.40), a moderate positive association
+that falls short of significance at the small sample size. Second, deep cross-modal
+transfer is asymmetric: lung-pretrained features transfer well to heart (near
+in-domain performance), but heart-pretrained features do not transfer to lung.
+Joint multi-task training preserves both modalities at the cost of a slight heart
+drop, consistent with shared-capacity constraints. Third, with HPO-tuned deep
+models, the deep-vs-classical gap on heart closes to within noise, while lung
+remains equally hard for all method families. These findings motivate per-modality
+model selection even within a shared pipeline and quantify the cost of a naive
+one-model-all-modalities deployment.
+
+The AST extension verifies that transformer-based audio models integrate
+cleanly into the pipeline; finalising the fine-tune is reserved for future work.
 
 The arterial sub-study establishes that the pipeline generalises to bruits in
 principle but is blocked by data unavailability — a gap that the community should

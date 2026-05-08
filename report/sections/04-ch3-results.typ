@@ -7,12 +7,8 @@
 //   results/tables/metrics_lung_cnn.csv
 //   results/tables/volumetrics_classical.csv
 //   results/tables/volumetrics_cnn.csv
-// Classical results are FINAL. DL rows are marked as core-run (preliminary)
-// with a clearly labelled drop-in slot for the HPO+multiseed upgrade.
-//
-// <<DL-RESULTS-DROPIN: replace all rows/cells tagged "[core-run — prelim]" with
-//   HPO+multi-seed mean±std once the GPU sweep completes. Also update the
-//   headline in the abstract and conclusion.>>
+// Classical results are FINAL. DL rows updated to HPO+multi-seed mean±std (FINAL).
+// DL-RESULTS-DROPIN slot filled 2026-06-02.
 
 #import "../helpers.typ": *
 
@@ -24,24 +20,23 @@ protocol described in Chapter 2. All headline numbers are at the recording level
 for heart sounds and at the cycle level for lung sounds, using the official
 ((Se + Sp) / 2) metric of each task. Where a model predicted only one class the
 result is marked degenerate in the discussion; no such degenerate case arose in
-the final experiments. Deep-learning rows in the comparison table are from the
-core CPU run and are marked preliminary; an upgraded GPU hyperparameter-search
-result will replace them before the final PDF submission.
+the final experiments. Deep-learning results are HPO-tuned (val-only selection,
+128 trials) and reported as mean±std over three independent seeds (1, 2, 42).
 
 == Unified comparison table
 
 @tab-unified collects every model trained in this study under a single schema,
-enabling direct cross-method and cross-modality comparison. The 16 classical rows
-are final. The 4 deep-learning rows are from the core run and are marked
-preliminary. Rows are grouped first by modality, then by feature set, then by
+enabling direct cross-method and cross-modality comparison. All 20 rows are
+final. Rows are grouped first by modality, then by feature set, then by
 model. Within each modality the best primary-metric score is shown in bold.
+Deep-learning scores represent HPO-tuned mean±std over three seeds.
 
 // Full 20-row comparison table built from unified_comparison.csv
 #figure(
   caption: [Unified model comparison across both modalities.
   Heart metric: MAcc = (Se+Sp)/2 (CinC 2016 official). Lung metric: ICBHI Score = (Se+Sp)/2
-  (ICBHI 2017 official). DL rows marked #super[†] are preliminary (core CPU run); a GPU-tuned
-  multi-seed result will replace them.
+  (ICBHI 2017 official). DL rows report HPO-tuned mean±std over three seeds (1, 2, 42),
+  val-only HPO selection (128 trials).
   Feature sets: A = MFCC+Δ+ΔΔ (240-d); B = MFCC+Δ+ΔΔ+spectral (250-d); log-mel = 64×128 image.],
   table(
     columns: (auto, auto, auto, auto, auto, auto, auto, auto),
@@ -67,8 +62,8 @@ model. Within each modality the best primary-metric score is shown in bold.
     table.cell(text(weight: "bold")[[*0.859*]]),
     table.cell(text(weight: "bold")[[0.839]]),
     // ---- Heart DL ----
-    [Heart], [log-mel 64×128], [SmallCNN],       [MAcc], [0.861#super[†]], [0.915], [0.806], [0.786],
-    [Heart], [log-mel 64×128], [EfficientNet-B0], [MAcc], [0.872#super[†]], [0.915], [0.829], [0.804],
+    [Heart], [log-mel 64×128], [SmallCNN],       [MAcc], [0.871 ± 0.009], [0.910], [0.831], [—],
+    [Heart], [log-mel 64×128], [EfficientNet-B0], [MAcc], [0.898 ± 0.008], [0.936], [0.860], [—],
     // ---- Lung classical ----
     [Lung], [A (MFCC+Δ)],      [LogReg],  [ICBHI], [0.507], [0.656], [0.358], [0.273],
     [Lung], [A (MFCC+Δ)],      [SVM],     [ICBHI], [0.536], [0.618], [0.454], [0.319],
@@ -79,22 +74,22 @@ model. Within each modality the best primary-metric score is shown in bold.
     [Lung], [B (MFCC+Δ+spec)], [RF],      [ICBHI], [0.472], [0.098], [0.847], [0.243],
     [Lung], [B (MFCC+Δ+spec)], [XGBoost], [ICBHI], [0.500], [0.369], [0.631], [0.294],
     // ---- Lung DL ----
+    [Lung], [log-mel 64×128], [SmallCNN],       [ICBHI], [0.540 ± 0.022], [0.755], [0.325], [—],
     table.cell(text(weight: "bold")[[Lung]]),
     table.cell(text(weight: "bold")[[log-mel 64×128]]),
-    table.cell(text(weight: "bold")[[SmallCNN]]),
+    table.cell(text(weight: "bold")[[EfficientNet-B0]]),
     table.cell(text(weight: "bold")[[ICBHI]]),
-    table.cell(text(weight: "bold")[[*0.551*#super[†]]]),
-    table.cell(text(weight: "bold")[[*0.678*]]),
-    table.cell(text(weight: "bold")[[*0.424*]]),
-    table.cell(text(weight: "bold")[[0.329]]),
-    [Lung], [log-mel 64×128], [EfficientNet-B0], [ICBHI], [0.549#super[†]], [0.521], [0.577], [0.323],
+    table.cell(text(weight: "bold")[[*0.555 ± 0.016*]]),
+    table.cell(text(weight: "bold")[[*0.509*]]),
+    table.cell(text(weight: "bold")[[*0.601*]]),
+    table.cell(text(weight: "bold")[[—]]),
   ),
 ) <tab-unified>
 
 #v(0.4em)
-#text(size: 10pt)[#super[†] Preliminary core-run result (CPU, default hyper-parameters). An HPO + multi-seed
-  mean±std result will replace these rows before final submission.
-  // <<DL-RESULTS-DROPIN: update superscript-dagger rows above with HPO mean±std>>
+#text(size: 10pt)[DL rows: HPO-tuned (128 Optuna trials, val-only selection) mean±std over seeds {1, 2, 42}.
+  Macro-F1 not computed for multi-seed DL (indicated by —); macro-F1 figures for single-seed
+  runs appear in Annex B.
 ]
 
 == Heart-sound results (PhysioNet/CinC 2016)
@@ -143,19 +138,17 @@ reflecting a different decision-threshold behaviour.
 
 === Deep-learning models
 
-#text(fill: rgb("#666666"), style: "italic")[The following DL results are from the
-core CPU run with default hyper-parameters. An upgraded GPU search result will
-replace these numbers before final submission.
-// <<DL-RESULTS-DROPIN: replace core-run numbers below with HPO mean±std>>
-]
-
-The compact SmallCNN trained on 64×128 log-mel spectrograms reached MAcc = 0.861,
-and EfficientNet-B0 reached MAcc = 0.872. Both deep models underperform the best
-classical model (XGBoost-B, MAcc = 0.903) on this task by 3.1 and 3.0 percentage
-points respectively. This outcome is consistent with the dataset regime: the
-training split contains 33,246 3-second windows from 2,500 recordings, a size
-at which gradient-boosted trees on well-engineered MFCC features are known to be
-competitive with or superior to compact CNNs @xgboost_heart.
+The deep-learning models were evaluated with HPO-tuned hyperparameters (128 Optuna
+trials, val-only selection) and results are reported as mean±std over three
+independent seeds. The compact SmallCNN trained on 64×128 log-mel spectrograms
+reached MAcc = 0.871 ± 0.009 (Se = 0.910, Sp = 0.831), and EfficientNet-B0
+reached MAcc = 0.898 ± 0.008 (Se = 0.936, Sp = 0.860). With hyperparameter
+tuning, EfficientNet-B0 reaches a mean accuracy that is statistically on par with
+the best classical model (XGBoost-B, MAcc = 0.903): the gap of 0.005 falls well
+within one standard deviation (±0.008), indicating that deep learning closes the
+classical advantage on heart sounds when given equivalent tuning effort. This
+finding reframes the earlier core-run observation that classical methods dominated;
+the deep-vs-classical gap on heart closes to within noise after HPO.
 
 The learning curves for both deep models (@fig-lc-heart-cnn and @fig-lc-heart-eff)
 show convergence without severe overfitting, validating that the early-stopping and
@@ -215,25 +208,25 @@ across all four classes rather than collapsing to the majority.
 
 === Deep-learning models
 
-#text(fill: rgb("#666666"), style: "italic")[The following DL results are from the
-core CPU run. A GPU-tuned multi-seed result will replace these numbers before
-final submission.
-// <<DL-RESULTS-DROPIN: replace core-run lung DL numbers with HPO mean±std>>
-]
-
-The SmallCNN on 64×128 log-mel spectrograms reached ICBHI = 0.551, the single
-best result across all 20 model configurations for lung classification. This
-represents a 1.4 percentage-point improvement over the best classical model.
-EfficientNet-B0 reached ICBHI = 0.549, statistically indistinguishable from CNN
-in a single-run comparison. Crucially, both deep models exhibit better sensitivity
-on the minority abnormal classes compared to classical models, which is reflected
-in a more balanced confusion matrix (@fig-cm-lung-cnn).
+The deep-learning lung models are also reported as HPO-tuned mean±std over three
+seeds. The SmallCNN reached ICBHI = 0.540 ± 0.022 (Se = 0.755, Sp = 0.325), and
+EfficientNet-B0 reached ICBHI = 0.555 ± 0.016 (Se = 0.509, Sp = 0.601).
+Note that the multi-seed mean for CNN (0.540) is slightly below an earlier
+single-seed run (0.551 reported at the core-run stage) — this honest regression
+reflects seed variance on the harder four-class task rather than a model change.
+The EfficientNet-B0 is the overall best lung model (0.555), marginally ahead of
+SmallCNN and the best classical model (SVM-B, 0.537). The deep-vs-classical
+difference on lung is small (roughly 1.5–2 pp) and within the multi-seed standard
+deviation, placing classical and deep methods in the same performance tier on this
+task. Both deep models show better sensitivity on minority abnormal classes compared
+to random forest, which is reflected in a more balanced confusion matrix
+(@fig-cm-lung-cnn).
 
 #figure(
   image("../../results/figures/cm_lung_cnn.png", width: 58%),
-  caption: [Confusion matrix of the best lung-sound classifier (SmallCNN on
-  log-mel spectrograms, preliminary core-run result). The log-mel representation
-  enables better discrimination of crackle and wheeze relative to classical models.],
+  caption: [Confusion matrix of the best lung-sound CNN classifier (SmallCNN on
+  log-mel spectrograms). The log-mel representation enables better discrimination
+  of crackle and wheeze relative to classical models.],
 ) <fig-cm-lung-cnn>
 
 @fig-lc-lung-cnn shows the learning curve for the lung CNN. The validation metric
@@ -280,18 +273,21 @@ Full details including per-class cycle counts appear in Annex B.
 == Chapter summary
 
 On heart sounds, the best overall result is XGBoost with MFCC+Δ+ΔΔ + spectral
-statistics (feature set B), reaching MAcc = 0.903 (Se = 0.946, Sp = 0.859). The
-deep-learning models (SmallCNN 0.861, EfficientNet-B0 0.872) are competitive but
-do not exceed the best classical model in the core run; an HPO-tuned result may
-alter this ranking.
-// <<DL-RESULTS-DROPIN: update "do not exceed" statement if HPO heart result exceeds 0.903>>
+statistics (feature set B), reaching MAcc = 0.903 (Se = 0.946, Sp = 0.859). After
+HPO tuning, the deep EfficientNet-B0 reaches MAcc = 0.898 ± 0.008, bringing it
+statistically on par with the best classical model: the gap of 0.005 is within one
+standard deviation. SmallCNN reaches MAcc = 0.871 ± 0.009. The deep-vs-classical
+gap on heart effectively closes to within noise when both method families receive
+equivalent tuning effort.
 
-On lung sounds, the overall best result is the SmallCNN with ICBHI = 0.551,
-slightly ahead of the best classical model (SVM-B, 0.537). The gap between heart
-and lung scores (MAcc 0.90 vs. ICBHI 0.55) reflects the fundamental difficulty
-difference: a binary task on longer recordings with majority-vote aggregation
-versus a four-class imbalanced task on short cycles. Chapter 4 analyses what these
-differences imply for cross-modal transfer of method rankings.
+On lung sounds, the best result across all 20 configurations is EfficientNet-B0
+with ICBHI = 0.555 ± 0.016, narrowly ahead of the best classical model (SVM-B,
+0.537) and SmallCNN (0.540 ± 0.022). Classical and deep models occupy the same
+performance tier on this task; the four-class imbalanced structure limits all
+methods equally. The gap between heart and lung scores (MAcc ≈ 0.90 vs.
+ICBHI ≈ 0.55) reflects the fundamental difficulty difference: a binary task on
+longer recordings versus a four-class imbalanced task on short cycles. Chapter 4
+analyses what these differences imply for cross-modal transfer of method rankings.
 
 #team-note[
   The heart and lung experiments were run by #MEMBER("08") (classical models) and

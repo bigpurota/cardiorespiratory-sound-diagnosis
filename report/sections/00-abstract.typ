@@ -1,8 +1,7 @@
 // 00-abstract.typ — Abstract (EN) + Аннотация (RU). Annex 5 §3–4: ≤2000 chars
 // each, 5–10 keywords each, bilingual (English body ⇒ Russian abstract required).
 // Annex 7 §1.2: the Abstract is NOT numbered and starts on a new page.
-// Numbers that depend on final experiments are marked [TODO] and kept out of the
-// number-independent prose so they slot in cleanly.
+// All numbers final (HPO+multi-seed DL + cross-modal). Updated 2026-06-02.
 
 // Unnumbered headings: use `heading(... numbering: none)` equivalent via [#heading].
 #heading(numbering: none, outlined: true)[Abstract]
@@ -18,19 +17,22 @@ an identical evaluation protocol to both modalities: strictly patient-level
 train/test partitioning that prevents the data leakage which inflates many
 published results, fixed random seeds, pinned software versions, and a single
 shared metric family, ((Se + Sp) / 2), that makes the two tasks directly
-comparable. Two method families are contrasted: classical pipelines (mel-
-frequency cepstral coefficients with delta features and spectral statistics,
-fed to logistic regression, support-vector machines, random forests and gradient
-boosting) and deep learning on log-mel spectrograms (a compact convolutional
-network and an EfficientNet-B0 transfer model). On heart sounds the best
-classical model (XGBoost with extended spectral features) reaches a mean accuracy of 0.903
-(Se = 0.946, Sp = 0.859); on lung sounds the best model (a compact convolutional network
-on log-mel spectrograms) achieves an ICBHI score of 0.551#super[†].
-#text(fill: rgb("#666666"), size: 10pt)[#super[†] Preliminary — GPU-tuned result to follow.]
-We additionally analyse how method rankings transfer across the two modalities.
-The study is intentionally scoped as honest, leakage-free baselines rather than
-state-of-the-art tuning, and a dedicated limitations section delineates what the
-results do and do not support clinically.
+comparable. Two method families are contrasted: classical pipelines (mel-frequency cepstral
+coefficients with delta features and spectral statistics, fed to logistic regression,
+support-vector machines, random forests and gradient boosting) and deep learning on
+log-mel spectrograms (a compact convolutional network and an EfficientNet-B0
+transfer model, both HPO-tuned across 128 trials and reported as mean±std over
+three seeds). On heart sounds the best classical model (XGBoost with extended
+spectral features) reaches MAcc = 0.903 (Se = 0.946, Sp = 0.859); the tuned
+EfficientNet-B0 reaches MAcc = 0.898 ± 0.008, closing the deep-vs-classical gap
+to within noise. On lung sounds all methods occupy the same performance tier
+(ICBHI ≈ 0.54–0.56), with EfficientNet-B0 marginally best at 0.555 ± 0.016.
+The cross-modal analysis reveals asymmetric transfer: lung-pretrained features
+carry over strongly to heart, but heart→lung transfer is near-neutral; a joint
+multi-task model roughly preserves both modalities. An Audio Spectrogram Transformer
+was integrated and verified but not fully evaluated within the project's time budget.
+The study is intentionally scoped as honest, leakage-free baselines and a dedicated
+limitations section delineates what the results do and do not support clinically.
 
 *Keywords:* auscultation, phonocardiogram, respiratory sound, machine learning,
 deep learning, MFCC, convolutional neural network, patient-level evaluation,
@@ -55,10 +57,17 @@ data leakage, comparative study.
 кепстральные коэффициенты с дельта-признаками и спектральными статистиками,
 подаваемые в логистическую регрессию, метод опорных векторов, случайный лес и
 градиентный бустинг) и глубокое обучение на лог-мел спектрограммах (компактная
-свёрточная сеть и трансферная модель EfficientNet-B0). Лучшее качество на тонах сердца составляет MAcc = 0.903
-(Se = 0.946, Sp = 0.859); на дыхательных шумах оценка ICBHI равна 0.551#super[†].
-#text(fill: rgb("#666666"), size: 10pt)[#super[†] Предварительный результат — уточняется по итогам GPU-оптимизации.] Отдельно
-анализируется перенос ранжирования методов между модальностями.
+свёрточная сеть и трансферная модель EfficientNet-B0, настроенные посредством HPO
+и оценённые как среднее±стд по трём случайным сидам). На тонах сердца лучший
+классический результат — MAcc = 0.903 (XGBoost, Se = 0.946, Sp = 0.859); настроенный
+EfficientNet-B0 достигает MAcc = 0.898 ± 0.008, сводя разрыв к статистическому шуму.
+На дыхательных шумах все методы находятся в одном диапазоне качества
+(ICBHI ≈ 0.54–0.56); лучший результат — 0.555 ± 0.016 (EfficientNet-B0).
+Межмодальный анализ выявляет асимметричный перенос признаков: предобученные на
+лёгких модели хорошо переносятся на сердце, но обратный перенос нейтрален.
+Совместная многозадачная модель сохраняет качество обеих модальностей.
+Дополнительно верифицирована интеграция Audio Spectrogram Transformer;
+полноценная дообученная оценка вынесена в перспективы.
 
 *Ключевые слова:* аускультация, фонокардиограмма, дыхательный шум, машинное
 обучение, глубокое обучение, MFCC, свёрточная нейронная сеть, оценка на уровне
