@@ -1,0 +1,3 @@
+modality,feature_set,model,primary_metric_name,primary_metric,MAcc,Se,Sp,macro_f1,auc_roc,accuracy,n_train,n_test,params,fallback_from,cm_figure,ICBHI_Score,se_crackle,se_wheeze,se_both,se_normal
+heart,log_mel_64x128,ast,MAcc,,,,,,,,,,,non_converged,,,,,,
+lung,log_mel_64x128,ast,ICBHI_Score,,,,,,,,,,,non_converged,,,,,,
