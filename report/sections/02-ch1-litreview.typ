@@ -273,10 +273,3 @@ classifiers and CNN/transfer deep models — but few studies enforce leakage-saf
 patient-level splits or compare methods across modalities under a single protocol.
 The cross-modal ranking question is largely open. This motivates the unified
 pipeline specified in Chapter 2, and the cross-modal analysis of Chapter 4.
-
-#team-note[
-  This chapter was prepared by #MEMBER("02") (heart-sound literature review and
-  classical methods sections) and #MEMBER("03") (lung-sound and arterial literature
-  review), with the cross-modality framing and novelty statement integrated by
-  #MEMBER("10").
-]

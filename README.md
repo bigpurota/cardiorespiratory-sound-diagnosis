@@ -1,93 +1,155 @@
 # Cardiorespiratory & Arterial Sound Diagnosis
 
-Empirical comparison of classical and deep-learning methods for diagnosing pathologies
-of the cardiorespiratory system and main arteries from auscultation sound data.
+A reproducible, leakage-safe **comparative study** of classical feature-engineering methods
+(MFCC + SVM / Random Forest / XGBoost / Logistic Regression) versus deep learning
+(custom CNN, EfficientNet-B0, Audio Spectrogram Transformer) for diagnosing pathologies of
+the cardiorespiratory system and main arteries from **auscultation sound** — heart sounds
+(phonocardiograms), lung sounds, and, analytically, arterial (carotid bruit) sounds.
+
+HSE Faculty of Computer Science · DSBA / Applied Data Analysis (ПАД), Year 2, 2025–26 ·
+research project. The accompanying report is authored in Typst → PDF (`report/`).
+
+## Headline results
+
+Primary metric: **MAcc = (Se + Sp) / 2** for heart (binary); **ICBHI Score = (Se + Sp) / 2**
+for lung (4-class). Deep-learning rows are tuned (128-trial val-only HPO) and reported as
+multi-seed mean ± std over seeds {1, 2, 42}; classical rows are single deterministic runs.
+
+| Modality | Family | Best model | Primary metric |
+|----------|--------|------------|----------------|
+| Heart (CinC 2016) | Classical | XGBoost (feat. set B) | **MAcc 0.903** |
+| Heart (CinC 2016) | Deep | EfficientNet-B0 | **MAcc 0.898 ± 0.008** |
+| Lung (ICBHI 2017) | Classical | SVM (feat. set B) | **ICBHI 0.537** |
+| Lung (ICBHI 2017) | Deep | EfficientNet-B0 | **ICBHI 0.555 ± 0.016** |
+
+**Key findings**
+
+1. **After equal HPO effort, the classical-vs-deep gap on heart closes to within noise**
+   (XGBoost 0.903 ≈ EfficientNet-B0 0.898 ± 0.008). Lung is hard for *every* family (~0.54–0.56).
+2. **Method rankings transfer only partially across modalities** — XGBoost dominates heart but
+   falls to third on lung; SVM is uniformly competitive. Spearman ρ = 0.60 (p = 0.40, n = 4).
+3. **Deep cross-modal transfer is strongly asymmetric**: lung→heart transfers near in-domain
+   (MAcc 0.854 / 0.876), heart→lung is weak/negative (ICBHI 0.524 / 0.526).
+4. **AST honest limitation**: the pretrained Audio Spectrogram Transformer is fully integrated
+   but collapses to the majority class within the available fine-tune budget — recorded as a
+   documented non-convergence (no fabricated number), presented as a methodological extension.
+5. **Arterial sounds** are treated analytically — no open carotid-bruit dataset exists; the
+   pipeline is shown to generalise in principle (Chapter 4 sub-study).
+
+All numbers live in `results/tables/unified_comparison.csv` (20 rows) and the
+`cross_modal_*` / `metrics_*` CSVs; figures in `results/figures/`.
 
 ## Datasets
 
-| Dataset | Description | Recordings |
-|---------|-------------|------------|
-| [PhysioNet/CinC 2016](https://physionet.org/content/challenge-2016/1.0.0/) | Heart sounds (PCG), binary normal/abnormal labels | 3,126 WAV files (databases A–E) |
-| [ICBHI 2017](https://bhichallenge.med.auth.gr/ICBHI_2017_Challenge) | Respiratory lung sounds, 4 cycle-level classes | 920 recordings, 6,898 annotated cycles |
+| Dataset | Description | Size |
+|---------|-------------|------|
+| [PhysioNet/CinC 2016](https://physionet.org/content/challenge-2016/1.0.0/) | Heart sounds (PCG), binary normal/abnormal | 3,126 WAV (databases A–E) |
+| [ICBHI 2017](https://bhichallenge.med.auth.gr/ICBHI_2017_Challenge) | Respiratory lung sounds, 4 cycle-level classes | 920 recordings, 6,898 cycles |
 
-Arterial (carotid bruit) sounds are handled analytically — no open dataset exists;
-the pipeline design is generalised to demonstrate cross-modality extensibility.
+Arterial (carotid bruit) sounds are handled analytically — no open dataset exists (Chapter 4).
 
 ## Setup
 
 **Prerequisites:** [uv](https://astral.sh/uv) (Astral), Python 3.11.
 
 ```bash
-# Install all dependencies (creates .venv/ automatically)
-uv sync
-```
-
-Or with pip (Google Colab / graders):
-
-```bash
+uv sync                          # creates .venv/ and installs the pinned stack
+# or, for Colab / graders:
 pip install -r requirements.txt
 ```
 
-**Download datasets** (run after `uv sync`):
+**Download datasets** (after `uv sync`):
 
 ```bash
-# Heart sounds — PhysioNet CinC 2016 (~181 MB, no authentication required)
-uv run python scripts/download_heart.py
-
-# Lung sounds — ICBHI 2017 via Kaggle API (~1.5 GB)
-# Requires ~/.kaggle/kaggle.json with {"username":"...","key":"..."}, chmod 600
-uv run python scripts/download_lung.py
+uv run python scripts/download_heart.py    # PhysioNet CinC 2016 (~181 MB, no auth)
+uv run python scripts/download_lung.py     # ICBHI 2017 via Kaggle API (~1.5 GB)
+uv run python scripts/fetch_icbhi_split.py # official 60/40 patient-independent split
 ```
 
-## Results
+## Reproduce the study (end-to-end)
 
-[Results table will be populated in Phase 3+]
+The pipeline is configuration-driven (`config.py` sets `SEED = 42` and all paths) and runs
+identically on both modalities. Classical experiments are CPU-fast; the deep-learning steps
+are CPU-feasible at small scale but were run on GPU (see `notebooks/run_cnn_gpu.ipynb`).
 
-See `results/tables/` for experiment CSVs after pipeline runs.
-See `results/figures/` for confusion matrices, ROC curves, and spectrograms.
+```bash
+# 1. Ingest + manifest + patient-level splits (leakage-safe)
+uv run python scripts/build_manifest.py
+uv run python scripts/make_splits.py
+uv run python scripts/run_eda.py
 
-## Project Structure
+# 2. Classical arm — MFCC/Δ (+ spectral) features → SVM / RF / XGBoost / LogReg
+uv run python scripts/build_features.py
+uv run python scripts/run_classical.py      # → metrics_{heart,lung}_classical.csv + unified rows
+
+# 3. Deep-learning arm — log-mel spectrograms → SmallCNN + EfficientNet-B0
+uv run python scripts/build_spectrograms.py
+uv run python scripts/run_cnn.py            # core DL rows + learning-curve/CM figures
+uv run python scripts/run_hpo.py            # 128-trial val-only hyperparameter search (GPU)
+uv run python scripts/run_multiseed.py      # 3-seed mean ± std → hardens the 4 DL rows
+uv run python scripts/run_ast.py            # AST fine-tune (honest non-convergence record)
+
+# 4. Novelty — deep cross-modal transfer + joint multi-task + Spearman
+uv run python scripts/run_cross_modal.py --arch both
+
+# 5. Tests
+uv run pytest -q
+```
+
+## Project structure
 
 ```
 dsba_project/
-├── config.py               # SEED=42, shared paths, sampling-rate constants
-├── pyproject.toml          # uv project definition + pinned dependencies
-├── uv.lock                 # uv exact resolver snapshot (commit this)
-├── requirements.txt        # pip-compatible export for Colab/graders
-├── src/                    # importable modules (Phases 2–5)
-│   ├── __init__.py
-│   └── config_loader.py    # load_params(modality) -> dict
-├── scripts/
-│   ├── download_heart.py   # PhysioNet CinC 2016 download script
-│   └── download_lung.py    # ICBHI 2017 Kaggle API download script
-├── data/                   # gitignored — created by download scripts
-│   ├── raw/
-│   │   ├── cinc2016/       # training-a/ through training-e/
-│   │   └── icbhi2017/      # *.wav + *.txt annotations
-│   └── processed/          # Phase 2+ feature caches (also gitignored)
-├── params/
-│   ├── heart.yaml          # PCG preprocessing parameters (SR, bandpass, segmentation)
-│   └── lung.yaml           # Lung preprocessing parameters (SR, bandpass, cycle padding)
-├── notebooks/              # Exploration notebooks (Phase 2+)
+├── config.py                # SEED=42, shared paths, sampling-rate constants
+├── pyproject.toml / uv.lock # pinned dependencies (commit both)
+├── requirements.txt         # pip export for Colab/graders
+├── src/                     # importable pipeline modules
+│   ├── ingest.py preprocess.py segment.py split.py   # data → leakage-safe splits
+│   ├── features.py spectrograms.py datasets.py       # MFCC + log-mel feature paths
+│   ├── train_classical.py train_cnn.py               # classical + deep training/eval
+│   ├── cnn.py ast_model.py cross_modal.py            # models: SmallCNN/EffNet, AST, transfer
+│   ├── metrics.py           # MAcc / ICBHI Score, majority-vote, confusion matrices
+│   └── eda.py config_loader.py
+├── scripts/                 # CLI drivers (download → features → experiments)
+│   ├── download_*.py fetch_icbhi_split.py build_*.py make_splits.py
+│   └── run_classical.py run_cnn.py run_hpo.py run_multiseed.py run_ast.py run_cross_modal.py
+├── tests/                   # leakage / determinism / metrics / pipeline test suite
+├── params/                  # heart.yaml / lung.yaml preprocessing parameters
 ├── results/
-│   ├── tables/             # Experiment result CSVs (kept for report)
-│   ├── figures/            # Report figures — confusion matrices, ROC curves
-│   └── splits/             # Saved patient-level split indices
-└── report/                 # Typst source and compiled PDF (Phase 6+)
+│   ├── tables/              # experiment CSVs (unified_comparison.csv + per-arm)
+│   └── figures/             # confusion matrices, learning curves, cross-modal heatmap
+├── report/                  # Typst source (sections/ + refs.bib) → main.pdf
+├── notebooks/               # EDA + GPU entry (run_cnn_gpu.ipynb)
+├── reference/               # course annexes + title-page templates (see reference/README.md)
+├── data/                    # gitignored — created by the download scripts
+└── repo_link.txt            # submission repository link (TXT deliverable)
 ```
 
-## Contributors
+## Reproducibility guarantees
 
-[Contributor table will be added in Phase 7]
+- **Random seed:** `SEED = 42` (set in `config.py`, imported at the top of every script);
+  deep rows additionally averaged over seeds {1, 2, 42}.
+- **Patient-level splits:** no recording from the same patient is in both train and test;
+  `src/split.py` asserts zero leakage (`[leakage-check OK]`) on (train, test) **and** (train, val).
+- **No leakage shortcuts:** no global scaler (scaling inside CV-fold pipelines only), no SMOTE,
+  no test-set model selection (HPO selects on the validation split only).
+- **Pinned dependencies:** `uv.lock` (exact) + `requirements.txt` (pip export). `uv sync` reproduces.
+- **Honest reporting:** non-converged / weak / negative results are recorded as real numbers,
+  never fabricated or hidden.
 
-11-person team — see the report for the full contributor role table (Annex 5 §2.3 format).
+## Report
 
-## Reproducibility
+The research report is authored in **Typst** and compiled to PDF (Annex 5 structure, Annex 7
+formatting). Build from the repo root (the `--root` flag is required — figures reference
+`../../results/...`):
 
-- **Random seed:** `SEED = 42` (set in `config.py`, imported at the top of every script)
-- **Splits:** Patient-level (leakage-safe) — no recording from the same patient appears
-  in both train and test
-- **Dependencies:** Pinned in `requirements.txt` (produced by `uv export`); exact resolver
-  snapshot in `uv.lock`. Run `uv sync` or `pip install -r requirements.txt` to reproduce.
+```bash
+typst compile --root . report/main.typ report/main.pdf
+```
 
-See `config.py` for path constants and sampling-rate definitions.
+## Author & context
+
+Individual research project (project-group format, one member). Author: **Tsember Andrei
+Alekseevich** (Цембер Андрей Алексеевич), group **БПАД244**. Scientific supervisor:
+**Tomashchuk Kornei Kirillovich** (Lecturer). HSE FCS, DSBA / Applied Data Analysis, 2025–26.
+Full contributor and methodology details are in the report (Annex 5 format).

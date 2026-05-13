@@ -289,10 +289,3 @@ methods equally. The gap between heart and lung scores (MAcc ≈ 0.90 vs.
 ICBHI ≈ 0.55) reflects the fundamental difficulty difference: a binary task on
 longer recordings versus a four-class imbalanced task on short cycles. Chapter 4
 analyses what these differences imply for cross-modal transfer of method rankings.
-
-#team-note[
-  The heart and lung experiments were run by #MEMBER("08") (classical models) and
-  #MEMBER("09") (deep-learning models); the evaluation framework, tables, confusion-
-  matrix and learning-curve figures were produced by #MEMBER("10"). Integration
-  was coordinated by #MEMBER("01").
-]

@@ -17,10 +17,11 @@ data/
 *.pt
 *.pkl
 
-# IDE artifacts
+# IDE & tooling artifacts
 .DS_Store
 .vscode/
 .idea/
+.claude/
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
@@ -28,6 +29,21 @@ data/
 # Temporary files
 *.tmp
 *.log
+
+# Secrets & local handoffs — NEVER commit (SSH keys, API keys, GPU-box session notes)
+.continue-here.md
+*.key
+id_ed25519
+id_ed25519.pub
+*.vast_api_key
+.env
+*.pem
+
+# Local reference materials (official course annexes + title-page templates —
+# bulky / course-copyright; kept locally under reference/, documented in reference/README.md)
+reference/*.pdf
+reference/*.docx
+reference/*.zip
 
 # DO NOT gitignore the following: uv.lock, requirements.txt, .python-version, params/, results/tables/, results/figures/
 # uv.lock               — exact dependency lockfile (commit this)

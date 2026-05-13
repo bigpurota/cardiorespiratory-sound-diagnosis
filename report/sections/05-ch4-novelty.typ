@@ -171,14 +171,35 @@ absence from the empirical experiments requires careful documentation.
 
 A carotid bruit is produced when blood accelerates through a region of arterial
 stenosis, generating turbulent flow whose kinetic energy is partly radiated as
-acoustic pressure. The sound is audible with a stethoscope placed at the lateral
+acoustic pressure. The acoustic basis of this phenomenon was established by the
+foundational phonoangiography work of Lees and Dewey @lees1970, who showed that
+the spectrum of a bruit recorded at the skin surface matches that of laboratory
+turbulent pipe flow and can be related quantitatively to arterial diameter and
+flow velocity. The sound is audible with a stethoscope placed at the lateral
 neck during systole — the half-cycle in which cardiac ejection drives peak flow
 velocity. In spectral terms, bruits occupy roughly 50–800 Hz, with the dominant
 energy below 400 Hz for mild stenoses and extending upward as stenosis severity
-increases and peak flow velocity rises @stroke2024. This overlap with the heart-
-sound band (20–400 Hz) means that bruit detection from a stethoscope placed at
-the precordium — as opposed to the neck — is problematic without careful device
-placement and directional filtering.
+increases and peak flow velocity rises @stroke2024. Duncan et al. @duncan1975
+demonstrated that this upward spectral shift is systematic enough to estimate the
+residual lumen diameter directly from the bruit spectrum — a quantitative,
+feature-based reading of an auscultation signal that closely anticipates the
+classification approach pursued in this project for heart and lung sounds. This
+overlap with the heart-sound band (20–400 Hz) means that bruit detection from a
+stethoscope placed at the precordium — as opposed to the neck — is problematic
+without careful device placement and directional filtering.
+
+The clinical motivation for automating this assessment is strong. Manual
+auscultation for carotid bruits has only modest, operator-dependent diagnostic
+accuracy: the Rational Clinical Examination review by Sauvé et al. @sauve1993
+found the presence of a bruit to be at best a weak-to-moderate predictor of
+high-grade stenosis, with sensitivity and specificity that vary widely between
+examiners. Yet an audible bruit carries genuine prognostic weight — a meta-analysis
+pooling 17,295 patients reported that carotid bruits roughly double the rate of
+cardiovascular death and myocardial infarction @pickett2008. An objective,
+reproducible acoustic classifier could therefore both reduce inter-observer
+variability and surface a clinically actionable risk marker, which is precisely
+the contribution that the feature-engineering and deep-learning pipelines compared
+in this report are designed to make for the heart and lung modalities.
 
 The clinical pipeline for bruit assessment shares structural elements with the
 heart- and lung-sound pipelines studied here: the signal is captured at fixed
@@ -240,9 +261,3 @@ cleanly into the pipeline; finalising the fine-tune is reserved for future work.
 The arterial sub-study establishes that the pipeline generalises to bruits in
 principle but is blocked by data unavailability — a gap that the community should
 address through a coordinated open data release.
-
-#team-note[
-  The cross-modality transfer analysis was carried out by #MEMBER("10"); the
-  arterial analytical sub-study was prepared by #MEMBER("11") with clinical-
-  literature synthesis by #MEMBER("03").
-]

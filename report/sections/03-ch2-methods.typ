@@ -180,11 +180,3 @@ both modalities, with patient-level splits and an explicit zero-leakage
 assertion, modality-matched preprocessing and features, a common
 classical-versus-deep model set, and a shared ((Se + Sp) / 2) metric family. This
 uniformity is what makes the cross-modal comparison of Chapter 4 meaningful.
-
-#team-note[
-  The data acquisition and exploratory analysis were carried out by #MEMBER("04")
-  (heart) and #MEMBER("05") (lung); preprocessing, segmentation and the
-  patient-level splits by #MEMBER("06"); feature engineering by #MEMBER("07"); the
-  classical models by #MEMBER("08") and the deep-learning models by #MEMBER("09").
-  The shared evaluation framework was implemented by #MEMBER("10").
-]
