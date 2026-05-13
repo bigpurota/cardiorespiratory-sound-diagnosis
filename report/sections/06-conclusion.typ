@@ -16,9 +16,9 @@ modalities was assembled, with fixed random seeds, pinned dependencies,
 patient-level splits and an explicit zero-leakage assertion executed before every
 training run. On heart sounds the best classical configuration — XGBoost with the
 MFCC+Δ+ΔΔ + spectral-statistics feature set — reached MAcc = 0.903
-(Se = 0.946, Sp = 0.859). After HPO tuning (128 Optuna trials, val-only
-selection), EfficientNet-B0 reaches MAcc = 0.898 ± 0.008 (three seeds), bringing
-it statistically on par with the best classical model: the gap of 0.005 falls
+(Se = 0.946, Sp = 0.859). After HPO tuning (128-trial bounded random search,
+val-only selection), EfficientNet-B0 reaches MAcc = 0.898 ± 0.008 (three seeds),
+bringing it comparable with the best classical model: the gap of 0.005 falls
 within one standard deviation, demonstrating that deep learning closes the
 classical advantage on heart sounds when given equivalent tuning effort.
 On lung sounds the models were evaluated at the cycle level with the official

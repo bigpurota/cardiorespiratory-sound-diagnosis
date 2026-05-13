@@ -17,7 +17,9 @@
 = Full metric tables
 
 This annex reproduces the complete per-model metric tables for both modalities,
-beyond the rounded summary in Chapter 3. Numbers are taken directly from
+beyond the rounded summary in Chapter 3: the heart-sound classical results are given
+in @tab-annex-heart-classical and the lung-sound classical results in
+@tab-annex-lung-classical. Numbers are taken directly from
 `results/tables/metrics_heart_classical.csv`, `metrics_lung_classical.csv`,
 `metrics_heart_cnn.csv` and `metrics_lung_cnn.csv`.
 
@@ -124,10 +126,10 @@ sample sizes, model sizes, training times and dataset volumes, derived from
     [Log-mel data (MB)],         [1 226.8], [226.2],
     [SVM-B train time (s)],      [659], [31],
     [XGBoost-B train time (s)],  [21],  [26],
-    [SmallCNN parameters],       [97 890], [98 148],
-    [SmallCNN train time (s)],   [159], [42],
+    [SmallCNN parameters],       [389 314], [98 148],
+    [SmallCNN train time (s)],   [262], [26],
     [EfficientNet-B0 parameters], [4 010 110], [4 012 672],
-    [EfficientNet-B0 train time (s)], [622], [187],
+    [EfficientNet-B0 train time (s)], [1 345], [204],
     [Random seed],               [42], [42],
   ),
 ) <tab-annexB-volumetrics>

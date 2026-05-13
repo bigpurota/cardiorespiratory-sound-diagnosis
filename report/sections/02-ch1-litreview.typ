@@ -17,7 +17,7 @@ explicit statement of the research gap and the novelty claim.
 == Physiological basis of auscultation sounds
 
 Auscultation has been a cornerstone of cardiovascular and pulmonary diagnosis since
-Laënnec introduced the stethoscope in the early nineteenth century. The sounds
+Laënnec introduced the stethoscope in the early nineteenth century @bohadana2014. The sounds
 produced by the body carry information about the mechanical state of organs and
 vessels in a form that is non-invasive, low-cost and immediately available at the
 point of care. Understanding the acoustic origins of each modality is prerequisite
@@ -48,11 +48,12 @@ sudden reopening of collapsed alveoli or small airways; they are characteristic 
 pneumonia, pulmonary fibrosis and heart failure. Wheezes are continuous, musical,
 high-pitched sounds caused by oscillation of airway walls during partial
 obstruction; they are the hallmark of obstructive diseases such as asthma and
-chronic obstructive pulmonary disease (COPD). The ICBHI annotation scheme
+chronic obstructive pulmonary disease (COPD) @bohadana2014. The ICBHI annotation scheme
 distinguishes four cycle-level categories — normal, crackle, wheeze, and "both"
 (simultaneous crackle and wheeze) — exactly reflecting this clinical taxonomy
 @rocha2019. The diagnostically relevant frequency content spans roughly 200–1800 Hz,
-with crackles peaking toward the upper end of that range and wheezes at 200–600 Hz.
+with crackles peaking toward the upper end of that range and wheezes at 200–600 Hz
+@bohadana2014.
 
 === Arterial bruits
 
@@ -120,7 +121,7 @@ level class distribution is imbalanced: normal 52.8 %, crackle 27.0 %, wheeze
 independent split that partitions subjects into training and test sets. Adhering
 to this published split is mandatory for results to be comparable with the
 literature; using a random recording-level split instead can inflate the ICBHI
-score by five to ten percentage points @cnn_lstm.
+score by several percentage points @lones2021.
 
 The ICBHI score — (Se + Sp) / 2 with sensitivity aggregated over abnormal cycles
 and specificity measured on normal cycles — mirrors the CinC MAcc in structure,
@@ -135,36 +136,46 @@ from each audio segment and to train a standard classifier on those vectors.
 
 === Feature representations
 
-Mel-frequency cepstral coefficients (MFCC) have become the de-facto standard
-feature for auscultation classification @mfcc_svm. MFCCs compress the spectral
-envelope into a compact set of coefficients (typically 13–40) by applying a
-mel-scale filterbank and a discrete cosine transform; appending first- and second-
-order temporal derivatives (Δ and ΔΔ) captures the rate of change of spectral
-content across frames, which is informative about the temporal dynamics of murmurs
-and adventitious sounds. Summarising each coefficient's time series by its mean and
-standard deviation across frames yields a fixed-length vector regardless of segment
-duration, which is important because heart and lung recordings vary widely in length.
+The dominant hand-crafted representation for auscultation is the mel-frequency
+cepstral coefficient (MFCC) family, originally formulated for speech recognition
+@mfcc_standard and carried over to heart- and lung-sound analysis because both
+signals are, like speech, short-time-stationary band-limited acoustic events. For
+each analysis frame the power spectrum is warped onto a perceptually spaced mel
+filterbank and the resulting log-filterbank energies are decorrelated with a
+discrete cosine transform, retaining the low-order coefficients (typically 13–40)
+that summarise the spectral envelope of a heart or lung event. First- and
+second-order frame-to-frame differences (Δ and ΔΔ) encode how that envelope evolves,
+which is directly relevant to the onset and decay of murmurs and to the transient
+structure of crackles. Because recordings differ widely in length, each
+coefficient's trajectory is reduced to summary statistics (its mean and standard
+deviation across frames), giving a fixed-length descriptor independent of duration;
+feature vectors built on exactly this kind of descriptor reached the top tier of the
+CinC 2016 challenge @potes2016.
 
-Additional spectral statistics — centroid (the "brightness" of the spectrum),
-roll-off frequency (the frequency below which 85 % of energy lies), bandwidth,
-zero-crossing rate and RMS energy — characterise the overall spectral shape and
-energy and have been shown to improve discrimination between normal and abnormal
-heart sounds when appended to the MFCC vector @xgboost_heart.
+We additionally compute a small set of global spectral-shape descriptors — the
+spectral centroid (the spectral centre of mass), the 85 %-energy roll-off frequency,
+bandwidth, zero-crossing rate and root-mean-square (RMS) energy. These broadband
+descriptors are inexpensive to compute and characterise the distribution of energy
+that the cepstral coefficients capture only indirectly; whether they add
+discriminative value beyond the MFCC block is one of the questions our feature-set
+comparison (A versus B) is designed to answer empirically.
 
 === Classifiers
 
-Support-vector machines (SVM) with an RBF kernel are the most cited classifier for
-heart- and lung-sound classification using engineered features. The implicit kernel
-mapping effectively models non-linear spectral boundaries, and SVMs perform well in
-the regime of tens of thousands of training samples with hundreds of features. A
-multi-domain MFCC study reported MFCC coefficients carrying 72 % discriminative
-weight and an SVM reaching 91.67 % accuracy on a balanced evaluation set @mfcc_svm.
-Random forests and gradient-boosted trees (XGBoost) are competitive alternatives:
-XGBoost consistently matches or outperforms SVM at lower computational cost on
-similar tasks @xgboost_heart, and its built-in feature-importance scores provide a
-degree of interpretability. Logistic regression, though limited by its linearity,
-serves as a transparent baseline and often achieves surprisingly strong results
-because the MFCC feature space is already well-structured for linear separation.
+On these fixed-length descriptors the support-vector machine (SVM) with a
+radial-basis-function (RBF) kernel @cortes1995 is the most frequently reported
+classifier: its implicit non-linear mapping separates spectral classes that are not
+linearly separable, and it stays well-behaved with hundreds of features and training
+sets in the tens of thousands of segments typical of this domain. Tree ensembles are
+the principal alternative. Random forests @breiman2001 reduce variance by averaging
+decorrelated decision trees, whereas gradient-boosted trees (XGBoost) @chen2016 fit
+the residual structure stage by stage and frequently match or exceed SVM accuracy at
+lower inference cost, with the added benefit of feature-importance scores that lend a
+degree of interpretability. Logistic regression is retained as a deliberately
+transparent linear baseline: it cannot model feature interactions, but the cepstral
+feature space is often well-conditioned enough for a linear boundary to perform
+competitively, which makes it a useful lower bound against which the non-linear
+models are judged.
 
 A practical concern common to all classifiers is class imbalance. Applying SMOTE
 (Synthetic Minority Oversampling Technique) inside the training fold — never
@@ -184,22 +195,23 @@ convolutional backbones pre-trained on natural images.
 
 === Convolutional networks
 
-Compact convolutional networks (CNNs) with three to five convolutional layers
-are a popular first deep-learning baseline because they run in minutes on a GPU
-and in tens of minutes on a CPU. A CNN–LSTM hybrid trained on ICBHI log-mel
-spectrograms reached an ICBHI score of 64.92 % on the official 60/40 split,
-outperforming the classical SVM baselines of that study @cnn_lstm. The attention
-mechanism of the LSTM over the CNN's temporal feature maps helps capture the
-episodic structure of adventitious sounds. These results also demonstrate that
-sequence models can further improve over purely spatial CNNs for sounds with
-strong temporal dynamics.
+Compact convolutional networks (CNNs) with three to five convolutional layers are a
+popular first deep-learning baseline because they train in minutes on a GPU and in
+tens of minutes on a CPU. A representative ICBHI study by Demir et al. converted
+respiratory recordings to short-time-Fourier spectrograms, used a pre-trained
+convolutional network as a fixed feature extractor, and classified the resulting
+embeddings with an SVM — a hybrid that outperformed purely hand-crafted baselines on
+the respiratory task @demir2020. This pattern, in which a convolutional backbone
+supplies the representation and a lightweight classifier makes the decision, recurs
+throughout the auscultation literature and directly motivates the transfer-learning
+approach examined next.
 
 === Transfer learning
 
 EfficientNet-B0, pre-trained on ImageNet, is a popular transfer backbone for
 audio spectrograms because its approximately 4 million parameters provide strong
 spatial feature extraction without requiring the large datasets needed to train from
-scratch @ast_patchmix. The single-channel mel image is replicated across three
+scratch @efficientnet. The single-channel mel image is replicated across three
 channels (or a projection layer is added) to match the backbone's expected input.
 The typical fine-tuning protocol freezes the backbone for a few warm-up epochs,
 then unfreezes it for end-to-end training; this is especially valuable when the
@@ -208,11 +220,13 @@ ImageNet priors provide beneficial inductive biases.
 
 === Audio transformers and recent advances
 
-The Audio Spectrogram Transformer (AST) and its variants apply multi-head self-
-attention to mel spectrogram patches, achieving state-of-the-art performance on
-general audio benchmarks. Adapted to respiratory sound classification, patch-mix
-contrastive learning with AST has reached ICBHI scores in the 68–70 % range
-@ast_patchmix, representing the current frontier. However, these models require
+The Audio Spectrogram Transformer (AST) @gong2021ast dispenses with convolutions
+entirely, splitting the mel spectrogram into overlapping patches and modelling their
+relationships with multi-head self-attention, which lets it capture long-range
+spectro-temporal dependencies that a small CNN's local receptive field misses.
+Adapted to respiratory sound classification, patch-mix contrastive learning on top of
+an AST backbone set a new state of the art on the ICBHI benchmark @ast_patchmix.
+However, these models require
 large GPU budgets and often rely on data augmentation applied before the train/test
 split, which can inflate published numbers. A careful reading of the experimental
 setups reveals that many high-scoring papers use random or recording-level splits
@@ -227,9 +241,9 @@ a clinician uses the same instrument and a closely related interpretive framewor
 across modalities; a computational tool that generalises across modalities is both
 more practical and more theoretically interesting. Unified models that operate on
 heart and lung sounds within a single pipeline are only beginning to be explored
-@unified_heartlung @auscultabase. The emerging AuscultaBase foundation model
-@auscultabase represents an ambitious recent attempt at unification, but it relies
-on large proprietary data not available for the community benchmark tasks.
+@unified_heartlung. A recent generalist body-sound foundation model @auscultabase
+represents an ambitious attempt at unification across auscultation modalities, but it
+relies on large-scale data not assembled for the community benchmark tasks.
 
 Arterial bruits occupy a still-harder position: despite growing clinical interest in
 non-invasive carotid stenosis screening @stroke2024, no openly licensed dataset of

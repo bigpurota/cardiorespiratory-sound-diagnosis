@@ -1,8 +1,8 @@
 // 01-introduction.typ — Introduction (Annex 5 §5). Annex 7 §1.2: starts a new
 // page; the heading "Introduction" is itself unnumbered (it precedes the numbered
 // chapters), but its body covers relevance, significance, novelty and objectives.
-// Annex 5 §2.3: the distribution of work among the 11 members is documented at the
-// END of the introduction (team table below). Real names stay as <MEMBER_XX>.
+// Annex 5 §2.3 (distribution of work) is satisfied trivially: this is an individual
+// research project (single-member project group), stated at the end of the introduction.
 
 #import "../helpers.typ": *
 

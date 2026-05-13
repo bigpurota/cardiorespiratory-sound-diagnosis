@@ -1,7 +1,5 @@
 // 05-ch4-novelty.typ — Chapter 4: Cross-modal analysis (novelty) + arterial
 // sub-study. All numbers final (HPO+multi-seed DL, cross-modal transfer, joint).
-// DEEP-CROSSMODAL-DROPIN filled 2026-06-02.
-// <<AST-ROWS-DROPIN: 2 rows if finalised>>
 
 #import "../helpers.typ": *
 
@@ -26,8 +24,8 @@ standing of classical versus deep models.
 === Classifier ranking
 
 For heart sounds the ranking (best to worst) by primary metric is:
-XGBoost-B (0.903) > SVM-B (0.869) > XGBoost-A (0.879) > SVM-A (0.859) >
-RF-B (0.831) > RF-A (0.817) > LogReg-B (0.825) > LogReg-A (0.794).
+XGBoost-B (0.903) > XGBoost-A (0.879) > SVM-B (0.869) > SVM-A (0.859) >
+RF-B (0.831) > LogReg-B (0.825) > RF-A (0.817) > LogReg-A (0.794).
 Collapsing per feature set, the ordering at the classifier level is
 XGBoost > SVM > RF > LogReg.
 
@@ -60,7 +58,7 @@ transients is more relevant than broadband spectral shape.
 
 With HPO-tuned hyperparameters and three-seed averaging, the picture on heart
 sounds is more nuanced than the core run suggested. EfficientNet-B0 reaches
-MAcc = 0.898 ± 0.008 (Se = 0.936, Sp = 0.860), statistically on par with the
+MAcc = 0.898 ± 0.008 (Se = 0.936, Sp = 0.860), comparable with the
 best classical model (XGBoost-B, MAcc = 0.903): the gap is 0.005, well within one
 standard deviation. SmallCNN reaches MAcc = 0.871 ± 0.009. The deep-vs-classical
 advantage that classical models showed in the untuned core run narrows to within
@@ -74,7 +72,7 @@ occupy the same performance tier on these tasks and dataset scales.
 
 === Summary of cross-modal findings (classical)
 
-The Spearman rank correlation @wilcoxon1945 between the per-classifier ICBHI scores
+The Spearman rank correlation @spearman1904 between the per-classifier ICBHI scores
 (lung) and the corresponding MAcc scores (heart) — computed over the four classical
 classifier types at feature set A — is ρ = 0.60 (p = 0.40, n = 4). This
 represents a moderate positive correlation: classifiers that rank higher on heart
@@ -86,8 +84,6 @@ for cross-modal evaluation: a researcher who tuned exclusively on heart data and
 deployed the same model on lung data would incur a non-trivial performance penalty.
 
 == Deep cross-modal transfer and joint multi-task experiments
-
-// <<DEEP-CROSSMODAL-DROPIN filled 2026-06-02>>
 
 To probe whether the shared log-mel pipeline enables feature transfer between
 modalities, we ran three additional deep-learning experiments beyond the per-modality
@@ -132,7 +128,6 @@ both objectives at a fixed capacity.
   caption: [Per-modality scores under in-domain, transfer and joint-training
   settings. In-domain scores are single-seed reference runs (comparable to the
   Chapter 3 mean); see Chapter 3 for multi-seed HPO values.
-  // <<AST-ROWS-DROPIN: 2 rows if finalised>>
   ],
   table(
     columns: (2.2fr, 1fr, 1fr, 1fr, 1fr),
@@ -159,8 +154,6 @@ additional GPU compute that was not available before the submission deadline. AS
 is therefore presented as a methodological extension rather than a headline result:
 the integration work is complete, the code is available in the repository, and the
 experiment can be run to completion given additional compute resources.
-
-// <<AST-ROWS-DROPIN: 2 rows if finalised: heart AST and lung AST primary metrics>>
 
 == Arterial sounds: an analytical sub-study
 

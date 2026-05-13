@@ -87,7 +87,7 @@ Deep-learning scores represent HPO-tuned mean±std over three seeds.
 ) <tab-unified>
 
 #v(0.4em)
-#text(size: 10pt)[DL rows: HPO-tuned (128 Optuna trials, val-only selection) mean±std over seeds {1, 2, 42}.
+#text(size: 10pt)[DL rows: HPO-tuned (128-trial bounded random search, val-only selection) mean±std over seeds {1, 2, 42}.
   Macro-F1 not computed for multi-seed DL (indicated by —); macro-F1 figures for single-seed
   runs appear in Annex B.
 ]
@@ -97,12 +97,12 @@ Deep-learning scores represent HPO-tuned mean±std over three seeds.
 === Classical models
 
 All eight classical configurations (two feature sets × four classifiers) were
-evaluated on the same patient-level test set of 626 test windows from 626 unique
+evaluated on the same patient-level test set of 626 test recordings from 626 unique
 patients. The best classical result was achieved by XGBoost on feature set B
 (MFCC+Δ+ΔΔ + spectral statistics), reaching MAcc = 0.903, with Se = 0.946 and
 Sp = 0.859. This result confirms the practical value of the five additional
-spectral statistics: XGBoost on feature set A scored only MAcc = 0.879, a
-meaningful 2.4 percentage-point improvement from the richer feature set.
+spectral statistics: XGBoost on feature set A scored MAcc = 0.879, so the richer
+feature set adds a meaningful 2.3 percentage points.
 
 SVM was the second-best classical model across both feature sets (MAcc 0.859 on A,
 0.869 on B). SVM and XGBoost both achieve high sensitivity (Se ≥ 0.915 in all
@@ -115,15 +115,15 @@ respectable MAcc of 0.825 on feature set B, demonstrating that the MFCC+spectral
 feature space is well-structured for linear separation.
 
 @fig-cm-heart-best shows the confusion matrix for the best model (XGBoost, set B).
-Out of 130 abnormal test recordings, 123 are correctly identified, and out of 496
-normal recordings, 425 are correctly identified, with 71 false negatives and only 7
-false positives on the abnormal class.
+Out of 130 abnormal test recordings, 123 are correctly identified (7 false
+negatives), and out of 496 normal recordings, 426 are correctly identified (70 false
+positives), consistent with the reported Se = 0.946 and Sp = 0.859.
 
 #figure(
   image("../../results/figures/cm_heart_B_xgb.png", width: 58%),
   caption: [Confusion matrix of the best heart-sound classical classifier (XGBoost,
   feature set B: MFCC+Δ+ΔΔ + spectral statistics). Rows: true class; columns:
-  predicted class. Test set: 626 windows from 626 patients.],
+  predicted class. Test set: 626 recordings from 626 patients.],
 ) <fig-cm-heart-best>
 
 For comparison, @fig-cm-heart-svm shows the SVM confusion matrix (feature set B).
@@ -138,15 +138,15 @@ reflecting a different decision-threshold behaviour.
 
 === Deep-learning models
 
-The deep-learning models were evaluated with HPO-tuned hyperparameters (128 Optuna
-trials, val-only selection) and results are reported as mean±std over three
-independent seeds. The compact SmallCNN trained on 64×128 log-mel spectrograms
-reached MAcc = 0.871 ± 0.009 (Se = 0.910, Sp = 0.831), and EfficientNet-B0
-reached MAcc = 0.898 ± 0.008 (Se = 0.936, Sp = 0.860). With hyperparameter
-tuning, EfficientNet-B0 reaches a mean accuracy that is statistically on par with
-the best classical model (XGBoost-B, MAcc = 0.903): the gap of 0.005 falls well
-within one standard deviation (±0.008), indicating that deep learning closes the
-classical advantage on heart sounds when given equivalent tuning effort. This
+The deep-learning models were evaluated with HPO-tuned hyperparameters (128-trial
+bounded random search, validation-only selection) and results are reported as
+mean±std over three independent seeds. The compact SmallCNN trained on 64×128 log-mel
+spectrograms reached MAcc = 0.871 ± 0.009 (Se = 0.910, Sp = 0.831), and
+EfficientNet-B0 reached MAcc = 0.898 ± 0.008 (Se = 0.936, Sp = 0.860). With
+hyperparameter tuning, EfficientNet-B0 reaches a mean accuracy comparable with the
+best classical model (XGBoost-B, MAcc = 0.903): the gap of 0.005 falls within one
+standard deviation (±0.008), indicating that deep learning closes the classical
+advantage on heart sounds when given equivalent tuning effort. This
 finding reframes the earlier core-run observation that classical methods dominated;
 the deep-vs-classical gap on heart closes to within noise after HPO.
 
@@ -276,7 +276,7 @@ Full details including per-class cycle counts appear in Annex B.
 On heart sounds, the best overall result is XGBoost with MFCC+Δ+ΔΔ + spectral
 statistics (feature set B), reaching MAcc = 0.903 (Se = 0.946, Sp = 0.859). After
 HPO tuning, the deep EfficientNet-B0 reaches MAcc = 0.898 ± 0.008, bringing it
-statistically on par with the best classical model: the gap of 0.005 is within one
+comparable with the best classical model: the gap of 0.005 is within one
 standard deviation. SmallCNN reaches MAcc = 0.871 ± 0.009. The deep-vs-classical
 gap on heart effectively closes to within noise when both method families receive
 equivalent tuning effort.

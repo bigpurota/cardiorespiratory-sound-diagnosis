@@ -62,17 +62,29 @@
 
 % ---- Deep-learning methods on auscultation data --------------------------------
 
-@article{cnn_lstm,
+@article{demir2020,
   author  = {Demir, Fatih and Sengur, Abdulkadir and Bajaj, Varun},
-  title   = {Convolutional Neural Networks Based Efficient Approach for Classification
-             of Lung Diseases},
+  title   = {Convolutional neural networks based efficient approach for
+             classification of lung diseases},
   journal = {Health Information Science and Systems},
-  volume  = {10},
+  volume  = {8},
   number  = {1},
-  pages   = {1--13},
-  year    = {2022},
-  doi     = {10.1007/s13755-022-00172-4},
-  note    = {PMC8838187; CNN-LSTM ICBHI score 64.92\% on official 60/40 split}
+  pages   = {4},
+  year    = {2020},
+  doi     = {10.1007/s13755-019-0091-3},
+  note    = {Pre-trained CNN feature extractor + SVM on ICBHI 2017 STFT spectrograms}
+}
+
+@article{bohadana2014,
+  author  = {Bohadana, Abraham and Izbicki, Gabriel and Kraman, Steve S.},
+  title   = {Fundamentals of Lung Auscultation},
+  journal = {New England Journal of Medicine},
+  volume  = {370},
+  number  = {8},
+  pages   = {744--751},
+  year    = {2014},
+  doi     = {10.1056/NEJMra1302901},
+  note    = {PMID 24552321; clinical reference for crackle/wheeze acoustics and history}
 }
 
 @inproceedings{gong2021ast,
@@ -82,56 +94,51 @@
   year      = {2021},
   pages     = {571--575},
   url       = {https://arxiv.org/abs/2104.01778},
+  urldate   = {2026-06-01},
   note      = {Self-supervised AudioSet pretraining; arXiv:2104.01778}
 }
 
 @misc{ast_patchmix,
-  author       = {Chang, Sangmin and Lee, Jee-Woo and Cho, Hoyoung and others},
+  author       = {Bae, Sangmin and Kim, June-Woo and Cho, Won-Yang and Baek, Hyerim
+                  and Son, Soyoun and Lee, Byungjo and Ha, Changwan and Tae, Kyongpil
+                  and Kim, Sungnyun and Yun, Se-Young},
   title        = {Patch-Mix Contrastive Learning with Audio Spectrogram Transformer
                   on Respiratory Sound Classification},
   howpublished = {arXiv:2305.14032},
   year         = {2023},
   url          = {https://arxiv.org/abs/2305.14032},
-  note         = {Patch-Mix + AST; ICBHI score approx. 68\%+ on official split}
+  urldate      = {2026-06-01},
+  note         = {Patch-Mix + AST; new state of the art on the ICBHI benchmark}
 }
 
 @misc{unified_heartlung,
-  author       = {Li, Zhe and Bailey, Emma and others},
-  title        = {Towards a Unified Model for Heart and Lung Sound Classification},
+  author       = {Melms, Leander and Ilesan, Robert R. and K{\"o}hler, Ulrich and
+                  Hildebrandt, Olaf and Conradt, Regina and Eckstein, Jens and
+                  Atila, Cihan and Matrood, Sami and Schieffer, Bernhard and
+                  Schaefer, J{\"u}rgen R. and M{\"u}ller, Tobias and Obergassel, Julius
+                  and Schlicker, Nadine and Hirsch, Martin C.},
+  title        = {Training one model to detect heart and lung sound events from
+                  single point auscultations},
   howpublished = {arXiv:2301.06078},
   year         = {2023},
   url          = {https://arxiv.org/abs/2301.06078},
-  note         = {Cross-modal auscultation pipeline; confirms novelty of unified approach}
+  urldate      = {2026-06-01},
+  note         = {A single model jointly detecting heart and lung sound events}
 }
 
 @misc{auscultabase,
-  author       = {Zhao, Kai and others},
-  title        = {{AuscultaBase}: A Foundation Model for Auscultation Sound Understanding},
+  author       = {Wang, Pingjie and Zhao, Liudan and Zhao, Zihan and He, Miao and
+                  Sun, Xin and Zhang, Ya and Sun, Kun and Wang, Yanfeng and Wang, Yu},
+  title        = {A Generalist Audio Foundation Model for Comprehensive Body Sound
+                  Auscultation},
   howpublished = {arXiv:2411.07547},
   year         = {2024},
   url          = {https://arxiv.org/abs/2411.07547},
-  note         = {Foundation model for unified heart+lung auscultation}
+  urldate      = {2026-06-01},
+  note         = {Generalist foundation model spanning heart, lung and other body sounds}
 }
 
 % ---- Classical feature-engineering methods ------------------------------------
-
-@article{mfcc_svm,
-  author  = {Arslan, Umit and others},
-  title   = {Multi-Domain {MFCC} Features with {SVM} Classifier for Heart Sound
-             Classification},
-  journal = {Biomedical Signal Processing and Control},
-  year    = {2024},
-  note    = {PMC12324590; MFCC 72.86\% discriminative weight; SVM best predictor 91.67\%}
-}
-
-@article{xgboost_heart,
-  author  = {Al-Ani, Mustafa and others},
-  title   = {Gradient-Boosted Trees for Automated Heart Sound Screening Using
-             Engineered Acoustic Features},
-  journal = {IEEE Access},
-  year    = {2024},
-  note    = {PMC12845986; XGBoost outperforms SVM and RF on CinC 2016 subset}
-}
 
 @article{potes2016,
   author  = {Potes, Christhian and Parvaneh, Saman and Rahman, Asif and Conroy, Bryan},
@@ -141,15 +148,6 @@
   year    = {2016},
   pages   = {621--624},
   note    = {CinC 2016 challenge top entry; MAcc 0.8616}
-}
-
-@article{kay2017,
-  author  = {Kay, Samuel M. and Cvitkovic, Ryan and others},
-  title   = {Analysis of Heart Sound and Lung Sound Classification Using {SVM} and
-             Spectral Features},
-  journal = {Artificial Intelligence in Medicine},
-  year    = {2017},
-  note    = {SVM with spectral centroid + MFCC on cardiac and pulmonary datasets}
 }
 
 % ---- Arterial bruit papers ---------------------------------------------------
@@ -233,19 +231,20 @@
   howpublished = {arXiv:2108.02497},
   year         = {2021},
   url          = {https://arxiv.org/abs/2108.02497},
+  urldate      = {2026-06-01},
   note         = {Leakage-safe evaluation, reproducibility and class-imbalance checklist}
 }
 
-@article{wilcoxon1945,
-  author  = {Wilcoxon, Frank},
-  title   = {Individual Comparisons by Ranking Methods},
-  journal = {Biometrics Bulletin},
-  volume  = {1},
-  number  = {6},
-  pages   = {80--83},
-  year    = {1945},
-  doi     = {10.2307/3001968},
-  note    = {Non-parametric rank-based test used for cross-modal agreement analysis}
+@article{spearman1904,
+  author  = {Spearman, Charles},
+  title   = {The Proof and Measurement of Association between Two Things},
+  journal = {The American Journal of Psychology},
+  volume  = {15},
+  number  = {1},
+  pages   = {72--101},
+  year    = {1904},
+  doi     = {10.2307/1412159},
+  note    = {Origin of the Spearman rank correlation used for cross-modal ranking agreement}
 }
 
 % ---- EfficientNet and CNN backbones -----------------------------------------
@@ -257,7 +256,8 @@
                (ICML 2019)},
   pages     = {6105--6114},
   year      = {2019},
-  url       = {http://proceedings.mlr.press/v97/tan19a.html}
+  url       = {http://proceedings.mlr.press/v97/tan19a.html},
+  urldate   = {2026-06-01}
 }
 
 @article{imagenet,
@@ -367,5 +367,6 @@
   title        = {{PyTorch}: An Imperative Style, High-Performance Deep Learning Library},
   howpublished = {Advances in Neural Information Processing Systems 32 (NeurIPS 2019)},
   year         = {2019},
-  url          = {https://arxiv.org/abs/1912.01703}
+  url          = {https://arxiv.org/abs/1912.01703},
+  urldate      = {2026-06-01}
 }
