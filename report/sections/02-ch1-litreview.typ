@@ -178,7 +178,7 @@ competitively, which makes it a useful lower bound against which the non-linear
 models are judged.
 
 A practical concern common to all classifiers is class imbalance. Applying SMOTE
-(Synthetic Minority Oversampling Technique) inside the training fold — never
+(Synthetic Minority Oversampling Technique) @smote inside the training fold — never
 globally before the train/test split — counteracts the majority-class bias without
 causing leakage @lones2021. This is a recurring correctness requirement in the
 literature that many published studies violate by applying resampling globally.

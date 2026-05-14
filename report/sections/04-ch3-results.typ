@@ -189,8 +189,8 @@ A striking pattern in the lung results is the contrast between random forest and
 all other classifiers. RF achieves very high specificity (Sp ≈ 0.85) but extremely
 low sensitivity on the abnormal classes (Se ≈ 0.10). This "majority-class
 collapse" — predicting almost exclusively normal — is a failure mode specific to
-RF's majority-vote aggregation when classes are highly imbalanced and SMOTE
-oversampling has not fully counteracted the imbalance within the training fold.
+RF's averaging behaviour when classes are highly imbalanced and class weighting
+alone has not fully counteracted the imbalance within the training fold.
 The pattern is visible in @fig-cm-lung-best, where nearly all cycles are predicted
 as normal or wheeze, and the crackle and "both" rows are almost entirely
 misclassified.

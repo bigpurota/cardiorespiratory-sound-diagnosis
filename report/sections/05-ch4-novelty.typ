@@ -172,7 +172,7 @@ flow velocity. The sound is audible with a stethoscope placed at the lateral
 neck during systole — the half-cycle in which cardiac ejection drives peak flow
 velocity. In spectral terms, bruits occupy roughly 50–800 Hz, with the dominant
 energy below 400 Hz for mild stenoses and extending upward as stenosis severity
-increases and peak flow velocity rises @stroke2024. Duncan et al. @duncan1975
+increases and peak flow velocity rises. Duncan et al. @duncan1975
 demonstrated that this upward spectral shift is systematic enough to estimate the
 residual lumen diameter directly from the bruit spectrum — a quantitative,
 feature-based reading of an auscultation signal that closely anticipates the
@@ -198,12 +198,13 @@ The clinical pipeline for bruit assessment shares structural elements with the
 heart- and lung-sound pipelines studied here: the signal is captured at fixed
 sampling rates (typically 4,000–10,000 Hz with modern digital stethoscopes),
 bandpass-filtered to the bruit-relevant band, segmented in cardiac-cycle-
-synchronised windows, and feature-extracted for classification. A pilot smartphone
-study @stroke2024 demonstrated that a custom microphone placed at the neck could
-detect carotid bruits with promising accuracy, establishing proof-of-concept for
-machine-learning based screening. An earlier carotid auscultation system @carotid_pmc
-applied an ensemble of acoustic features to a proprietary hospital collection,
-again demonstrating feasibility but leaving no open dataset behind.
+synchronised windows, and feature-extracted for classification. A recent smartphone
+study @stroke2024 demonstrated on-device deep-learning detection of carotid stenosis
+from neck auscultation, establishing proof-of-concept for machine-learning-based
+screening. An earlier computer-assisted auscultation system @carotid_pmc was built
+specifically to acquire carotid vascular sounds reproducibly — a prerequisite for
+assembling a database of pathological bruits — yet, like the smartphone work, it
+released no open dataset.
 
 === Why supervised learning is not yet feasible
 

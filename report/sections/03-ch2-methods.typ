@@ -119,14 +119,19 @@ scikit-learn @sklearn: logistic regression, an RBF-kernel support-vector machine
 @cortes1995, a random forest @breiman2001 and gradient boosting (XGBoost @chen2016).
 Standardisation is fitted on the training fold only, inside a single scikit-learn
 pipeline, so no test-set statistics leak into training. Hyper-parameter tuning
-uses patient-grouped cross-validation, and class imbalance is handled by class
-weighting and SMOTE @smote applied strictly inside the training fold.
+uses patient-grouped cross-validation, and class imbalance is handled by per-model
+class weighting applied inside the training fold only: balanced class weights for
+logistic regression, the SVM and the random forest, and a positive-class weight
+(binary heart) or balanced sample weights (four-class lung) for XGBoost. No synthetic
+oversampling is applied, which removes any risk of synthesising minority samples
+across the split.
 
 *Deep models.* All deep models are implemented in PyTorch @pytorch. The compact
 convolutional network (SmallCNN) consists of four
-convolution–batch-normalisation–ReLU–max-pool blocks (channel widths
-$1 arrow.r 16 arrow.r 32 arrow.r 64 arrow.r 128$), an adaptive average pool, and a head with
-dropout (at least 0.3) before a linear classifier. The transfer-learning model is
+convolution–batch-normalisation–ReLU–max-pool blocks (baseline channel widths
+$1 arrow.r 16 arrow.r 32 arrow.r 64 arrow.r 128$, treated as a tunable hyperparameter),
+an adaptive average pool, and a head with dropout (at least 0.3) before a linear
+classifier. The transfer-learning model is
 an EfficientNet-B0 backbone @efficientnet pre-trained on ImageNet @imagenet
 (approximately 4.0 million parameters), with the single-channel log-mel image
 lifted to the three-channel $224 times 224$ input the backbone expects via
@@ -135,7 +140,14 @@ head as a CPU-feasible fallback. Deep models are trained with the Adam optimiser
 and a class-weighted cross-entropy loss, with early stopping on the validation
 primary metric, a wall-clock cap for deadline protection, and best-checkpoint
 restoration; a train-versus-validation learning-curve figure is saved for each run
-to check for overfitting.
+to check for overfitting. Deep-model hyperparameters — learning rate, batch size,
+weight decay, dropout, augmentation strength, the class-imbalance sampling mode and,
+for the SmallCNN, the convolutional channel widths — were selected by a 128-trial
+bounded random search (32 trials per modality–model combination) that ranked
+configurations on the validation primary metric only, never on the test set. The
+reported SmallCNN therefore uses the wider $32 arrow.r 64 arrow.r 128 arrow.r 256$
+channel variant chosen by the search, and every final deep-learning result is
+reported as the mean ± standard deviation over three seeds (1, 2, 42).
 
 == Evaluation
 
