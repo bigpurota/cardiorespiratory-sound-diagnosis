@@ -12,8 +12,8 @@ modalities are examined under one unified, leakage-safe pipeline: heart sounds
 (phonocardiograms) from PhysioNet/CinC 2016 and respiratory sounds from ICBHI 2017.
 A third modality — arterial bruits — is treated analytically, as no public dataset
 suitable for supervised learning exists. The central methodological contribution is
-an identical evaluation protocol for both modalities: strictly patient-level
-partitioning that prevents the leakage inflating many published results, fixed
+an identical evaluation protocol for both modalities: strictly grouped, leakage-safe
+partitioning that prevents the leakage that inflates many published results, fixed
 seeds, pinned software, and a shared balanced metric, mean accuracy
 MAcc = (Se + Sp) / 2, that makes the tasks directly comparable. Two method families
 are contrasted: classical pipelines (MFCC with delta and spectral features, fed to

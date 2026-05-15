@@ -49,7 +49,7 @@ of deploying it across heart and lung screening is shared rather than duplicated
 
 The novelty of this study is a *unified, leakage-safe, cross-modal comparison
 pipeline*. A single codebase, governed by per-modality configuration files,
-applies the same preprocessing, the same patient-level partitioning with an
+applies the same preprocessing, the same leakage-safe grouped partitioning with an
 explicit zero-leakage assertion, the same metric family and the same set of
 classical and deep models to both heart and lung sounds. This lets us ask a
 question that single-modality studies cannot: do the method families that win on
@@ -95,7 +95,7 @@ the author. Accordingly, all stages of the work were performed by the author,
 Tsember Andrei Alekseevich (group БПАД244): problem formulation and the analytical
 literature review; acquisition and exploratory analysis of the PhysioNet/CinC 2016
 (heart) and ICBHI 2017 (lung) datasets; preprocessing, segmentation and the
-construction of leakage-safe patient-level splits; classical feature engineering
+construction of leakage-safe grouped splits; classical feature engineering
 and the logistic-regression, support-vector-machine, random-forest and
 gradient-boosting experiments; the convolutional-network, EfficientNet-B0 and
 Audio Spectrogram Transformer deep-learning experiments, including the

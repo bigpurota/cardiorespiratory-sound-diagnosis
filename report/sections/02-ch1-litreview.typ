@@ -95,9 +95,11 @@ MAcc around 0.86 @potes2016, setting a public benchmark for this task.
 
 A key methodological point is that the challenge provided only a training set with
 public labels; the private test set was withheld. Any researcher using this corpus
-must therefore construct their own train/test split from the 764-subject training
-pool, using strictly patient-level (not recording-level) partitioning to avoid
-leakage @lones2021. This requirement distinguishes rigorous studies from a body
+must therefore construct their own train/test split from this training pool, ideally
+at the patient level rather than the recording level to avoid leakage @lones2021. In
+practice the public release does not ship a complete recording-to-subject mapping, so
+studies commonly group by recording instead — a limitation this work makes explicit
+in Chapter 2. This requirement distinguishes rigorous studies from a body
 of literature that reports inflated numbers because multiple recordings from the
 same patient appear on both sides of a random split.
 
@@ -258,7 +260,7 @@ reproducible: (i) recording-level rather than patient-level splitting; (ii) glob
 data augmentation applied before the split, leaking augmented test-set neighbours
 into training; and (iii) inconsistent metric choices (raw accuracy on an imbalanced
 dataset vs. the balanced (Se + Sp) / 2). All three pitfalls are present in a
-significant fraction of the published auscultation literature.
+substantial fraction of the published auscultation literature.
 
 === Research gap and novelty claim
 
@@ -271,7 +273,7 @@ the answer has practical implications for how much can be shared in a multi-moda
 system.
 
 This study's novelty is a *unified, reproducible, cross-modal comparison* under a
-zero-leakage patient-level protocol: the same codebase, preprocessing chain, model
+zero-leakage grouped-split protocol: the same codebase, preprocessing chain, model
 set and evaluation metric are applied to both CinC 2016 heart data and ICBHI 2017
 lung data, enabling a direct, fair comparison of method rankings across modalities.
 The contribution is intentionally framed as honest leakage-free baselines rather

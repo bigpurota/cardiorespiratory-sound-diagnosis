@@ -13,26 +13,33 @@ This chapter specifies the experimental pipeline in enough detail to reproduce
 every reported number. The design principle is *one shared, configuration-driven
 codebase* applied identically to both modalities, with all randomness fixed and
 all dependency versions pinned. The pipeline is organised as independent stages —
-ingest, preprocess, segment, feature extraction, patient-level split, training
+ingest, preprocess, segment, feature extraction, grouped split, training
 and evaluation — each writing its output to disk so any single stage is
 re-runnable in isolation.
 
-== Datasets and patient-level splits
+== Datasets and leakage-safe splits
 
 Heart sounds are taken from the PhysioNet/CinC 2016 training databases (subsets A
 through E); respiratory sounds from the ICBHI 2017 database. The two raw
 collections are indexed into a single recording-level manifest carrying, for each
-recording, a patient identifier, a class label, the modality and the file path; a
+recording, a grouping identifier (the patient where known, the recording otherwise),
+a class label, the modality and the file path; a
 separate cycle-level table records the annotated respiratory cycles of ICBHI with
 their start and end times and one of four labels.
 
-The single most important correctness requirement is *patient-level* (not
-recording-level) partitioning, which prevents the data leakage that inflates many
-published results. For heart sounds the split is a seeded
+The single most important correctness requirement is *grouped* (not random)
+partitioning, so that no recording — and, where subject identity is recoverable, no
+patient — appears on both sides of the split; this prevents the data leakage that
+inflates many published results. For heart sounds the split is a seeded
 `GroupShuffleSplit` (test fraction 0.20, random state 42) computed *within*
-databases A–E, grouping by patient identifier; the never-released private test
-set is not touched. For lung sounds the official ICBHI 60/40 patient-independent
-split is adopted and then *repaired*: two patients whom the official file places
+databases A–E. The public CinC 2016 training release does not publish a complete
+recording-to-subject mapping, so the grouping key is the recording identifier: this
+guarantees that no 3-second window of a recording can fall on both sides of the
+split — the dominant leakage risk for windowed audio — but the resulting partition
+is recording-level rather than strictly subject-level (a limitation stated in the
+Conclusion). The never-released private test set is not touched. For lung sounds,
+where ICBHI publishes patient identifiers, the official 60/40 patient-independent
+(genuinely subject-level) split is adopted and then *repaired*: two patients whom the official file places
 on both sides of the split (identifiers 156 and 218) have all of their recordings
 forced to the training side, so that every patient lands on exactly one side. If
 the official split cannot be fetched and validated, the pipeline falls back to a
@@ -145,9 +152,10 @@ weight decay, dropout, augmentation strength, the class-imbalance sampling mode 
 for the SmallCNN, the convolutional channel widths — were selected by a 128-trial
 bounded random search (32 trials per modality–model combination) that ranked
 configurations on the validation primary metric only, never on the test set. The
-reported SmallCNN therefore uses the wider $32 arrow.r 64 arrow.r 128 arrow.r 256$
-channel variant chosen by the search, and every final deep-learning result is
-reported as the mean ± standard deviation over three seeds (1, 2, 42).
+reported heart SmallCNN therefore uses the wider $32 arrow.r 64 arrow.r 128 arrow.r 256$
+channel variant selected by the search, whereas the lung SmallCNN retained the
+baseline widths; every final deep-learning result is reported as the mean ± standard
+deviation over three seeds (1, 2, 42).
 
 == Evaluation
 
@@ -181,14 +189,14 @@ effect seeds Python's `random`, NumPy and PyTorch generators with the value 42
 and disables non-deterministic cuDNN behaviour. The software stack is pinned:
 Python 3.11, librosa 0.11.0, scikit-learn 1.8.0, XGBoost 3.2.0, PyTorch 2.11.0
 with torchaudio 2.11.0, timm ($gt.eq$ 1.0), imbalanced-learn 0.14.1, with the exact
-versions captured in a committed `requirements.txt`. Patient-level splits are
+versions captured in a committed `requirements.txt`. The splits are
 written to disk and reloaded rather than regenerated, so that the partition is
 identical across runs. The full pinned environment is reproduced in Annex B.
 
 === Chapter summary
 
 The methodology is a single configuration-driven pipeline applied identically to
-both modalities, with patient-level splits and an explicit zero-leakage
+both modalities, with leakage-safe grouped splits and an explicit zero-leakage
 assertion, modality-matched preprocessing and features, a common
 classical-versus-deep model set, and a shared ((Se + Sp) / 2) metric family. This
 uniformity is what makes the cross-modal comparison of Chapter 4 meaningful.

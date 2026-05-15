@@ -13,8 +13,8 @@ The objectives stated in the Introduction were met as follows.
 
 A reproducible, configuration-driven pipeline shared by the heart and lung
 modalities was assembled, with fixed random seeds, pinned dependencies,
-patient-level splits and an explicit zero-leakage assertion executed before every
-training run. On heart sounds the best classical configuration — XGBoost with the
+leakage-safe grouped splits (patient-level for lung, recording-level for heart) and
+an explicit zero-leakage assertion executed before every training run. On heart sounds the best classical configuration — XGBoost with the
 MFCC+Δ+ΔΔ + spectral-statistics feature set — reached MAcc = 0.903
 (Se = 0.946, Sp = 0.859). After HPO tuning (128-trial bounded random search,
 val-only selection), EfficientNet-B0 reaches MAcc = 0.898 ± 0.008 (three seeds),
@@ -71,6 +71,11 @@ The following limitations bound every claim in this report.
   extension rather than a headline result.
 - *Binary heart task.* The heart task is binary (normal versus abnormal) and does
   not localise or grade specific pathologies such as individual murmur types.
+- *Split granularity for heart.* The public CinC 2016 release provides no complete
+  recording-to-subject mapping, so the heart split is grouped at the recording level
+  rather than the patient level. This eliminates window-level leakage (all windows of
+  a recording stay on one side) but cannot rule out the same subject contributing
+  recordings to both sides. The ICBHI lung split is genuinely patient-independent.
 
 #heading(level: 2, numbering: none, outlined: true)[Future work]
 

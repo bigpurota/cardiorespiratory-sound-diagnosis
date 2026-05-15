@@ -23,7 +23,7 @@ in @tab-annex-heart-classical and the lung-sound classical results in
 `results/tables/metrics_heart_classical.csv`, `metrics_lung_classical.csv`,
 `metrics_heart_cnn.csv` and `metrics_lung_cnn.csv`.
 
-=== Heart-sound metrics (classical models)
+== Heart-sound metrics (classical models)
 
 #figure(
   caption: [Complete heart-sound classical metrics. MAcc = (Se+Sp)/2. AUC-ROC
@@ -45,7 +45,7 @@ in @tab-annex-heart-classical and the lung-sound classical results in
   ),
 ) <tab-annex-heart-classical>
 
-=== Heart-sound metrics (deep-learning models, HPO-tuned, 3-seed mean)
+== Heart-sound metrics (deep-learning models, HPO-tuned, 3-seed mean)
 
 #figure(
   caption: [Heart-sound deep-learning metrics. HPO-tuned (val-only selection, 128
@@ -61,7 +61,7 @@ in @tab-annex-heart-classical and the lung-sound classical results in
   ),
 )
 
-=== Lung-sound metrics (classical models)
+== Lung-sound metrics (classical models)
 
 #figure(
   caption: [Complete lung-sound classical metrics. ICBHI Score = (Se_abnormal + Sp) / 2.
@@ -82,7 +82,7 @@ in @tab-annex-heart-classical and the lung-sound classical results in
   ),
 ) <tab-annex-lung-classical>
 
-=== Lung-sound metrics (deep-learning models, HPO-tuned, 3-seed mean)
+== Lung-sound metrics (deep-learning models, HPO-tuned, 3-seed mean)
 
 #figure(
   caption: [Lung-sound deep-learning metrics. HPO-tuned (val-only selection, 128

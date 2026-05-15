@@ -15,7 +15,7 @@
 = Experimental results
 
 This chapter reports the empirical results of the classical and deep-learning
-experiments on heart and lung sounds under the leakage-safe, patient-level
+experiments on heart and lung sounds under the leakage-safe grouped-split
 protocol described in Chapter 2. All headline numbers are at the recording level
 for heart sounds and at the cycle level for lung sounds, using the official
 ((Se + Sp) / 2) metric of each task. Where a model predicted only one class the
@@ -53,14 +53,8 @@ Deep-learning scores represent HPO-tuned mean±std over three seeds.
     [Heart], [B (MFCC+Δ+spec)], [LogReg],   [MAcc],  [0.825], [0.908], [0.742], [0.734],
     [Heart], [B (MFCC+Δ+spec)], [SVM],      [MAcc],  [0.869], [0.938], [0.800], [0.788],
     [Heart], [B (MFCC+Δ+spec)], [RF],       [MAcc],  [0.831], [0.723], [0.940], [0.837],
-    table.cell(text(weight: "bold")[[Heart]]),
-    table.cell(text(weight: "bold")[[B (MFCC+Δ+spec)]]),
-    table.cell(text(weight: "bold")[[XGBoost]]),
-    table.cell(text(weight: "bold")[[MAcc]]),
-    table.cell(text(weight: "bold")[[*0.903*]]),
-    table.cell(text(weight: "bold")[[*0.946*]]),
-    table.cell(text(weight: "bold")[[*0.859*]]),
-    table.cell(text(weight: "bold")[[0.839]]),
+    [*Heart*], [*B (MFCC+Δ+spec)*], [*XGBoost*], [*MAcc*],
+    [*0.903*], [*0.946*], [*0.859*], [*0.839*],
     // ---- Heart DL ----
     [Heart], [log-mel 64×128], [SmallCNN],       [MAcc], [0.871 ± 0.009], [0.910], [0.831], [—],
     [Heart], [log-mel 64×128], [EfficientNet-B0], [MAcc], [0.898 ± 0.008], [0.936], [0.860], [—],
@@ -75,14 +69,8 @@ Deep-learning scores represent HPO-tuned mean±std over three seeds.
     [Lung], [B (MFCC+Δ+spec)], [XGBoost], [ICBHI], [0.500], [0.369], [0.631], [0.294],
     // ---- Lung DL ----
     [Lung], [log-mel 64×128], [SmallCNN],       [ICBHI], [0.540 ± 0.022], [0.755], [0.325], [—],
-    table.cell(text(weight: "bold")[[Lung]]),
-    table.cell(text(weight: "bold")[[log-mel 64×128]]),
-    table.cell(text(weight: "bold")[[EfficientNet-B0]]),
-    table.cell(text(weight: "bold")[[ICBHI]]),
-    table.cell(text(weight: "bold")[[*0.555 ± 0.016*]]),
-    table.cell(text(weight: "bold")[[*0.509*]]),
-    table.cell(text(weight: "bold")[[*0.601*]]),
-    table.cell(text(weight: "bold")[[—]]),
+    [*Lung*], [*log-mel 64×128*], [*EfficientNet-B0*], [*ICBHI*],
+    [*0.555 ± 0.016*], [*0.509*], [*0.601*], [*—*],
   ),
 ) <tab-unified>
 
@@ -97,8 +85,8 @@ Deep-learning scores represent HPO-tuned mean±std over three seeds.
 === Classical models
 
 All eight classical configurations (two feature sets × four classifiers) were
-evaluated on the same patient-level test set of 626 test recordings from 626 unique
-patients. The best classical result was achieved by XGBoost on feature set B
+evaluated on the same held-out test set of 626 recordings (split at the recording
+level; see Chapter 2). The best classical result was achieved by XGBoost on feature set B
 (MFCC+Δ+ΔΔ + spectral statistics), reaching MAcc = 0.903, with Se = 0.946 and
 Sp = 0.859. This result confirms the practical value of the five additional
 spectral statistics: XGBoost on feature set A scored MAcc = 0.879, so the richer
@@ -191,14 +179,15 @@ low sensitivity on the abnormal classes (Se ≈ 0.10). This "majority-class
 collapse" — predicting almost exclusively normal — is a failure mode specific to
 RF's averaging behaviour when classes are highly imbalanced and class weighting
 alone has not fully counteracted the imbalance within the training fold.
-The pattern is visible in @fig-cm-lung-best, where nearly all cycles are predicted
-as normal or wheeze, and the crackle and "both" rows are almost entirely
-misclassified.
+No separate figure is shown for the random forest; its collapse is evident directly
+in the per-class sensitivities of Table 1 (abnormal-class Se ≈ 0.10). For contrast,
+@fig-cm-lung-best shows the best classical model, the SVM, whose predictions are
+distributed across all four classes rather than collapsing to the majority.
 
 #figure(
   image("../../results/figures/cm_lung_B_svm.png", width: 58%),
   caption: [Confusion matrix of the best lung-sound classical classifier (SVM,
-  feature set B). Rows: true class; columns: predicted class. Test set: 2636 cycles
+  feature set B). Rows: true class; columns: predicted class. Test set: 2,636 cycles
   from 47 patients.],
 ) <fig-cm-lung-best>
 
@@ -224,8 +213,8 @@ to random forest, which is reflected in a more balanced confusion matrix
 
 #figure(
   image("../../results/figures/cm_lung_cnn.png", width: 58%),
-  caption: [Confusion matrix of the best lung-sound CNN classifier (SmallCNN on
-  log-mel spectrograms). The log-mel representation enables better discrimination
+  caption: [Confusion matrix of the lung-sound SmallCNN classifier (on log-mel
+  spectrograms). The log-mel representation enables better discrimination
   of crackle and wheeze relative to classical models.],
 ) <fig-cm-lung-cnn>
 
