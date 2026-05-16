@@ -159,10 +159,13 @@ def save_cm(y_true, y_pred, labels, title, out_png):
     cols_used = assert_not_degenerate(y_true, y_pred, labels)
     cm = confusion_matrix(y_true, y_pred, labels=labels)
     fig, ax = plt.subplots(figsize=(4, 4))
-    ConfusionMatrixDisplay(cm, display_labels=labels).plot(ax=ax, colorbar=False)
-    # Smaller title + tight bbox so long internal titles are not clipped at the
-    # figure edge (the saved canvas expands to contain the full title text).
-    ax.set_title(title, fontsize=9)
+    ConfusionMatrixDisplay(cm, display_labels=labels).plot(
+        ax=ax, colorbar=False, cmap="Blues", values_format="d")
+    ax.grid(False)
+    # No chart title: the report supplies a caption, and a raw internal title looked
+    # unprofessional in the compiled PDF. `title` is retained in the signature for
+    # call-site compatibility.
+    _ = title
     fig.tight_layout()
     fig.savefig(out_png, dpi=150, bbox_inches="tight")
     plt.close(fig)

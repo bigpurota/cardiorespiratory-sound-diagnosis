@@ -61,6 +61,35 @@ HEART_LABEL_NAMES = {-1.0: "normal", 1.0: "abnormal"}
 # Stable lung 4-class ordering for consistent figure colours/axes.
 LUNG_CLASS_ORDER = ["normal", "crackle", "wheeze", "both"]
 
+# ── Unified report figure style ──────────────────────────────────────────────
+# A single accent colour (muted steel-blue, matching the "Blues" colormap used by
+# the confusion matrices and the cross-modal heat-map) plus clean spines and a
+# light grid, so every figure in the report shares one visual language.
+ACCENT = "#3b6ea5"
+
+
+def _apply_style():
+    """Apply the shared, clean report style to matplotlib (idempotent)."""
+    plt.rcParams.update({
+        "figure.facecolor": "white",
+        "axes.facecolor": "white",
+        "axes.edgecolor": "#444444",
+        "axes.linewidth": 0.8,
+        "axes.titlesize": 12,
+        "axes.titleweight": "bold",
+        "axes.labelsize": 11,
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "axes.grid": True,
+        "axes.axisbelow": True,
+        "grid.color": "#dddddd",
+        "grid.linewidth": 0.7,
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10,
+        "font.size": 11,
+        "savefig.facecolor": "white",
+    })
+
 
 def _ensure_dir():
     os.makedirs(EDA_DIR, exist_ok=True)
@@ -70,7 +99,7 @@ def _save(fig, name):
     """Save *fig* as a non-empty PNG under EDA_DIR and close it."""
     _ensure_dir()
     out = os.path.join(EDA_DIR, name)
-    fig.savefig(out, dpi=120, bbox_inches="tight")
+    fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return out
 
@@ -89,8 +118,7 @@ def plot_class_dist_heart(manifest):
     heart["label_name"] = heart["label"].map(HEART_LABEL_NAMES).fillna("unknown")
     order = ["normal", "abnormal"]
     fig, ax = plt.subplots(figsize=(6, 4))
-    sns.countplot(data=heart, x="label_name", order=order, hue="label_name",
-                  palette="Set2", legend=False, ax=ax)
+    sns.countplot(data=heart, x="label_name", order=order, color=ACCENT, ax=ax)
     for p in ax.patches:
         ax.annotate(int(p.get_height()), (p.get_x() + p.get_width() / 2, p.get_height()),
                     ha="center", va="bottom")
@@ -103,8 +131,7 @@ def plot_class_dist_heart(manifest):
 def plot_class_dist_lung(cycles):
     """Lung cycle 4-class distribution (normal/crackle/wheeze/both)."""
     fig, ax = plt.subplots(figsize=(6, 4))
-    sns.countplot(data=cycles, x="label", order=LUNG_CLASS_ORDER, hue="label",
-                  palette="Set1", legend=False, ax=ax)
+    sns.countplot(data=cycles, x="label", order=LUNG_CLASS_ORDER, color=ACCENT, ax=ax)
     for p in ax.patches:
         ax.annotate(int(p.get_height()), (p.get_x() + p.get_width() / 2, p.get_height()),
                     ha="center", va="bottom")
@@ -119,7 +146,7 @@ def plot_duration_hist_heart(manifest):
     """Heart recording duration histogram (seconds)."""
     heart = manifest[manifest["modality"] == "heart"]
     fig, ax = plt.subplots(figsize=(6, 4))
-    sns.histplot(heart["duration_s"].dropna(), bins=40, color="#4c72b0", ax=ax)
+    sns.histplot(heart["duration_s"].dropna(), bins=40, color=ACCENT, ax=ax)
     ax.set_title("Heart (CinC 2016) — recording duration distribution")
     ax.set_xlabel("duration (s)")
     ax.set_ylabel("recordings")
@@ -130,7 +157,7 @@ def plot_duration_hist_lung(manifest):
     """Lung recording duration histogram (seconds)."""
     lung = manifest[manifest["modality"] == "lung"]
     fig, ax = plt.subplots(figsize=(6, 4))
-    sns.histplot(lung["duration_s"].dropna(), bins=40, color="#c44e52", ax=ax)
+    sns.histplot(lung["duration_s"].dropna(), bins=40, color=ACCENT, ax=ax)
     ax.set_title("Lung (ICBHI 2017) — recording duration distribution")
     ax.set_xlabel("duration (s)")
     ax.set_ylabel("recordings")
@@ -144,8 +171,7 @@ def plot_heart_per_db(manifest):
     heart["db_source"] = heart["db_source"].astype(str).str.lower()
     order = sorted(heart["db_source"].dropna().unique())
     fig, ax = plt.subplots(figsize=(6, 4))
-    sns.countplot(data=heart, x="db_source", order=order, hue="db_source",
-                  palette="viridis", legend=False, ax=ax)
+    sns.countplot(data=heart, x="db_source", order=order, color=ACCENT, ax=ax)
     for p in ax.patches:
         ax.annotate(int(p.get_height()), (p.get_x() + p.get_width() / 2, p.get_height()),
                     ha="center", va="bottom")
@@ -159,8 +185,7 @@ def plot_lung_per_class(cycles):
     """Lung per-class cycle counts (alias of class distribution, explicit name)."""
     counts = cycles["label"].value_counts().reindex(LUNG_CLASS_ORDER).fillna(0)
     fig, ax = plt.subplots(figsize=(6, 4))
-    sns.barplot(x=counts.index, y=counts.values, hue=counts.index,
-                palette="mako", legend=False, ax=ax)
+    sns.barplot(x=counts.index, y=counts.values, color=ACCENT, ax=ax)
     for i, v in enumerate(counts.values):
         ax.annotate(int(v), (i, v), ha="center", va="bottom")
     ax.set_title("ICBHI 2017 — lung cycles per class")
@@ -183,8 +208,7 @@ def plot_icbhi_native_sr(manifest):
     counts = sr.value_counts().sort_index()
     fig, ax = plt.subplots(figsize=(6, 4))
     sns.barplot(x=[str(i) for i in counts.index], y=counts.values,
-                hue=[str(i) for i in counts.index], palette="flare",
-                legend=False, ax=ax)
+                color=ACCENT, ax=ax)
     for i, v in enumerate(counts.values):
         ax.annotate(int(v), (i, v), ha="center", va="bottom")
     ax.set_title("ICBHI 2017 — native sampling-rate distribution")
@@ -209,6 +233,7 @@ def _waveform_logmel_panel(path, sr, title, out_name):
     img = librosa.display.specshow(logmel, sr=sr, x_axis="time", y_axis="mel",
                                    ax=axes[1])
     axes[1].set_title(f"{title} — log-mel spectrogram")
+    axes[1].grid(False)  # no grid over the spectrogram image
     fig.colorbar(img, ax=axes[1], format="%+2.0f dB")
     fig.tight_layout()
     return _save(fig, out_name)
@@ -244,6 +269,7 @@ def plot_example_panels(manifest, cycles):
 
 def main():
     """Generate the full EDA figure set under results/figures/eda/."""
+    _apply_style()
     _ensure_dir()
     manifest, cycles = load_tables()
 

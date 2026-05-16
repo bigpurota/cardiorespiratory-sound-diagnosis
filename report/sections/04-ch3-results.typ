@@ -120,7 +120,7 @@ positives), consistent with the reported Se = 0.946 and Sp = 0.859.
   image("../../results/figures/cm_heart_B_xgb.png", width: 58%),
   caption: [Confusion matrix of the best heart-sound classical classifier (XGBoost,
   feature set B: MFCC+Δ+ΔΔ + spectral statistics). Rows: true class; columns:
-  predicted class (0 = normal, 1 = abnormal). Test set: 626 heart recordings (recording-level split; CinC 2016
+  predicted class. Test set: 626 heart recordings (recording-level split; CinC 2016
   publishes no recording-to-subject map — see Section 2.1).],
 ) <fig-cm-heart-best>
 
@@ -203,8 +203,7 @@ distributed across all four classes rather than collapsing to the majority.
 #figure(
   image("../../results/figures/cm_lung_B_svm.png", width: 58%),
   caption: [Confusion matrix of the best lung-sound classical classifier (SVM,
-  feature set B). Rows: true class; columns: predicted class (class 3 = normal;
-  classes 0–2 = the abnormal categories crackle, wheeze and both). Test set: 2,636
+  feature set B). Rows: true class; columns: predicted class. Test set: 2,636
   cycles from 47 patients.],
 ) <fig-cm-lung-best>
 
@@ -241,8 +240,7 @@ partition adopted here.
 #figure(
   image("../../results/figures/cm_lung_cnn.png", width: 58%),
   caption: [Confusion matrix of the lung-sound SmallCNN classifier (on log-mel
-  spectrograms; class 3 = normal, classes 0–2 = the abnormal categories crackle,
-  wheeze and both). The log-mel representation enables better discrimination
+  spectrograms). The log-mel representation enables better discrimination
   of crackle and wheeze relative to classical models.],
 ) <fig-cm-lung-cnn>
 
