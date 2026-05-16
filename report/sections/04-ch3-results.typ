@@ -151,21 +151,24 @@ fits without a seed distribution to test against. This nonetheless reframes the
 earlier core-run observation that classical methods dominated — after equivalent
 HPO, the two families are of comparable accuracy on heart sounds.
 
-The learning curves for both deep models (@fig-lc-heart-cnn and @fig-lc-heart-eff)
-show convergence without severe overfitting, validating that the early-stopping and
-dropout (≥ 0.3) regularisation are effective. Both models reach their best
-checkpoint within 20 epochs.
+The loss curves for both deep models (@fig-lc-heart-cnn and @fig-lc-heart-eff) show
+the training loss falling steadily; the validation loss trends downward for SmallCNN
+and plateaus for EfficientNet-B0, with no runaway overfitting. Early stopping restores
+the best validation checkpoint, confirming that the dropout (≥ 0.3) and early-stopping
+regularisation are effective.
 
 #figure(
   image("../../results/figures/learning_curve_heart_cnn.png", width: 72%),
-  caption: [Training and validation learning curves for SmallCNN on heart sounds.
-  Primary metric (MAcc) vs. epoch. Best checkpoint is marked.],
+  caption: [Training and validation loss per epoch for SmallCNN on heart sounds.
+  The training loss falls steadily and the (noisier) validation loss trends downward,
+  indicating convergence without runaway overfitting.],
 ) <fig-lc-heart-cnn>
 
 #figure(
   image("../../results/figures/learning_curve_heart_effnet.png", width: 72%),
-  caption: [Training and validation learning curves for EfficientNet-B0 on heart sounds.
-  Primary metric (MAcc) vs. epoch.],
+  caption: [Training and validation loss per epoch for EfficientNet-B0 on heart sounds.
+  The validation loss plateaus while the training loss keeps falling — the modest
+  train–validation gap typical of fine-tuning; early stopping selects the best checkpoint.],
 ) <fig-lc-heart-eff>
 
 == Lung-sound results (ICBHI 2017)
@@ -243,14 +246,16 @@ partition adopted here.
   of crackle and wheeze relative to classical models.],
 ) <fig-cm-lung-cnn>
 
-@fig-lc-lung-cnn shows the learning curve for the lung CNN. The validation metric
-converges within 25 epochs without divergence, consistent with adequate
-regularisation.
+@fig-lc-lung-cnn shows the loss curve for the lung CNN. The training loss falls while
+the validation loss flattens and then begins to climb after roughly epoch 9 — the
+over-fitting expected on this harder four-class task — so early stopping restores the
+earlier best checkpoint.
 
 #figure(
   image("../../results/figures/learning_curve_lung_cnn.png", width: 72%),
-  caption: [Training and validation learning curves for SmallCNN on lung sounds
-  (ICBHI score vs. epoch).],
+  caption: [Training and validation loss per epoch for SmallCNN on lung sounds.
+  The validation loss starts rising after roughly epoch 9 (over-fitting on the harder
+  four-class task), so early stopping restores the earlier best checkpoint.],
 ) <fig-lc-lung-cnn>
 
 == Volumetric characteristics

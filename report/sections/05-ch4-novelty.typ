@@ -94,16 +94,17 @@ training of Chapter 3: (i) direct transfer, where an encoder pre-trained on one
 modality is applied to the other without re-training; (ii) joint multi-task
 training, where a single shared encoder with two task-specific classification
 heads is trained simultaneously on both modalities; and (iii) in-domain baselines
-for reference. The cross-modal heat-map in @fig-cross-modal-heatmap summarises all
-eight source→target combinations.
+for reference. The cross-modal heat-map in @fig-cross-modal-heatmap summarises the
+six source→target combinations.
 
 #figure(
   image("../../results/figures/cross_modal_heatmap.png", width: 78%),
-  caption: [Cross-modal transfer heat-map. Each cell shows the primary metric
-  (MAcc for heart; ICBHI for lung) achieved when a model pre-trained on the
-  source modality (rows) is evaluated on the target modality (columns).
-  In-domain results appear on the diagonal; off-diagonal cells show transfer
-  performance.],
+  caption: [Cross-modal transfer heat-map for the EfficientNet-B0 model. Each cell
+  shows the primary metric (MAcc for heart; ICBHI Score for lung) when a model
+  trained on the source modality (rows) is evaluated on the target modality
+  (columns): the diagonal is in-domain, off-diagonal cells are direct transfer, and
+  the bottom row is the joint multi-task model. The corresponding SmallCNN values
+  appear in @tab-joint.],
 ) <fig-cross-modal-heatmap>
 
 The headline finding is that cross-modal transfer is strongly asymmetric.

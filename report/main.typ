@@ -98,6 +98,15 @@
   set text(size: 10pt)
   set par(leading: 0.65em, first-line-indent: 0pt)
   set align(left)            // Annex 7 §1.4.2: table title left-aligned, no indent
+  // Clean academic ("booktabs") look: heavy rule at the top and under the header,
+  // light grey separators between data rows, NO vertical lines.
+  set table(
+    stroke: (_, y) => (
+      top: if y <= 1 { 0.9pt + black } else { 0pt },
+      bottom: 0.4pt + luma(180),
+    ),
+    inset: (x: 6pt, y: 3.6pt),
+  )
   it
 }
 

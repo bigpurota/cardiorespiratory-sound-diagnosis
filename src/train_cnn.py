@@ -266,9 +266,11 @@ def train_one_model(
         ax.set_xlabel("epoch")
         ax.set_ylabel("loss")
         ax.legend()
-        ax.set_title(os.path.basename(curve_png))
+        # No chart title: the figure is described by its caption in the report.
+        # (Previously the raw output filename was used as the title, which looked
+        # unprofessional in the compiled PDF.)
         fig.tight_layout()
-        fig.savefig(curve_png, dpi=150)
+        fig.savefig(curve_png, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return model, {
