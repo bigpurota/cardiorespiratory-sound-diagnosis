@@ -97,8 +97,10 @@ literature review; acquisition and exploratory analysis of the PhysioNet/CinC 20
 (heart) and ICBHI 2017 (lung) datasets; preprocessing, segmentation and the
 construction of leakage-safe grouped splits; classical feature engineering
 and the logistic-regression, support-vector-machine, random-forest and
-gradient-boosting experiments; the convolutional-network, EfficientNet-B0 and
-Audio Spectrogram Transformer deep-learning experiments, including the
-hyperparameter search and multi-seed evaluation; the cross-modal transfer
-analysis and the arterial analytical sub-study; and the preparation of this
-report under the department's structural and formatting requirements.
+gradient-boosting experiments; the convolutional-network and EfficientNet-B0
+deep-learning experiments, including the hyperparameter search and multi-seed
+evaluation, together with the code-level integration (but not the full
+fine-tuning, which was deferred for want of compute) of an Audio Spectrogram
+Transformer; the cross-modal transfer analysis and the arterial analytical
+sub-study; and the preparation of this report under the department's structural
+and formatting requirements.

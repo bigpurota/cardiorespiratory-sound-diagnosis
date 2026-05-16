@@ -160,8 +160,10 @@ def save_cm(y_true, y_pred, labels, title, out_png):
     cm = confusion_matrix(y_true, y_pred, labels=labels)
     fig, ax = plt.subplots(figsize=(4, 4))
     ConfusionMatrixDisplay(cm, display_labels=labels).plot(ax=ax, colorbar=False)
-    ax.set_title(title)
+    # Smaller title + tight bbox so long internal titles are not clipped at the
+    # figure edge (the saved canvas expands to contain the full title text).
+    ax.set_title(title, fontsize=9)
     fig.tight_layout()
-    fig.savefig(out_png, dpi=150)
+    fig.savefig(out_png, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return cols_used

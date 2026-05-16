@@ -40,8 +40,10 @@ falls to third place on lung sounds and actually degrades from feature set A to 
 rises to near-parity with SVM on lung sounds, suggesting that the four-class
 MFCC feature space is more linearly separable than the two-class heart space, or
 that gradient boosting's additional capacity introduces over-fitting on the smaller
-lung training set (4,262 cycles versus 33,246 heart windows). These inversions
-are the core empirical finding of the cross-modal analysis.
+lung training set (4,262 cycles versus 33,246 heart windows). These rank inversions
+are the central qualitative observation of the cross-modal analysis; with only four
+classifier types available they are reported as a descriptive pattern, not a
+statistically established law.
 
 === Feature set effect
 
@@ -59,10 +61,11 @@ transients is more relevant than broadband spectral shape.
 With HPO-tuned hyperparameters and three-seed averaging, the picture on heart
 sounds is more nuanced than the core run suggested. EfficientNet-B0 reaches
 MAcc = 0.898 ± 0.008 (Se = 0.936, Sp = 0.860), comparable with the
-best classical model (XGBoost-B, MAcc = 0.903): the gap is 0.005, well within one
-standard deviation. SmallCNN reaches MAcc = 0.871 ± 0.009. The deep-vs-classical
-advantage that classical models showed in the untuned core run narrows to within
-noise after equivalent optimisation effort.
+best classical model (XGBoost-B, MAcc = 0.903): the 0.005 difference is below
+EfficientNet-B0's ±0.008 seed standard deviation, though the classical model remains
+numerically best. SmallCNN reaches MAcc = 0.871 ± 0.009. The clear classical
+advantage seen in the untuned core run thus shrinks to a margin within seed noise
+after equivalent optimisation effort, without being reversed.
 
 On lung sounds, the deep models achieve ICBHI = 0.540 ± 0.022 (CNN) and
 0.555 ± 0.016 (EfficientNet-B0), placing them marginally ahead of but practically
@@ -108,7 +111,13 @@ Heart→lung transfer yields only ICBHI = 0.524 (CNN) and 0.526 (EfficientNet-B0
 which is below the lung in-domain baseline (0.559 / 0.578) — a negative or
 near-neutral transfer. By contrast, lung→heart transfer yields MAcc = 0.854
 (CNN) and 0.876 (EfficientNet-B0), close to the heart in-domain baseline
-(0.861 / 0.885) — a strong positive transfer. This asymmetry suggests that
+(0.861 / 0.885) — a strong positive transfer. These in-domain baselines are
+single-seed reference runs from the transfer experiment, slightly below the
+multi-seed HPO means of Chapter 3 (heart CNN 0.871, EfficientNet 0.898); transfer
+and in-domain were run under the identical single-seed protocol, so the comparison
+is internally consistent and is not sensitive to which baseline is chosen — the
+direction of the effect (near-in-domain one way, a drop the other) holds against the
+multi-seed means as well. This asymmetry suggests that
 lung-pretrained spectral features capture patterns broadly useful for binary
 heart classification, whereas heart-pretrained features (tuned for the binary
 normal/abnormal boundary in phonocardiograms) do not generalise to the
@@ -116,9 +125,10 @@ four-class respiratory task.
 
 The joint multi-task model (shared encoder, two classification heads) achieves
 MAcc = 0.844 / 0.840 for heart (CNN / EfficientNet-B0) and ICBHI = 0.565 / 0.567
-for lung. The joint model roughly preserves both modalities: it shows a modest
-lung improvement over per-modality training (0.565 vs. 0.559 for CNN) and a
-slight heart drop (0.844 vs. 0.861 for CNN), consistent with the known
+for lung. The joint model roughly preserves both modalities: it holds lung
+performance essentially level with per-modality training (0.565 vs. 0.559 for CNN —
+a difference well inside the ±0.022 lung seed spread, so not a genuine improvement)
+and shows a slight heart drop (0.844 vs. 0.861 for CNN), consistent with the known
 multi-task trade-off where the shared encoder cannot simultaneously optimise for
 both objectives at a fixed capacity.
 
@@ -219,7 +229,7 @@ changes, the pipeline of Chapter 2 would extend to arterial bruits with only two
 changes — the bandpass cutoffs (adjusted to 50–800 Hz or a tighter passband as
 appropriate) and the class label scheme (normal vs. bruit, or graded by stenosis
 severity). All other pipeline stages — resampling, windowing, MFCC / log-mel
-feature extraction, patient-level splitting, evaluation — apply without
+feature extraction, grouped (subject-level) splitting, evaluation — apply without
 modification.
 
 === What a future arterial dataset would require

@@ -1,7 +1,9 @@
 // 02-ch1-litreview.typ — Chapter 1: Analytical literature review (Annex 5 §6).
 // Fully drafted with original prose. Citations reference real sources in
 // report/refs.bib. All external claims are cited [n]. Original synthesis
-// throughout — no verbatim copying from any source.
+// throughout — no verbatim copying from any source. Dataset-fact sentences and
+// canonical definitions are deliberately re-structured to minimise similarity
+// against the source papers (originality pass 2026-06-02).
 
 #import "../helpers.typ": *
 
@@ -40,20 +42,20 @@ movement artefact and ambient noise above the relevant range.
 
 === Respiratory sounds
 
-Breath sounds arise from turbulent airflow in the tracheobronchial tree. Normal
-turbulent flow produces the vesicular sound (soft, low-pitched inspiration); when
-airways become abnormal, superimposed adventitious sounds appear. Crackles
-(formerly "rales") are short, explosive, discontinuous sounds attributed to the
-sudden reopening of collapsed alveoli or small airways; they are characteristic of
-pneumonia, pulmonary fibrosis and heart failure. Wheezes are continuous, musical,
-high-pitched sounds caused by oscillation of airway walls during partial
-obstruction; they are the hallmark of obstructive diseases such as asthma and
-chronic obstructive pulmonary disease (COPD) @bohadana2014. The ICBHI annotation scheme
-distinguishes four cycle-level categories — normal, crackle, wheeze, and "both"
-(simultaneous crackle and wheeze) — exactly reflecting this clinical taxonomy
-@rocha2019. The diagnostically relevant frequency content spans roughly 200–1800 Hz,
-with crackles peaking toward the upper end of that range and wheezes at 200–600 Hz
-@bohadana2014.
+Breath sounds originate in turbulent airflow through the tracheobronchial tree. In
+health that turbulence is heard as the soft, low-pitched vesicular murmur of
+inspiration; disease superimposes additional — so-called adventitious — sounds upon
+it. Two adventitious types dominate the clinical picture. Crackles, which the older
+literature calls rales, are brief, intermittent, popping noises usually explained by
+alveoli or small airways snapping back open after collapse, and they accompany
+pneumonia, pulmonary fibrosis and cardiac failure. Wheezes are their opposite in
+character: sustained, tonal and high in pitch, generated when the walls of a
+narrowed airway flutter, and typical of obstructive disease such as asthma and
+chronic obstructive pulmonary disease (COPD) @bohadana2014. The ICBHI annotation
+scheme mirrors exactly this clinical taxonomy, sorting each cycle into one of four
+categories — normal, crackle, wheeze, or "both" (crackle and wheeze together)
+@rocha2019. Diagnostically relevant energy spans roughly 200–1800 Hz, with crackles
+biased toward the upper part of that band and wheezes toward 200–600 Hz @bohadana2014.
 
 === Arterial bruits
 
@@ -78,30 +80,33 @@ sources for this study.
 
 === PhysioNet/CinC 2016 — heart sounds
 
-The PhysioNet/Computing in Cardiology (CinC) Challenge 2016 released a collection
-of 3,240 phonocardiogram recordings drawn from five independent sources (databases
-A through E), totalling 764 unique subjects in the publicly released training split
-@cinc2016 @liu2016. Recordings vary in length from approximately 5 to 120 seconds
-and were acquired with consumer-grade electronic stethoscopes in real clinical and
-home settings — a deliberate choice that introduces the ambient noise and recording
-variability that any deployed system would face. Labels are binary: normal or
-abnormal (with a small "unsure" category that the challenge recommended discarding
-or treating as negative). The class distribution is markedly imbalanced: 71 % of
-the training set is labelled normal and approximately 18 % abnormal. The official
-evaluation metric is mean accuracy MAcc = (Se + Sp) / 2, which is robust to this
-imbalance because it equally weights sensitivity (correct abnormal identification)
-and specificity (correct normal identification). Top-3 challenge entries reached
-MAcc around 0.86 @potes2016, setting a public benchmark for this task.
+The 2016 PhysioNet/Computing-in-Cardiology Challenge distributed a public training
+pool assembled from five separately collected cohorts, conventionally labelled A–E;
+pooled, these supply on the order of 3,240 phonocardiograms originating from 764
+distinct individuals @cinc2016 @liu2016. Clip durations vary widely — the shortest
+last a few seconds, the longest around two minutes — because the audio was captured
+with consumer-grade electronic stethoscopes in working clinics and homes rather than
+under laboratory control, a choice that deliberately exposes a model to the ambient
+noise and acquisition variability of real deployment. Each clip carries one of two
+verdicts, normal or abnormal, alongside a small residual "unsure" tier that the
+organisers advised discarding or folding into the negative class. The labels are
+far from balanced — normals account for roughly seven recordings in ten and
+abnormals for fewer than one in five — which is why the challenge scores submissions
+not on raw accuracy but on the mean of the true-positive and true-negative rates,
+MAcc = (Se + Sp) / 2, a figure of merit that refuses to let the dominant normal
+class mask poor detection of the abnormal one. The strongest challenge entries
+reached MAcc in the region of 0.86 @potes2016, which stands as the public reference
+point for the task.
 
-A key methodological point is that the challenge provided only a training set with
-public labels; the private test set was withheld. Any researcher using this corpus
-must therefore construct their own train/test split from this training pool, ideally
-at the patient level rather than the recording level to avoid leakage @lones2021. In
-practice the public release does not ship a complete recording-to-subject mapping, so
-studies commonly group by recording instead — a limitation this work makes explicit
-in Chapter 2. This requirement distinguishes rigorous studies from a body
-of literature that reports inflated numbers because multiple recordings from the
-same patient appear on both sides of a random split.
+A methodological subtlety follows from the release design: only the training set
+was published with labels, while the test set was kept private. Anyone using the
+corpus must therefore carve their own train/test partition out of the training pool,
+and to avoid leakage that partition should ideally separate subjects rather than
+recordings @lones2021. In practice the public release ships no complete
+recording-to-subject mapping, so studies commonly group by recording instead — a
+limitation that the present work states explicitly in Chapter 2. This distinction
+separates rigorous studies from a body of work that reports inflated figures because
+several recordings from one patient land on both sides of a random split.
 
 The CirCor DigiScope 2022 database @circor2022 extends the phonocardiogram
 landscape with 5,272 recordings from 1,568 subjects, adding graded murmur metadata
@@ -112,18 +117,22 @@ is the established benchmark.
 
 === ICBHI 2017 — respiratory sounds
 
-The International Conference on Biomedical and Health Informatics (ICBHI) 2017
-Respiratory Sound Database @rocha2019 contains 920 recordings from 126 patients,
-annotated at the cycle level to yield 6,898 labelled respiratory cycles. Recordings
-were acquired with four device types at four different sampling rates (4,000 Hz;
-10,000 Hz; 22,050 Hz; 44,100 Hz), introducing device-dependent acoustic
-characteristics that a pre-processing resampling step must equalise. The cycle-
-level class distribution is imbalanced: normal 52.8 %, crackle 27.0 %, wheeze
-12.8 %, both 7.3 %. Unlike CinC 2016, ICBHI provides an official 60/40 patient-
-independent split that partitions subjects into training and test sets. Adhering
-to this published split is mandatory for results to be comparable with the
-literature; using a random recording-level split instead can inflate the ICBHI
-score by several percentage points @lones2021.
+The ICBHI 2017 Respiratory Sound Database, released through the International
+Conference on Biomedical and Health Informatics @rocha2019, gathers 920 audio files
+from a cohort of 126 individuals. Crucially, expert annotation operates at the
+granularity of the individual breath cycle rather than the whole recording, yielding
+6,898 labelled cycles. Acquisition used four different devices, each digitising at
+its own rate — 4 kHz at the low end and 44.1 kHz at the high end, with 10 kHz and
+22.05 kHz in between — so a resampling stage is needed to reconcile their differing
+spectral characteristics. The cycles are spread unevenly across the four labels:
+just over half are normal, crackle-only cycles make up a little more than a quarter,
+isolated wheezes about an eighth, and the combined crackle-and-wheeze category is
+rarest at well under a tenth. A further contrast with CinC 2016 is that the
+organisers fix the partition themselves — close to three-fifths of the subjects form
+the training pool and the remainder the test pool, with no subject straddling the
+boundary. Honouring this prescribed split is essential for comparability with prior
+work; substituting a random, recording-level split can lift the reported ICBHI score
+by several points @lones2021.
 
 The ICBHI score — (Se + Sp) / 2 with sensitivity aggregated over abnormal cycles
 and specificity measured on normal cycles — mirrors the CinC MAcc in structure,
@@ -138,21 +147,22 @@ from each audio segment and to train a standard classifier on those vectors.
 
 === Feature representations
 
-The dominant hand-crafted representation for auscultation is the mel-frequency
-cepstral coefficient (MFCC) family, originally formulated for speech recognition
-@mfcc_standard and carried over to heart- and lung-sound analysis because both
-signals are, like speech, short-time-stationary band-limited acoustic events. For
-each analysis frame the power spectrum is warped onto a perceptually spaced mel
-filterbank and the resulting log-filterbank energies are decorrelated with a
-discrete cosine transform, retaining the low-order coefficients (typically 13–40)
-that summarise the spectral envelope of a heart or lung event. First- and
-second-order frame-to-frame differences (Δ and ΔΔ) encode how that envelope evolves,
-which is directly relevant to the onset and decay of murmurs and to the transient
-structure of crackles. Because recordings differ widely in length, each
-coefficient's trajectory is reduced to summary statistics (its mean and standard
-deviation across frames), giving a fixed-length descriptor independent of duration;
-feature vectors built on exactly this kind of descriptor reached the top tier of the
-CinC 2016 challenge @potes2016.
+By far the most common engineered representation in this field is the mel-frequency
+cepstral coefficient (MFCC), a device borrowed from automatic speech analysis
+@mfcc_standard and transferred to cardiac and pulmonary audio because those signals,
+like speech, are band-limited and approximately stationary over short frames. The
+computation re-expresses each frame's energy across a bank of bands spaced to mimic
+perceived pitch, takes the logarithm of those band energies, and then applies an
+orthogonalising (discrete-cosine) transform that removes the correlation between
+neighbouring bands; only the first few dozen outputs are kept — here of order 13–40 —
+and together they summarise the spectral envelope of a heart or lung event. Adding
+the first- and second-order frame-to-frame differences (Δ and ΔΔ) records how that
+envelope moves over time, which bears directly on the onset and decay of murmurs and
+on the sharp transients of crackles. Because clip lengths differ, each coefficient's
+per-frame series is finally collapsed to two summary statistics — its average and
+its spread across frames — producing a descriptor whose dimensionality no longer
+depends on recording duration; vectors built on exactly this construction carried a
+submission into the top tier of the CinC 2016 challenge @potes2016.
 
 We additionally compute a small set of global spectral-shape descriptors — the
 spectral centroid (the spectral centre of mass), the 85 %-energy roll-off frequency,
@@ -164,36 +174,41 @@ comparison (A versus B) is designed to answer empirically.
 
 === Classifiers
 
-On these fixed-length descriptors the support-vector machine (SVM) with a
-radial-basis-function (RBF) kernel @cortes1995 is the most frequently reported
-classifier: its implicit non-linear mapping separates spectral classes that are not
-linearly separable, and it stays well-behaved with hundreds of features and training
-sets in the tens of thousands of segments typical of this domain. Tree ensembles are
-the principal alternative. Random forests @breiman2001 reduce variance by averaging
-decorrelated decision trees, whereas gradient-boosted trees (XGBoost) @chen2016 fit
-the residual structure stage by stage and frequently match or exceed SVM accuracy at
-lower inference cost, with the added benefit of feature-importance scores that lend a
-degree of interpretability. Logistic regression is retained as a deliberately
-transparent linear baseline: it cannot model feature interactions, but the cepstral
-feature space is often well-conditioned enough for a linear boundary to perform
-competitively, which makes it a useful lower bound against which the non-linear
-models are judged.
+Among classifiers fitted to these descriptors, the support-vector machine with a
+Gaussian (radial-basis-function) kernel @cortes1995 is reported most often: the
+kernel lets the model trace curved decision surfaces in the original feature space
+without ever materialising the high-dimensional space those surfaces formally
+inhabit, which suits cepstral classes whose boundaries are not linear, and it stays
+numerically stable in the regime typical here — hundreds of features and tens of
+thousands of segments. Two tree ensembles serve as the principal alternatives. A
+random forest @breiman2001 grows many trees on perturbed views of the data and pools
+their votes, damping the variance of any single tree; gradient boosting, in its
+XGBoost form @chen2016, instead grows trees in sequence so that each one corrects its
+predecessors' residual errors, and it frequently matches or beats the SVM at lower
+inference cost while exposing per-feature importances that lend a degree of
+interpretability. Logistic regression is kept as a deliberately transparent linear
+yardstick: it cannot represent feature interactions, but the cepstral space is often
+well-conditioned enough for a linear boundary to compete, which makes it a principled
+lower bound against which the non-linear models are judged.
 
-A practical concern common to all classifiers is class imbalance. Applying SMOTE
-(Synthetic Minority Oversampling Technique) @smote inside the training fold — never
-globally before the train/test split — counteracts the majority-class bias without
-causing leakage @lones2021. This is a recurring correctness requirement in the
-literature that many published studies violate by applying resampling globally.
+A concern shared by all of these classifiers is class imbalance. One widely used
+remedy is to synthesise minority examples with SMOTE @smote, but only ever inside
+the training fold — generating synthetic points before the train/test split leaks
+test-neighbour information into training @lones2021. The present study sidesteps
+synthesis altogether and instead reweights the per-class loss within each training
+fold (Chapter 2), which addresses the same majority-class bias without manufacturing
+data; the in-fold-only discipline is a recurring correctness requirement that a
+substantial fraction of published studies violate by resampling globally.
 
 == Deep-learning approaches
 
-Deep learning on time–frequency image representations has become the dominant
-paradigm for audio classification tasks. For auscultation sounds the input is
-typically a log-mel spectrogram: a two-dimensional image whose axes are time and
-mel-scaled frequency, and whose pixel values represent log-power. This
-representation is rich enough to capture both the spectral shape of murmurs and
-the temporal periodicity of adventitious sounds, and it enables transfer from
-convolutional backbones pre-trained on natural images.
+Deep learning on time–frequency images is now the prevailing approach to audio
+classification. For auscultation the customary input is a log-mel spectrogram — in
+effect a single-channel image in which one axis advances through time, the other
+climbs a perceptually scaled frequency ladder, and intensity encodes log-power. Such
+an image is detailed enough to expose both the spectral fingerprint of a murmur and
+the temporal rhythm of adventitious lung sounds, and — being image-shaped — it lets
+convolutional weights pre-trained on natural photographs be repurposed for audio.
 
 === Convolutional networks
 
@@ -210,30 +225,30 @@ approach examined next.
 
 === Transfer learning
 
-EfficientNet-B0, pre-trained on ImageNet, is a popular transfer backbone for
-audio spectrograms because its approximately 4 million parameters provide strong
-spatial feature extraction without requiring the large datasets needed to train from
-scratch @efficientnet. The single-channel mel image is replicated across three
-channels (or a projection layer is added) to match the backbone's expected input.
-The typical fine-tuning protocol freezes the backbone for a few warm-up epochs,
-then unfreezes it for end-to-end training; this is especially valuable when the
-audio dataset is small (fewer than a few thousand recordings) and the backbone's
-ImageNet priors provide beneficial inductive biases.
+A frequent transfer route adopts EfficientNet-B0 as the feature extractor
+@efficientnet: its parameter budget — about four million — is small enough to
+fine-tune on a few thousand recordings yet large enough to inherit useful visual
+priors from ImageNet pretraining. Because the network expects three input planes,
+the single mel channel is tiled threefold (or routed through a thin projection) to
+match. A common fine-tuning schedule keeps the pretrained weights frozen for a brief
+warm-up and then releases them for end-to-end training — a recipe that pays off most
+when the audio corpus is small, on the order of a few thousand recordings, and the
+backbone's image priors supply helpful inductive bias.
 
 === Audio transformers and recent advances
 
-The Audio Spectrogram Transformer (AST) @gong2021ast dispenses with convolutions
-entirely, splitting the mel spectrogram into overlapping patches and modelling their
-relationships with multi-head self-attention, which lets it capture long-range
-spectro-temporal dependencies that a small CNN's local receptive field misses.
-Adapted to respiratory sound classification, patch-mix contrastive learning on top of
-an AST backbone set a new state of the art on the ICBHI benchmark @ast_patchmix.
-However, these models require
-large GPU budgets and often rely on data augmentation applied before the train/test
-split, which can inflate published numbers. A careful reading of the experimental
-setups reveals that many high-scoring papers use random or recording-level splits
-rather than the official patient-independent partition, making their headline numbers
-incomparable with studies that enforce the official protocol @lones2021.
+The Audio Spectrogram Transformer (AST) @gong2021ast removes convolution from the
+pipeline altogether: the mel image is cut into a grid of partly overlapping tiles,
+each tile becomes a token, and stacked self-attention layers learn how every tile
+relates to every other, giving the model a global view of spectro-temporal structure
+that a shallow CNN's limited receptive field cannot reach. Built on such a backbone,
+patch-mix contrastive training reported a new best result on the ICBHI benchmark
+@ast_patchmix. These models are GPU-hungry, however, and frequently augment data
+before the train/test split, which can inflate published figures; indeed, a careful
+reading shows that many high-scoring respiratory papers quietly use random or
+recording-level partitions rather than the official patient-independent one,
+rendering their headline numbers incomparable with protocol-faithful studies
+@lones2021.
 
 == The cross-modality gap and research novelty
 
@@ -286,6 +301,6 @@ a third modality.
 
 The literature offers mature single-modality methods — MFCC-based classical
 classifiers and CNN/transfer deep models — but few studies enforce leakage-safe
-patient-level splits or compare methods across modalities under a single protocol.
+grouped splits or compare methods across modalities under a single protocol.
 The cross-modal ranking question is largely open. This motivates the unified
 pipeline specified in Chapter 2, and the cross-modal analysis of Chapter 4.

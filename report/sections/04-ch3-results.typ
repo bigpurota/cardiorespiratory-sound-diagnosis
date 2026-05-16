@@ -92,6 +92,15 @@ Sp = 0.859. This result confirms the practical value of the five additional
 spectral statistics: XGBoost on feature set A scored MAcc = 0.879, so the richer
 feature set adds a meaningful 2.3 percentage points.
 
+This figure is not directly comparable to the CinC 2016 challenge leaderboard
+(top entries ≈ 0.86; Chapter 1): that ranking was computed on the withheld private
+test set, whereas our value comes from a self-constructed recording-level partition
+of the public training pool. Because the heart split is recording-level rather than
+strictly subject-level (Section 2.1), the absolute score may be optimistic relative
+to a fully subject-disjoint evaluation. The contribution of this study is therefore
+the controlled cross-method comparison under one fixed protocol, not the absolute
+number itself.
+
 SVM was the second-best classical model across both feature sets (MAcc 0.859 on A,
 0.869 on B). SVM and XGBoost both achieve high sensitivity (Se ≥ 0.915 in all
 configurations), reflecting the fact that class-weighted training forces these
@@ -111,7 +120,8 @@ positives), consistent with the reported Se = 0.946 and Sp = 0.859.
   image("../../results/figures/cm_heart_B_xgb.png", width: 58%),
   caption: [Confusion matrix of the best heart-sound classical classifier (XGBoost,
   feature set B: MFCC+Δ+ΔΔ + spectral statistics). Rows: true class; columns:
-  predicted class. Test set: 626 recordings from 626 patients.],
+  predicted class (0 = normal, 1 = abnormal). Test set: 626 heart recordings (recording-level split; CinC 2016
+  publishes no recording-to-subject map — see Section 2.1).],
 ) <fig-cm-heart-best>
 
 For comparison, @fig-cm-heart-svm shows the SVM confusion matrix (feature set B).
@@ -132,11 +142,14 @@ mean±std over three independent seeds. The compact SmallCNN trained on 64×128 
 spectrograms reached MAcc = 0.871 ± 0.009 (Se = 0.910, Sp = 0.831), and
 EfficientNet-B0 reached MAcc = 0.898 ± 0.008 (Se = 0.936, Sp = 0.860). With
 hyperparameter tuning, EfficientNet-B0 reaches a mean accuracy comparable with the
-best classical model (XGBoost-B, MAcc = 0.903): the gap of 0.005 falls within one
-standard deviation (±0.008), indicating that deep learning closes the classical
-advantage on heart sounds when given equivalent tuning effort. This
-finding reframes the earlier core-run observation that classical methods dominated;
-the deep-vs-classical gap on heart closes to within noise after HPO.
+best classical model (XGBoost-B, MAcc = 0.903): the difference of 0.005 is smaller
+than EfficientNet-B0's own seed-to-seed standard deviation (±0.008), so the two
+models are of comparable accuracy on this task, with the classical model remaining
+numerically best. We do not claim statistical equivalence: no formal significance
+test was run, because the classical models were trained as single deterministic
+fits without a seed distribution to test against. This nonetheless reframes the
+earlier core-run observation that classical methods dominated — after equivalent
+HPO, the two families are of comparable accuracy on heart sounds.
 
 The learning curves for both deep models (@fig-lc-heart-cnn and @fig-lc-heart-eff)
 show convergence without severe overfitting, validating that the early-stopping and
@@ -187,8 +200,9 @@ distributed across all four classes rather than collapsing to the majority.
 #figure(
   image("../../results/figures/cm_lung_B_svm.png", width: 58%),
   caption: [Confusion matrix of the best lung-sound classical classifier (SVM,
-  feature set B). Rows: true class; columns: predicted class. Test set: 2,636 cycles
-  from 47 patients.],
+  feature set B). Rows: true class; columns: predicted class (class 3 = normal;
+  classes 0–2 = the abnormal categories crackle, wheeze and both). Test set: 2,636
+  cycles from 47 patients.],
 ) <fig-cm-lung-best>
 
 Logistic regression on feature set B achieves ICBHI = 0.533, comparable to SVM.
@@ -211,10 +225,21 @@ task. Both deep models show better sensitivity on minority abnormal classes comp
 to random forest, which is reflected in a more balanced confusion matrix
 (@fig-cm-lung-cnn).
 
+This best ICBHI score (0.555) sits below the strongest published results on the
+official split — patch-mix AST and related transformer systems reach the low 0.60s —
+and the gap reflects scope rather than a methodological flaw: those systems use
+transformer backbones with large-scale audio pretraining and heavy augmentation,
+whereas our deep models are a compact CNN and an ImageNet-pretrained EfficientNet-B0
+trained under a deliberately modest, leakage-controlled protocol. As Chapter 1 notes,
+a number of higher reported ICBHI scores additionally rely on non-official or
+recording-level splits that are not comparable to the official patient-independent
+partition adopted here.
+
 #figure(
   image("../../results/figures/cm_lung_cnn.png", width: 58%),
   caption: [Confusion matrix of the lung-sound SmallCNN classifier (on log-mel
-  spectrograms). The log-mel representation enables better discrimination
+  spectrograms; class 3 = normal, classes 0–2 = the abnormal categories crackle,
+  wheeze and both). The log-mel representation enables better discrimination
   of crackle and wheeze relative to classical models.],
 ) <fig-cm-lung-cnn>
 
@@ -240,15 +265,17 @@ Full details including per-class cycle counts appear in Annex B.
 #figure(
   caption: [Volumetric characteristics of the experiments. Classical training times
   are CPU wall-clock seconds; deep-learning training times are GPU (NVIDIA A100)
-  wall-clock seconds for the HPO-selected configuration.],
+  wall-clock seconds for the HPO-selected configuration. Heart patient counts are
+  not reported: CinC 2016 provides no recording-to-subject map, so the heart split
+  is grouped at the recording level (Section 2.1).],
   table(
     columns: (2fr, 1fr, 1fr),
     align: (left, center, center),
     table.header([*Quantity*], [*Heart*], [*Lung*]),
     [Train segments/cycles],         [33 246], [4 262],
     [Test segments/cycles],          [4 167],  [2 636],
-    [Train recordings/patients],     [2 500 / 2 500], [551 / 79],
-    [Test recordings/patients],      [626 / 626],    [369 / 47],
+    [Train recordings / patients],   [2 500 / —], [551 / 79],
+    [Test recordings / patients],    [626 / —],   [369 / 47],
     [Best classical model (SVM-B) train time (s)], [659], [31],
     [Best classical model (XGB-B) train time (s)], [21],  [26],
     [SmallCNN parameters (HPO-tuned)], [389 314], [98 148],
@@ -264,11 +291,12 @@ Full details including per-class cycle counts appear in Annex B.
 
 On heart sounds, the best overall result is XGBoost with MFCC+Δ+ΔΔ + spectral
 statistics (feature set B), reaching MAcc = 0.903 (Se = 0.946, Sp = 0.859). After
-HPO tuning, the deep EfficientNet-B0 reaches MAcc = 0.898 ± 0.008, bringing it
-comparable with the best classical model: the gap of 0.005 is within one
-standard deviation. SmallCNN reaches MAcc = 0.871 ± 0.009. The deep-vs-classical
-gap on heart effectively closes to within noise when both method families receive
-equivalent tuning effort.
+HPO tuning, the deep EfficientNet-B0 reaches MAcc = 0.898 ± 0.008, comparable with
+the best classical model — the 0.005 difference is below the model's ±0.008 seed
+standard deviation — though the classical model remains numerically best. SmallCNN
+reaches MAcc = 0.871 ± 0.009. After equivalent tuning effort the two method families
+are of comparable accuracy on heart sounds, in contrast to the larger classical
+advantage seen in the untuned core run.
 
 On lung sounds, the best result across all 20 configurations is EfficientNet-B0
 with ICBHI = 0.555 ± 0.016, narrowly ahead of the best classical model (SVM-B,

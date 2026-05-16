@@ -105,14 +105,16 @@ sample sizes, model sizes, training times and dataset volumes, derived from
 `results/tables/volumetrics_classical.csv` and `results/tables/volumetrics_cnn.csv`.
 
 #figure(
-  caption: [Dataset and experiment volumetrics.],
+  caption: [Dataset and experiment volumetrics. Heart patient counts are omitted:
+  CinC 2016 provides no recording-to-subject map, so the heart split is grouped at
+  the recording level (Section 2.1).],
   table(
     columns: (3fr, 1fr, 1fr),
     align: (left, center, center),
     table.header([*Item*], [*Heart*], [*Lung*]),
     [Dataset],                   [CinC 2016 (A–E)], [ICBHI 2017],
-    [Train recordings / patients], [2 500 / 2 500], [551 / 79],
-    [Test recordings / patients],  [626 / 626],   [369 / 47],
+    [Train recordings / patients], [2 500 / —], [551 / 79],
+    [Test recordings / patients],  [626 / —],   [369 / 47],
     [Train segments/cycles],     [33 246], [4 262],
     [Test segments/cycles],      [4 167],  [2 636],
     [Segment/cycle length],      [3.0 s (windows)], [3.0 s (padded cycles)],
@@ -196,7 +198,8 @@ in preprocessing eliminates device-specific spectral artefacts.
 *Example spectrograms* (heart, @fig-eda-spec-heart-norm and @fig-eda-spec-heart-abn):
 the normal spectrogram shows clear S1–S2 periodicity concentrated below 150 Hz.
 The abnormal spectrogram shows a sustained mid-systolic murmur occupying a wider
-frequency band, consistent with an aortic stenosis recording.
+frequency band (the recording is labelled abnormal; CinC 2016 does not provide a
+specific murmur type).
 
 #figure(
   image("../../results/figures/eda/example_panel_heart_normal.png", width: 80%),
