@@ -74,21 +74,34 @@
 #set heading(numbering: "1.1")
 #show heading: it => {
   // Keep heading with following text (never orphaned at a page bottom).
-  set block(above: 1.2em, below: 0.8em)
-  set text(weight: "bold")
+  // Graduated sizes give a clear, paper-like hierarchy. The BODY text stays
+  // Times New Roman 12 (Annex 7 §1.3) — headings are not "main text", so larger
+  // section titles remain compliant.
+  set block(above: 1.3em, below: 0.75em)
+  let sz = if it.level == 1 { 14pt } else if it.level == 2 { 13pt } else { 12pt }
+  set text(weight: "bold", size: sz)
   it
 }
 
 // ---- Figures: caption BELOW, centred; "Figure N — Name" (Annex 7 §1.4.1) -----
 #set figure(numbering: "1")
-#show figure.caption: it => [
-  #set text(size: 11pt)
-  #it
-]
+// Paper-style captions: a bold "Figure N –" / "Table N –" label at 10 pt, with
+// the descriptive text in regular weight. Position (below figures, above tables)
+// and the " – " separator stay exactly as Annex 7 §1.4 prescribes.
+#show figure.caption: it => context {
+  set text(size: 10pt)
+  strong[#it.supplement #it.counter.display(it.numbering)#it.separator]
+  it.body
+}
 #set figure.caption(separator: [ – ], position: bottom)
 // Annex 7 §1.4.1: figure captions centred. Table captions are left-aligned
 // (Annex 7 §1.4.2) — handled in the table show rule below.
 #show figure.where(kind: image): set align(center)
+
+// Paper-style polish (Annex-7-safe): bold the top-level Contents entries and add
+// a little vertical breathing room around figures and tables.
+#show outline.entry.where(level: 1): set text(weight: "bold")
+#show figure: set block(above: 1.5em, below: 1.5em)
 
 // ---- Tables: caption ABOVE, left, no indent; 10 pt; "Table N — Name" ---------
 // (Per Annex 7 §1.4.2 the table title is placed above the table, left-aligned.)
@@ -116,10 +129,10 @@
 // ---- Raw/code blocks: monospace 10 pt, no indent, single spacing -------------
 #show raw: set text(font: mono-font, size: 10pt)
 #show raw.where(block: true): block.with(
-  fill: luma(245),
-  inset: 6pt,
+  fill: luma(250),
+  inset: 8pt,
   width: 100%,
-  radius: 2pt,
+  stroke: 0.5pt + luma(210),
 )
 
 // =============================================================================
