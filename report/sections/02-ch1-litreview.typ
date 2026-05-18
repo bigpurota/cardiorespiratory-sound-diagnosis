@@ -93,7 +93,7 @@ organisers advised discarding or folding into the negative class. The labels are
 far from balanced — normals account for roughly seven recordings in ten and
 abnormals for fewer than one in five — which is why the challenge scores submissions
 not on raw accuracy but on the mean of the true-positive and true-negative rates,
-MAcc = (Se + Sp) / 2, a figure of merit that refuses to let the dominant normal
+the mean accuracy (MAcc), a figure of merit that refuses to let the dominant normal
 class mask poor detection of the abnormal one. The strongest challenge entries
 reached MAcc in the region of 0.86 @potes2016, which stands as the public reference
 point for the task.
@@ -134,7 +134,7 @@ boundary. Honouring this prescribed split is essential for comparability with pr
 work; substituting a random, recording-level split can lift the reported ICBHI score
 by several points @lones2021.
 
-The ICBHI score — (Se + Sp) / 2 with sensitivity aggregated over abnormal cycles
+The ICBHI score — the same balance of sensitivity and specificity, but with sensitivity aggregated over abnormal cycles
 and specificity measured on normal cycles — mirrors the CinC MAcc in structure,
 making the two tasks directly comparable under a single metric family. This
 alignment is a design choice exploited in the present study.
@@ -274,7 +274,7 @@ three recurring pitfalls that prevent results from being trustworthy or
 reproducible: (i) recording-level rather than patient-level splitting; (ii) global
 data augmentation applied before the split, leaking augmented test-set neighbours
 into training; and (iii) inconsistent metric choices (raw accuracy on an imbalanced
-dataset vs. the balanced (Se + Sp) / 2). All three pitfalls are present in a
+dataset vs. the balanced mean of sensitivity and specificity). All three pitfalls are present in a
 substantial fraction of the published auscultation literature.
 
 === Research gap and novelty claim

@@ -77,7 +77,7 @@ occupy the same performance tier on these tasks and dataset scales.
 
 The Spearman rank correlation @spearman1904 between the per-classifier ICBHI scores
 (lung) and the corresponding MAcc scores (heart) — computed over the four classical
-classifier types at feature set A — is ρ = 0.60 (p = 0.40, n = 4). This
+classifier types at feature set A — is $rho = 0.60$ ($p = 0.40$, $n = 4$). This
 represents a moderate positive correlation: classifiers that rank higher on heart
 tend to rank higher on lung, but the relationship is not significant at conventional
 thresholds given the small sample size. Concretely, XGBoost's dominance on heart
@@ -249,7 +249,7 @@ the shared pipeline described in Chapter 2.
 The cross-modal analysis delivers three findings. First, classical method rankings
 do not fully transfer: XGBoost dominates on heart sounds but falls to third place
 on lung, while SVM is uniformly competitive. The Spearman rank correlation across
-the four classical methods is ρ = 0.60 (p = 0.40), a moderate positive association
+the four classical methods is $rho = 0.60$ ($p = 0.40$), a moderate positive association
 that falls short of significance at the small sample size. Second, deep cross-modal
 transfer is asymmetric: lung-pretrained features transfer well to heart (near
 in-domain performance), but heart-pretrained features do not transfer to lung.

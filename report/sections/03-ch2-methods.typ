@@ -159,22 +159,35 @@ deviation over three seeds (1, 2, 42).
 
 == Evaluation
 
-The two tasks share the metric family ((Se + Sp) / 2), which makes them directly
-comparable while remaining robust to class imbalance.
+Both tasks are scored with the same balanced figure of merit — the arithmetic mean
+of sensitivity ($"Se"$) and specificity ($"Sp"$):
 
-For heart sounds the primary metric is the *mean accuracy*
-(MAcc = (Se + Sp) / 2), where sensitivity (Se) is recall on the abnormal class
-and specificity (Sp) is recall on the normal class — the official CinC 2016
-metric. Per-window predictions are reduced to one prediction per recording by
-*majority vote* before the metric is computed, because the recording is the
-clinically meaningful unit; sensitivity, specificity, macro-F1, accuracy and,
-where a recording-level score is available, AUC-ROC are reported alongside.
+$ "MAcc" = ("Se" + "Sp") / 2, $ <eq-balanced>
 
-For lung sounds the primary metric is the official *ICBHI score*, again
-((Se + Sp) / 2) but with sensitivity pooled over the abnormal classes
-(crackle, wheeze, both) and specificity measured on the normal class; this scores
-normal-versus-abnormal discrimination rather than four-way accuracy. Per-class
-sensitivities and macro-F1 are reported in support.
+where sensitivity and specificity are the true-positive and true-negative rates of
+the confusion matrix,
+
+$ "Se" = "TP" / ("TP" + "FN"), wide "Sp" = "TN" / ("TN" + "FP"), $ <eq-sesp>
+
+and $"TP"$, $"FN"$, $"TN"$, $"FP"$ in @eq-sesp are the true-positive,
+false-negative, true-negative and false-positive counts. @eq-balanced
+weights the two classes equally irrespective of their prevalence, which is exactly
+why it is robust to the heavy class imbalance of both datasets and is the official
+metric of each challenge.
+
+For heart sounds the primary metric is this *mean accuracy* (MAcc), with $"Se"$ the
+recall on the abnormal class and $"Sp"$ the recall on the normal class — the official
+CinC 2016 metric. Per-window predictions are first reduced to one prediction per
+recording by *majority vote*, because the recording is the clinically meaningful
+unit, and @eq-balanced is then applied at the recording level; sensitivity,
+specificity, macro-F1, accuracy and, where a recording-level score is available,
+AUC-ROC are reported alongside.
+
+For lung sounds the primary metric is the official *ICBHI score*. It uses the same
+balanced score (@eq-balanced), but $"Se"$ is pooled over the three abnormal cycle classes
+(crackle, wheeze, both) while $"Sp"$ is measured on the normal class; the score
+therefore captures normal-versus-abnormal discrimination rather than four-way
+accuracy. Per-class sensitivities and macro-F1 are reported in support.
 
 Every model is additionally checked against a degenerate "predict-one-class"
 failure (predictions must occupy at least two confusion-matrix columns), and a
@@ -198,5 +211,5 @@ identical across runs. The full pinned environment is reproduced in Annex B.
 The methodology is a single configuration-driven pipeline applied identically to
 both modalities, with leakage-safe grouped splits and an explicit zero-leakage
 assertion, modality-matched preprocessing and features, a common
-classical-versus-deep model set, and a shared ((Se + Sp) / 2) metric family. This
+classical-versus-deep model set, and a shared balanced metric (@eq-balanced). This
 uniformity is what makes the cross-modal comparison of Chapter 4 meaningful.

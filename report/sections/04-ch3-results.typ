@@ -18,7 +18,7 @@ This chapter reports the empirical results of the classical and deep-learning
 experiments on heart and lung sounds under the leakage-safe grouped-split
 protocol described in Chapter 2. All headline numbers are at the recording level
 for heart sounds and at the cycle level for lung sounds, using the official
-((Se + Sp) / 2) metric of each task. Where a model predicted only one class the
+balanced metric of each task. Where a model predicted only one class the
 result is marked degenerate in the discussion; no such degenerate case arose in
 the final experiments. Deep-learning results are HPO-tuned (val-only selection,
 128 trials) and reported as mean±std over three independent seeds (1, 2, 42).
