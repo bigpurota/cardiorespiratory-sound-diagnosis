@@ -223,9 +223,9 @@ The reproducible code accompanying this report is organised as follows
 (top-level, abridged):
 
 ```text
-config.py                  shared config; seeds RNGs at 42; canonical paths/rates
 params/{heart,lung}.yaml   per-modality preprocessing parameters
 src/
+  config.py                shared config; seeds RNGs at 42; canonical paths/rates
   preprocess.py            resample → Butterworth bandpass → peak-normalise
   segment.py               fixed 3-s heart windows (silence/ragged-tail guards)
   features.py              MFCC+Δ+ΔΔ + spectral stats (240-d / 250-d vectors)
@@ -235,6 +235,9 @@ src/
   cnn.py                   SmallCNN + EfficientNet-B0 builders
   train_classical.py       classical fit→predict→evaluate driver
   train_cnn.py             deep-learning train+evaluate driver
+  cross_modal.py           ranking transfer + joint multi-task model
+scripts/                   CLI drivers (download → build → run_*)
+tests/                     leakage / determinism / metric / pipeline tests
 results/
   tables/unified_comparison.csv   one row per (modality, feature set, model)
   tables/metrics_{heart,lung}_{classical,cnn}.csv  full per-model metrics
@@ -246,6 +249,7 @@ report/
                            conclusion, bibliography, annexes)
   refs.bib                 bibliography
   helpers.typ              shared formatting helpers
+docs/pdf/                  compiled report PDF (the submission deliverable)
 ```
 
 The repository link is supplied as a separate `TXT` file in the submission

@@ -1,9 +1,9 @@
 <h1 align="center">Диагностика патологий кардиореспираторной системы и магистральных артерий по звуковым данным</h1>
 
 <div align="center">
-	<img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/OWNER/REPO">
-	<img alt="GitHub code size" src="https://img.shields.io/github/languages/code-size/OWNER/REPO">
-	<img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/y/OWNER/REPO">
+	<img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/purota/cardiorespiratory-sound-diagnosis">
+	<img alt="GitHub code size" src="https://img.shields.io/github/languages/code-size/purota/cardiorespiratory-sound-diagnosis">
+	<img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/y/purota/cardiorespiratory-sound-diagnosis">
 	<img alt="Python 3.11" src="https://img.shields.io/badge/Python-3.11-blue">
 	<img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green">
 </div>
@@ -22,7 +22,7 @@ Transformer) для диагностики патологий кардиорес
 
 | ФИО | Роль | Группа | GitHub |
 |-----|------|--------|--------|
-| Цембер Андрей Алексеевич | Автор (исследовательский проект) | БПАД244 | [OWNER](https://github.com/OWNER) |
+| Цембер Андрей Алексеевич | Автор (исследовательский проект) | БПАД244 | [purota](https://github.com/purota) |
 
 Научный руководитель — **Томащук Корней Кириллович** (преподаватель, факультет компьютерных наук
 НИУ ВШЭ). Курсовой проект, программа «Прикладной анализ данных» (ПАД), 2-й курс, 2025–26 уч. г.
@@ -42,7 +42,7 @@ Transformer) для диагностики патологий кардиорес
 
 # Возможности
 
-- единый, управляемый конфигурацией (`config.py`, `SEED = 42`) конвейер, применяемый идентично к обеим
+- единый, управляемый конфигурацией (`src/config.py`, `SEED = 42`) конвейер, применяемый идентично к обеим
   модальностям: ingest → препроцессинг → сегментация → признаки → групповое разбиение → обучение → оценка;
 - **устойчивое к утечке групповое разбиение** с явной проверкой нулевой утечки (patient-level для лёгких,
   recording-level для сердца — у CinC 2016 нет открытого сопоставления записей с пациентами);
@@ -65,7 +65,6 @@ Transformer) для диагностики патологий кардиорес
 | Документ | Файл |
 |----------|------|
 | Итоговый отчёт (research report, EN) | [Отчёт.pdf](docs/pdf/Отчёт.pdf) |
-| Отчёт для проверки на антиплагиат (DOCX) | [Report_Tsember_antiplagiat.docx](report/Report_Tsember_antiplagiat.docx) |
 | Исходный код отчёта (Typst) | [report/](report) |
 
 # Основные результаты
@@ -89,9 +88,8 @@ Transformer) для диагностики патологий кардиорес
    но падает на третье место на лёгких; SVM стабильно конкурентен. Спирмен ρ = 0.60 (p = 0.40, n = 4).
 3. **Глубокий межмодальный перенос сильно асимметричен**: лёгкие→сердце переносится почти как in-domain
    (MAcc 0.854 / 0.876), сердце→лёгкие — слабый/нейтральный (ICBHI 0.524 / 0.526).
-4. **Честное ограничение по AST**: предобученный Audio Spectrogram Transformer полностью интегрирован, но в
-   рамках доступного бюджета дообучения коллапсирует к мажоритарному классу — задокументировано как
-   честная не-сходимость (без выдуманных цифр), представлено как методическое расширение.
+4. **AST как методическое расширение**: предобученный Audio Spectrogram Transformer интегрирован и проверен
+   на уровне кода; полноценное дообучение и оценка вынесены в перспективы (честно, без выдуманных цифр).
 5. **Артериальные шумы** рассмотрены аналитически — открытого датасета каротидных шумов не существует.
 
 Все числа — в `results/tables/unified_comparison.csv` (20 строк) и CSV `cross_modal_*` / `metrics_*`;
@@ -126,7 +124,7 @@ uv run python scripts/download_lung.py     # ICBHI 2017 через Kaggle API (~
 uv run python scripts/fetch_icbhi_split.py # официальное 60/40 patient-independent разбиение
 ```
 
-**Сквозной запуск исследования** (конвейер управляется `config.py`: `SEED = 42` и все пути):
+**Сквозной запуск исследования** (конвейер управляется `src/config.py`: `SEED = 42` и все пути):
 
 ```bash
 # 1. Манифест + устойчивые к утечке групповые разбиения + EDA
@@ -160,7 +158,7 @@ typst compile --root . report/main.typ report/main.pdf
 
 # Гарантии воспроизводимости
 
-- **Сид:** `SEED = 42` (в `config.py`, импортируется в начале каждого скрипта); глубокие строки дополнительно
+- **Сид:** `SEED = 42` (в `src/config.py`, импортируется в начале каждого скрипта); глубокие строки дополнительно
   усреднены по сидам {1, 2, 42}.
 - **Устойчивые к утечке групповые разбиения:** patient-level для лёгких (официальное 60/40 ICBHI), recording-level
   для сердца (у CinC 2016 нет сопоставления записей с пациентами); `src/split.py` проверяет нулевое пересечение
@@ -173,17 +171,21 @@ typst compile --root . report/main.typ report/main.pdf
 # Структура репозитория
 
 ```
-config.py                # SEED=42, общие пути, частоты дискретизации
-pyproject.toml / uv.lock # закреплённые зависимости
-requirements.txt         # pip-экспорт для Colab/проверяющих
-src/                     # модули конвейера (ingest, preprocess, features, train_*, metrics, cross_modal, ...)
-scripts/                 # CLI-драйверы (download → features → эксперименты)
+pyproject.toml / uv.lock / requirements.txt   # закреплённые зависимости (+ pip-экспорт)
+src/                     # весь код конвейера
+  config.py              #   единые сиды (SEED=42), пути, частоты дискретизации
+  ingest, preprocess, segment, features, spectrograms,   # данные → признаки/спектрограммы
+  split, datasets,       #   устойчивые к утечке групповые разбиения и загрузчики
+  metrics, cnn, ast_model, train_classical, train_cnn,   # метрики и обучение
+  cross_modal, eda       #   межмодальный анализ + разведочный анализ
+scripts/                 # CLI-драйверы (download → build → run_*)
 tests/                   # тесты на утечку / детерминизм / метрики / конвейер
 params/                  # heart.yaml / lung.yaml — параметры препроцессинга
-results/{tables,figures} # CSV результатов + рисунки отчёта
-report/                  # исходник отчёта на Typst (sections/ + refs.bib) → PDF
-docs/pdf/                # собранный отчёт (PDF) + версия для антиплагиата (DOCX)
-notebooks/               # EDA + GPU-запуск
+results/{tables,figures,splits}   # CSV результатов, рисунки, членство в разбиениях
+report/                  # исходник отчёта на Typst (main.typ, sections/, refs.bib, *.csl)
+docs/pdf/                # собранный отчёт (Отчёт.pdf) — итоговый деливерабл
+notebooks/               # разведочный анализ + ноутбук GPU-запуска
+reference/               # материалы курса (приложения, шаблоны) — git-ignored
 ```
 
 # Лицензия
