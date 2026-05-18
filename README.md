@@ -1,165 +1,193 @@
-# Cardiorespiratory & Arterial Sound Diagnosis
+<h1 align="center">Диагностика патологий кардиореспираторной системы и магистральных артерий по звуковым данным</h1>
 
-A reproducible, leakage-safe **comparative study** of classical feature-engineering methods
-(MFCC + SVM / Random Forest / XGBoost / Logistic Regression) versus deep learning
-(custom CNN, EfficientNet-B0, Audio Spectrogram Transformer) for diagnosing pathologies of
-the cardiorespiratory system and main arteries from **auscultation sound** — heart sounds
-(phonocardiograms), lung sounds, and, analytically, arterial (carotid bruit) sounds.
+<div align="center">
+	<img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/OWNER/REPO">
+	<img alt="GitHub code size" src="https://img.shields.io/github/languages/code-size/OWNER/REPO">
+	<img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/y/OWNER/REPO">
+	<img alt="Python 3.11" src="https://img.shields.io/badge/Python-3.11-blue">
+	<img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green">
+</div>
 
-HSE Faculty of Computer Science · DSBA / Applied Data Analysis (ПАД), Year 2, 2025–26 ·
-research project. The accompanying report is authored in Typst → PDF (`report/`).
+<p align="center">
+<strong>Cardiorespiratory &amp; Arterial Sound Diagnosis</strong> — воспроизводимое, устойчивое к утечке
+данных сравнительное исследование классических методов (MFCC + SVM / Random&nbsp;Forest / XGBoost /
+логистическая регрессия) и глубокого обучения (компактная CNN, EfficientNet-B0, Audio Spectrogram
+Transformer) для диагностики патологий кардиореспираторной системы и магистральных артерий по звукам
+аускультации — тоны сердца (фонокардиограммы), дыхательные шумы и, аналитически, артериальные шумы.
+</p>
 
-## Headline results
+---
 
-Primary metric: **MAcc = (Se + Sp) / 2** for heart (binary); **ICBHI Score = (Se + Sp) / 2**
-for lung (4-class). Deep-learning rows are tuned (128-trial val-only HPO) and reported as
-multi-seed mean ± std over seeds {1, 2, 42}; classical rows are single deterministic runs.
+# Команда
 
-| Modality | Family | Best model | Primary metric |
-|----------|--------|------------|----------------|
-| Heart (CinC 2016) | Classical | XGBoost (feat. set B) | **MAcc 0.903** |
-| Heart (CinC 2016) | Deep | EfficientNet-B0 | **MAcc 0.898 ± 0.008** |
-| Lung (ICBHI 2017) | Classical | SVM (feat. set B) | **ICBHI 0.537** |
-| Lung (ICBHI 2017) | Deep | EfficientNet-B0 | **ICBHI 0.555 ± 0.016** |
+| ФИО | Роль | Группа | GitHub |
+|-----|------|--------|--------|
+| Цембер Андрей Алексеевич | Автор (исследовательский проект) | БПАД244 | [OWNER](https://github.com/OWNER) |
 
-**Key findings**
+Научный руководитель — **Томащук Корней Кириллович** (преподаватель, факультет компьютерных наук
+НИУ ВШЭ). Курсовой проект, программа «Прикладной анализ данных» (ПАД), 2-й курс, 2025–26 уч. г.
 
-1. **After equal HPO effort, the classical-vs-deep gap on heart closes to within noise**
-   (XGBoost 0.903 ≈ EfficientNet-B0 0.898 ± 0.008). Lung is hard for *every* family (~0.54–0.56).
-2. **Method rankings transfer only partially across modalities** — XGBoost dominates heart but
-   falls to third on lung; SVM is uniformly competitive. Spearman ρ = 0.60 (p = 0.40, n = 4).
-3. **Deep cross-modal transfer is strongly asymmetric**: lung→heart transfers near in-domain
-   (MAcc 0.854 / 0.876), heart→lung is weak/negative (ICBHI 0.524 / 0.526).
-4. **AST honest limitation**: the pretrained Audio Spectrogram Transformer is fully integrated
-   but collapses to the majority class within the available fine-tune budget — recorded as a
-   documented non-convergence (no fabricated number), presented as a methodological extension.
-5. **Arterial sounds** are treated analytically — no open carotid-bruit dataset exists; the
-   pipeline is shown to generalise in principle (Chapter 4 sub-study).
+# Введение
 
-All numbers live in `results/tables/unified_comparison.csv` (20 rows) and the
-`cross_modal_*` / `metrics_*` CSVs; figures in `results/figures/`.
+Проект исследует, насколько хорошо машинное обучение поддерживает **акустический скрининг** патологий
+кардиореспираторной системы сразу в нескольких модальностях аускультации. Под единым, устойчивым к
+утечке данных конвейером рассматриваются две клинические модальности — тоны сердца (PhysioNet/CinC 2016)
+и дыхательные шумы (ICBHI 2017); третья модальность, артериальные шумы, рассматривается аналитически,
+поскольку открытого размеченного набора данных не существует.
 
-## Datasets
+Ключевой методический вклад — **идентичный протокол оценки** для обеих модальностей: строгое групповое
+разбиение, исключающее утечку данных, фиксированные сиды, закреплённые версии библиотек и единое семейство
+метрик, что делает сравнение методов между модальностями честным и воспроизводимым. Работа намеренно
+оформлена как набор честных базовых решений без утечки, а не как погоня за state-of-the-art.
 
-| Dataset | Description | Size |
-|---------|-------------|------|
-| [PhysioNet/CinC 2016](https://physionet.org/content/challenge-2016/1.0.0/) | Heart sounds (PCG), binary normal/abnormal | ≈3,240 recordings (databases A–E) |
-| [ICBHI 2017](https://bhichallenge.med.auth.gr/ICBHI_2017_Challenge) | Respiratory lung sounds, 4 cycle-level classes | 920 recordings, 6,898 cycles |
+# Возможности
 
-Arterial (carotid bruit) sounds are handled analytically — no open dataset exists (Chapter 4).
+- единый, управляемый конфигурацией (`config.py`, `SEED = 42`) конвейер, применяемый идентично к обеим
+  модальностям: ingest → препроцессинг → сегментация → признаки → групповое разбиение → обучение → оценка;
+- **устойчивое к утечке групповое разбиение** с явной проверкой нулевой утечки (patient-level для лёгких,
+  recording-level для сердца — у CinC 2016 нет открытого сопоставления записей с пациентами);
+- **классическая ветка**: MFCC + Δ/ΔΔ + спектральные статистики → логистическая регрессия, SVM (RBF),
+  случайный лес, XGBoost;
+- **глубокая ветка**: лог-мел спектрограммы → компактная CNN и трансферная EfficientNet-B0, с подбором
+  гиперпараметров (HPO, 128 проб, отбор только по валидации) и усреднением по трём сидам {1, 2, 42};
+- **межмодальный анализ** (новизна): перенос ранжирований методов, прямой перенос признаков, совместная
+  многозадачная модель и ранговая корреляция Спирмена;
+- аналитический под-этюд по артериальным (каротидным) шумам;
+- полный набор тестов (утечка / детерминизм / метрики) и пиннинг зависимостей (`uv.lock` + `requirements.txt`).
 
-## Setup
+# Документация
 
-**Prerequisites:** [uv](https://astral.sh/uv) (Astral), Python 3.11.
+> [!NOTE]
+> Собранный отчёт лежит в папке [docs/pdf](docs/pdf); исходник отчёта в формате **Typst** — в папке
+> [report](report). Титульный лист — первая страница отчёта; аннотация на русском и английском — в начале;
+> приложения A–D (полные таблицы метрик, волюметрика, галерея спектрограмм, структура репозитория) — в конце.
+
+| Документ | Файл |
+|----------|------|
+| Итоговый отчёт (research report, EN) | [Отчёт.pdf](docs/pdf/Отчёт.pdf) |
+| Отчёт для проверки на антиплагиат (DOCX) | [Report_Tsember_antiplagiat.docx](report/Report_Tsember_antiplagiat.docx) |
+| Исходный код отчёта (Typst) | [report/](report) |
+
+# Основные результаты
+
+Метрика: **MAcc = (Se + Sp) / 2** для сердца (бинарная задача); **ICBHI Score = (Se + Sp) / 2** для лёгких
+(4 класса). Строки глубокого обучения настроены HPO (128 проб, отбор по валидации) и приведены как
+среднее ± стд по сидам {1, 2, 42}; классические строки — детерминированные одиночные прогоны.
+
+| Модальность | Семейство | Лучшая модель | Метрика |
+|-------------|-----------|---------------|---------|
+| Сердце (CinC 2016) | классика | XGBoost (набор B) | **MAcc 0.903** |
+| Сердце (CinC 2016) | глубокое | EfficientNet-B0 | **MAcc 0.898 ± 0.008** |
+| Лёгкие (ICBHI 2017) | классика | SVM (набор B) | **ICBHI 0.537** |
+| Лёгкие (ICBHI 2017) | глубокое | EfficientNet-B0 | **ICBHI 0.555 ± 0.016** |
+
+**Ключевые выводы**
+
+1. **После равного HPO разрыв «классика vs. глубокое обучение» на сердце сходится к шуму**
+   (XGBoost 0.903 ≈ EfficientNet-B0 0.898 ± 0.008); лёгкие трудны для *всех* семейств (~0.54–0.56).
+2. **Ранжирования методов переносятся между модальностями лишь частично** — XGBoost доминирует на сердце,
+   но падает на третье место на лёгких; SVM стабильно конкурентен. Спирмен ρ = 0.60 (p = 0.40, n = 4).
+3. **Глубокий межмодальный перенос сильно асимметричен**: лёгкие→сердце переносится почти как in-domain
+   (MAcc 0.854 / 0.876), сердце→лёгкие — слабый/нейтральный (ICBHI 0.524 / 0.526).
+4. **Честное ограничение по AST**: предобученный Audio Spectrogram Transformer полностью интегрирован, но в
+   рамках доступного бюджета дообучения коллапсирует к мажоритарному классу — задокументировано как
+   честная не-сходимость (без выдуманных цифр), представлено как методическое расширение.
+5. **Артериальные шумы** рассмотрены аналитически — открытого датасета каротидных шумов не существует.
+
+Все числа — в `results/tables/unified_comparison.csv` (20 строк) и CSV `cross_modal_*` / `metrics_*`;
+рисунки — в `results/figures/`.
+
+<p align="center">
+  <img alt="Межмодальная матрица переноса (EfficientNet-B0)" src="results/figures/cross_modal_heatmap.png" width="62%">
+</p>
+<p align="center"><em>Межмодальная матрица переноса: лёгкие→сердце переносится почти как in-domain, сердце→лёгкие — нет.</em></p>
+
+<p align="center">
+  <img alt="Матрица ошибок (сердце, XGBoost, набор B)" src="results/figures/cm_heart_B_xgb.png" width="42%">
+  <img alt="Матрица ошибок (лёгкие, CNN)" src="results/figures/cm_lung_cnn.png" width="46%">
+</p>
+<p align="center"><em>Матрицы ошибок: лучший классификатор сердца (XGBoost) и лёгочная CNN.</em></p>
+
+# Воспроизведение
+
+**Требования:** [uv](https://astral.sh/uv) (Astral), Python 3.11.
 
 ```bash
-uv sync                          # creates .venv/ and installs the pinned stack
-# or, for Colab / graders:
+uv sync                          # создаёт .venv/ и ставит закреплённый стек
+# либо для Colab / проверяющих:
 pip install -r requirements.txt
 ```
 
-**Download datasets** (after `uv sync`):
+**Загрузка датасетов** (после `uv sync`):
 
 ```bash
-uv run python scripts/download_heart.py    # PhysioNet CinC 2016 (~181 MB, no auth)
-uv run python scripts/download_lung.py     # ICBHI 2017 via Kaggle API (~1.5 GB)
-uv run python scripts/fetch_icbhi_split.py # official 60/40 patient-independent split
+uv run python scripts/download_heart.py    # PhysioNet CinC 2016 (~181 МБ, без авторизации)
+uv run python scripts/download_lung.py     # ICBHI 2017 через Kaggle API (~1.5 ГБ)
+uv run python scripts/fetch_icbhi_split.py # официальное 60/40 patient-independent разбиение
 ```
 
-## Reproduce the study (end-to-end)
-
-The pipeline is configuration-driven (`config.py` sets `SEED = 42` and all paths) and runs
-identically on both modalities. Classical experiments are CPU-fast; the deep-learning steps
-are CPU-feasible at small scale but were run on GPU (see `notebooks/run_cnn_gpu.ipynb`).
+**Сквозной запуск исследования** (конвейер управляется `config.py`: `SEED = 42` и все пути):
 
 ```bash
-# 1. Ingest + manifest + leakage-safe grouped splits (patient-level lung / recording-level heart)
+# 1. Манифест + устойчивые к утечке групповые разбиения + EDA
 uv run python scripts/build_manifest.py
 uv run python scripts/make_splits.py
 uv run python scripts/run_eda.py
 
-# 2. Classical arm — MFCC/Δ (+ spectral) features → SVM / RF / XGBoost / LogReg
+# 2. Классическая ветка — MFCC/Δ (+ спектральные) признаки → SVM / RF / XGBoost / LogReg
 uv run python scripts/build_features.py
-uv run python scripts/run_classical.py      # → metrics_{heart,lung}_classical.csv + unified rows
+uv run python scripts/run_classical.py
 
-# 3. Deep-learning arm — log-mel spectrograms → SmallCNN + EfficientNet-B0
+# 3. Глубокая ветка — лог-мел спектрограммы → SmallCNN + EfficientNet-B0
 uv run python scripts/build_spectrograms.py
-uv run python scripts/run_cnn.py            # core DL rows + learning-curve/CM figures
-uv run python scripts/run_hpo.py            # 128-trial val-only hyperparameter search (GPU)
-uv run python scripts/run_multiseed.py      # 3-seed mean ± std → hardens the 4 DL rows
-uv run python scripts/run_ast.py            # AST fine-tune (honest non-convergence record)
+uv run python scripts/run_cnn.py            # базовые DL-строки + кривые/матрицы ошибок
+uv run python scripts/run_hpo.py            # 128-пробный поиск гиперпараметров (только по валидации)
+uv run python scripts/run_multiseed.py      # 3 сида, среднee ± стд
+uv run python scripts/run_ast.py            # AST (честная запись не-сходимости)
 
-# 4. Novelty — deep cross-modal transfer + joint multi-task + Spearman
+# 4. Новизна — глубокий межмодальный перенос + многозадачная модель + Спирмен
 uv run python scripts/run_cross_modal.py --arch both
 
-# 5. Tests
+# 5. Тесты
 uv run pytest -q
 ```
 
-## Project structure
-
-```
-dsba_project/
-├── config.py                # SEED=42, shared paths, sampling-rate constants
-├── pyproject.toml / uv.lock # pinned dependencies (commit both)
-├── requirements.txt         # pip export for Colab/graders
-├── src/                     # importable pipeline modules
-│   ├── ingest.py preprocess.py segment.py split.py   # data → leakage-safe splits
-│   ├── features.py spectrograms.py datasets.py       # MFCC + log-mel feature paths
-│   ├── train_classical.py train_cnn.py               # classical + deep training/eval
-│   ├── cnn.py ast_model.py cross_modal.py            # models: SmallCNN/EffNet, AST, transfer
-│   ├── metrics.py           # MAcc / ICBHI Score, majority-vote, confusion matrices
-│   └── eda.py config_loader.py
-├── scripts/                 # CLI drivers (download → features → experiments)
-│   ├── download_*.py fetch_icbhi_split.py build_*.py make_splits.py
-│   └── run_classical.py run_cnn.py run_hpo.py run_multiseed.py run_ast.py run_cross_modal.py
-├── tests/                   # leakage / determinism / metrics / pipeline test suite
-├── params/                  # heart.yaml / lung.yaml preprocessing parameters
-├── results/
-│   ├── tables/              # experiment CSVs (unified_comparison.csv + per-arm)
-│   └── figures/             # confusion matrices, learning curves, cross-modal heatmap
-├── report/                  # Typst source (sections/ + refs.bib) → main.pdf
-├── notebooks/               # EDA + GPU entry (run_cnn_gpu.ipynb)
-├── reference/               # course annexes + title-page templates (see reference/README.md)
-├── data/                    # gitignored — created by the download scripts
-└── repo_link.txt            # submission repository link (TXT deliverable)
-```
-
-## Reproducibility guarantees
-
-- **Random seed:** `SEED = 42` (set in `config.py`, imported at the top of every script);
-  deep rows additionally averaged over seeds {1, 2, 42}.
-- **Leakage-safe grouped splits:** patient-level for lung (ICBHI's official 60/40
-  patient-independent split); recording-level for heart (CinC 2016 ships no
-  recording→subject map, so grouping is by recording — this still eliminates the
-  window-level leakage that dominates windowed audio). `src/split.py` asserts zero
-  overlap (`[leakage-check OK]`) on (train, test) **and** (train, val).
-- **No leakage shortcuts:** no global scaler (scaling inside CV-fold pipelines only), no SMOTE,
-  no test-set model selection (HPO selects on the validation split only).
-- **Pinned dependencies:** `uv.lock` (exact) + `requirements.txt` (pip export). `uv sync` reproduces.
-- **Honest reporting:** non-converged / weak / negative results are recorded as real numbers,
-  never fabricated or hidden.
-
-## Report
-
-The research report is authored in **Typst** and compiled to PDF (Annex 5 structure, Annex 7
-formatting). Build from the repo root (the `--root` flag is required — figures reference
-`../../results/...`):
+**Сборка отчёта** (из корня репозитория — флаг `--root` обязателен, рисунки ссылаются на `../../results/...`):
 
 ```bash
 typst compile --root . report/main.typ report/main.pdf
 ```
 
-## Author & context
+# Гарантии воспроизводимости
 
-Individual research project (project-group format, one member). Author: **Tsember Andrei
-Alekseevich** (Цембер Андрей Алексеевич), group **БПАД244**. Scientific supervisor:
-**Tomashchuk Kornei Kirillovich** (Lecturer). HSE FCS, DSBA / Applied Data Analysis, 2025–26.
-Full contributor and methodology details are in the report (Annex 5 format).
+- **Сид:** `SEED = 42` (в `config.py`, импортируется в начале каждого скрипта); глубокие строки дополнительно
+  усреднены по сидам {1, 2, 42}.
+- **Устойчивые к утечке групповые разбиения:** patient-level для лёгких (официальное 60/40 ICBHI), recording-level
+  для сердца (у CinC 2016 нет сопоставления записей с пациентами); `src/split.py` проверяет нулевое пересечение
+  на (train, test) **и** (train, val).
+- **Без обходных путей с утечкой:** нет глобального скейлера (масштабирование только внутри CV-фолда), нет SMOTE,
+  нет отбора модели по тесту (HPO отбирает только по валидации).
+- **Закреплённые зависимости:** `uv.lock` (точно) + `requirements.txt` (pip-экспорт).
+- **Честная отчётность:** не сошедшиеся / слабые / отрицательные результаты записаны как реальные числа.
 
-## License
+# Структура репозитория
 
-Code in this repository is released under the **MIT License** (see [`LICENSE`](LICENSE)).
-The datasets are **not** redistributed here and remain under their own terms —
-PhysioNet/CinC 2016 (Open Data Commons Attribution v1.0) and ICBHI 2017 (open for
-research use; cite Rocha et al. 2019). Download them with the scripts in `scripts/`.
+```
+config.py                # SEED=42, общие пути, частоты дискретизации
+pyproject.toml / uv.lock # закреплённые зависимости
+requirements.txt         # pip-экспорт для Colab/проверяющих
+src/                     # модули конвейера (ingest, preprocess, features, train_*, metrics, cross_modal, ...)
+scripts/                 # CLI-драйверы (download → features → эксперименты)
+tests/                   # тесты на утечку / детерминизм / метрики / конвейер
+params/                  # heart.yaml / lung.yaml — параметры препроцессинга
+results/{tables,figures} # CSV результатов + рисунки отчёта
+report/                  # исходник отчёта на Typst (sections/ + refs.bib) → PDF
+docs/pdf/                # собранный отчёт (PDF) + версия для антиплагиата (DOCX)
+notebooks/               # EDA + GPU-запуск
+```
+
+# Лицензия
+
+Код — под лицензией **MIT** (см. [`LICENSE`](LICENSE)). Датасеты не распространяются в этом репозитории и
+остаются под собственными лицензиями: PhysioNet/CinC 2016 (Open Data Commons Attribution v1.0) и ICBHI 2017
+(открыт для исследовательского использования; цитировать Rocha et al. 2019). Загрузка — скриптами из `scripts/`.
