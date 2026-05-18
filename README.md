@@ -43,7 +43,7 @@ All numbers live in `results/tables/unified_comparison.csv` (20 rows) and the
 
 | Dataset | Description | Size |
 |---------|-------------|------|
-| [PhysioNet/CinC 2016](https://physionet.org/content/challenge-2016/1.0.0/) | Heart sounds (PCG), binary normal/abnormal | 3,126 WAV (databases A–E) |
+| [PhysioNet/CinC 2016](https://physionet.org/content/challenge-2016/1.0.0/) | Heart sounds (PCG), binary normal/abnormal | ≈3,240 recordings (databases A–E) |
 | [ICBHI 2017](https://bhichallenge.med.auth.gr/ICBHI_2017_Challenge) | Respiratory lung sounds, 4 cycle-level classes | 920 recordings, 6,898 cycles |
 
 Arterial (carotid bruit) sounds are handled analytically — no open dataset exists (Chapter 4).
@@ -73,7 +73,7 @@ identically on both modalities. Classical experiments are CPU-fast; the deep-lea
 are CPU-feasible at small scale but were run on GPU (see `notebooks/run_cnn_gpu.ipynb`).
 
 ```bash
-# 1. Ingest + manifest + patient-level splits (leakage-safe)
+# 1. Ingest + manifest + leakage-safe grouped splits (patient-level lung / recording-level heart)
 uv run python scripts/build_manifest.py
 uv run python scripts/make_splits.py
 uv run python scripts/run_eda.py
@@ -129,8 +129,11 @@ dsba_project/
 
 - **Random seed:** `SEED = 42` (set in `config.py`, imported at the top of every script);
   deep rows additionally averaged over seeds {1, 2, 42}.
-- **Patient-level splits:** no recording from the same patient is in both train and test;
-  `src/split.py` asserts zero leakage (`[leakage-check OK]`) on (train, test) **and** (train, val).
+- **Leakage-safe grouped splits:** patient-level for lung (ICBHI's official 60/40
+  patient-independent split); recording-level for heart (CinC 2016 ships no
+  recording→subject map, so grouping is by recording — this still eliminates the
+  window-level leakage that dominates windowed audio). `src/split.py` asserts zero
+  overlap (`[leakage-check OK]`) on (train, test) **and** (train, val).
 - **No leakage shortcuts:** no global scaler (scaling inside CV-fold pipelines only), no SMOTE,
   no test-set model selection (HPO selects on the validation split only).
 - **Pinned dependencies:** `uv.lock` (exact) + `requirements.txt` (pip export). `uv sync` reproduces.
@@ -153,3 +156,10 @@ Individual research project (project-group format, one member). Author: **Tsembe
 Alekseevich** (Цембер Андрей Алексеевич), group **БПАД244**. Scientific supervisor:
 **Tomashchuk Kornei Kirillovich** (Lecturer). HSE FCS, DSBA / Applied Data Analysis, 2025–26.
 Full contributor and methodology details are in the report (Annex 5 format).
+
+## License
+
+Code in this repository is released under the **MIT License** (see [`LICENSE`](LICENSE)).
+The datasets are **not** redistributed here and remain under their own terms —
+PhysioNet/CinC 2016 (Open Data Commons Attribution v1.0) and ICBHI 2017 (open for
+research use; cite Rocha et al. 2019). Download them with the scripts in `scripts/`.

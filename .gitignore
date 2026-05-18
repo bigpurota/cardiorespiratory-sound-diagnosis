@@ -23,6 +23,11 @@ data/
 .idea/
 .claude/
 
+# Internal AI/agent + planning scaffolding — not part of the academic deliverable.
+# (Kept locally; excluded from the public repo to keep it clean.)
+CLAUDE.md
+.planning/
+
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
 
