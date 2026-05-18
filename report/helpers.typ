@@ -13,3 +13,10 @@
 // nothing. The macro is kept as a no-op so existing #team-note[...] call sites
 // across the chapters need no edits.
 #let team-note(body) = none
+
+// Per-section figure/table numbering (official CourseworkTemplateEng uses
+// \counterwithin{figure}{section}). `annex-mode` flips to true inside the annexes
+// so figures/tables there number as <Letter>.<n> (A.1, C.1) instead of <chap>.<n>.
+// Keyed global state — the annex file (which does not import helpers) flips the
+// same state via `state("annex-mode", false)`.
+#let annex-mode = state("annex-mode", false)

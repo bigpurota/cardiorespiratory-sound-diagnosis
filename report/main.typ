@@ -76,21 +76,36 @@
   // Keep heading with following text (never orphaned at a page bottom).
   // Graduated sizes give a clear, paper-like hierarchy. The BODY text stays
   // Times New Roman 12 (Annex 7 §1.3) — headings are not "main text", so larger
-  // section titles remain compliant.
+  // section titles remain compliant. Top-level section headers are set to 16 pt
+  // to also satisfy the DSBA Regulation (Methodological Guidelines, App. 8 §2
+  // item 5: section headers 16–18 pt), on which Annex 7 is silent.
   set block(above: 1.3em, below: 0.75em)
-  let sz = if it.level == 1 { 14pt } else if it.level == 2 { 13pt } else { 12pt }
+  let sz = if it.level == 1 { 16pt } else if it.level == 2 { 14pt } else { 13pt }
   set text(weight: "bold", size: sz)
+  // Per-section figure/table numbering: reset both counters at every top-level
+  // heading so figures/tables number as <chapter>.<n> (and <Letter>.<n> in annexes).
+  if it.level == 1 {
+    counter(figure.where(kind: image)).update(0)
+    counter(figure.where(kind: table)).update(0)
+  }
   it
 }
 
-// ---- Figures: caption BELOW, centred; "Figure N — Name" (Annex 7 §1.4.1) -----
-#set figure(numbering: "1")
+// ---- Figures: caption BELOW, centred; per-section number "Figure 3.1" --------
+// Official CourseworkTemplateEng numbers figures/tables by section
+// (\counterwithin{figure}{section}). We replicate: <chapter>.<n> in the body and
+// <Letter>.<n> in the annexes (annex-mode from helpers.typ flips the scheme).
+#set figure(numbering: (..n) => context {
+  let chap = counter(heading).get().first()
+  let idx = n.pos().first()
+  if annex-mode.get() { numbering("A.1", chap, idx) } else { numbering("1.1", chap, idx) }
+})
 // Paper-style captions: a bold "Figure N –" / "Table N –" label at 10 pt, with
 // the descriptive text in regular weight. Position (below figures, above tables)
 // and the " – " separator stay exactly as Annex 7 §1.4 prescribes.
 #show figure.caption: it => context {
   set text(size: 10pt)
-  strong[#it.supplement #it.counter.display(it.numbering)#it.separator]
+  [#it.supplement #it.counter.display(it.numbering)#it.separator]
   it.body
 }
 #set figure.caption(separator: [ – ], position: bottom)
@@ -125,6 +140,11 @@
 
 // ---- Equations: numbered, right-aligned number in parentheses (Annex 7 §1.4.3)
 #set math.equation(numbering: "(1)")
+// Math font: STIX Two Math is metric-compatible with Times New Roman, so inline
+// numbers/metrics ($"MAcc" = 0.903$, $0.898 plus.minus 0.008$, $rho$ …) and the
+// display equations render in the SAME visual style as the TNR body — math is
+// set as real math (Annex 7 §1.4.3) without a jarring font switch.
+#show math.equation: set text(font: "STIX Two Math")
 
 // ---- Raw/code blocks: monospace 10 pt, no indent, single spacing -------------
 #show raw: set text(font: mono-font, size: 10pt)
@@ -148,7 +168,13 @@
   #v(0.5cm)
   #text(size: 12pt)[Faculty of Computer Science] \
   #text(size: 12pt)[Bachelor's Programme "Data Science and Business Analytics"]
-  #v(3.5cm)
+
+  #v(1.2cm)
+  // UDC is mandatory on the title page of a *research* project (per the official
+  // CourseworkTemplateEng/title_kr.tex). Left-aligned, between programme and title.
+  #align(left)[#text(size: 12pt)[UDC 004.85:616.12]]
+  #v(2cm)
+
   #text(size: 13pt)[Research Project Report on the Topic:] \
   #v(0.5cm)
   #text(size: 16pt, weight: "bold")[
@@ -159,11 +185,10 @@
 
   #set align(left)
   #pad(left: 1.5cm)[
-    #text(size: 12pt)[*Fulfilled by:*] \
-    #text(size: 12pt)[Student of the Group БПАД244] \
-    #text(size: 12pt)[Tsember Andrei Alekseevich] \
+    #text(size: 12pt)[*Submitted by the Student:*] \
+    #text(size: 12pt)[Group БПАД244, 2nd year of study #h(1.5cm) Tsember Andrei Alekseevich] \
     #v(1.2cm)
-    #text(size: 12pt)[*Assessed by the Project Supervisor:*] \
+    #text(size: 12pt)[*Approved by the Project Supervisor:*] \
     #text(size: 12pt)[Tomashchuk Kornei Kirillovich] \
     #text(size: 12pt)[Lecturer] \
     #text(size: 12pt)[Faculty of Computer Science, HSE University]
