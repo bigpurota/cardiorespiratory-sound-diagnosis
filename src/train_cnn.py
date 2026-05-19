@@ -1,43 +1,23 @@
 """
-src/train_cnn.py — leakage-safe DL training & evaluation entry point (Phase 4, MODL-02).
+Deep-learning training and evaluation for the heart/lung sound study.
 
-The train+evaluate half of the Phase-4 deep-learning comparative study. Mirrors
-``src/train_classical.py::run_experiments`` (the fit→predict→evaluate→row-dict flow) so
-the DL rows are byte-comparable with the classical rows, and copies its heart
-recording-level aggregation block verbatim (swapping ``estimator.predict``→CNN argmax and
-``_abnormal_proba``→softmax column-1). Everything numeric flows through ``src/metrics.py``
-(no re-implemented metrics):
-
-  - ``train_one_model(model, train_loader, val_loader, criterion, lr, val_metric_fn, ...)``
-    — a device-auto-detect (CPU here / CUDA on the funded GPU) loop with Adam over the
-    ``requires_grad`` params, weighted CrossEntropy, ≤``max_epochs`` epochs, early stop on
-    the val primary metric (val MAcc heart / val ICBHI lung) with ``patience``, a wall-clock
-    cap (D-03 deadline protection), best-checkpoint restore, and a learning-curve PNG
-    (train vs val loss). Returns ``(model, {best_val_score, train_time_s, epochs_ran})``.
-  - ``evaluate(model, test_loader, modality, rec_test, ...)`` — predicts on TEST and
-    evaluates heart at RECORDING level (majority vote → MAcc, §Pattern 5) / lung at CYCLE
-    level (ICBHI Score, §Pattern 6), saves a non-degenerate confusion-matrix figure, and
-    returns the Phase-3-shaped metric+volumetric row dict PLUS a ``params`` field (D-09).
-  - ``run_modality(cache, modality, model, ...)`` — the single per-experiment driver the
-    Plan-04 CSV script calls: ``build_loaders`` → build model → ``train_one_model`` →
-    ``evaluate`` → row dict. Accepts ``lr`` (CNN 1e-3 / EffNet 1e-4) and ``batch_size`` as
-    params; writes PNGs/checkpoints only (NO CSV — that is scripts/run_cnn.py, Plan 04).
-
-``import config`` runs first for the SEED=42 determinism side effect.
+Trains a small CNN or EfficientNet-B0 on log-mel spectrograms and evaluates heart at
+the recording level (majority vote -> MAcc) and lung at the cycle level (ICBHI score).
+The fit -> predict -> evaluate -> row-dict flow mirrors ``train_classical.py`` so the
+deep-learning rows line up with the classical rows; all metrics come from ``src.metrics``.
 """
 import os
 
-# macOS duplicate-OpenMP-runtime guard (copied VERBATIM from train_classical.py): torch
-# (and any sklearn/xgboost loaded alongside) each bundle their own libomp.dylib; capping
-# OpenMP to a single team and allowing the duplicate runtime prevents the collision
-# segfault. MUST run BEFORE the first ``import torch``. ``setdefault`` lets a caller override.
+# macOS duplicate-OpenMP-runtime guard: torch (and any sklearn/xgboost loaded alongside)
+# each bundle their own libomp.dylib; capping OpenMP to one team and allowing the duplicate
+# runtime avoids the collision segfault. Must run before the first ``import torch``.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 import time
 import copy
 
-import config  # noqa: F401 — import FIRST for the SEED=42 side effect (determinism)
+from src import config  # noqa: F401 — import first for the SEED=42 side effect (determinism)
 
 import numpy as np
 import pandas as pd
@@ -45,10 +25,10 @@ import torch
 import torch.nn as nn
 
 import matplotlib
-matplotlib.use("Agg")  # MUST precede pyplot import — headless (Pitfall 7)
+matplotlib.use("Agg")  # must precede the pyplot import — headless backend
 import matplotlib.pyplot as plt  # noqa: E402
 
-from src.metrics import (  # noqa: E402 — REUSE; never re-implemented
+from src.metrics import (  # noqa: E402
     majority_vote,
     heart_macc,
     icbhi_score,
@@ -63,7 +43,6 @@ from src.cnn import SmallCNN, build_efficientnet_b0, count_params  # noqa: E402
 
 __all__ = ["train_one_model", "evaluate", "run_modality"]
 
-# Label constants (mirror src/train_classical.py).
 HEART_LABELS = [0, 1]
 LUNG_LABELS = [0, 1, 2, 3]
 LUNG_NORMAL_LABEL = 3  # {crackle:0, wheeze:1, both:2, normal:3}
@@ -72,17 +51,14 @@ RESULTS_DIR = config.RESULTS_DIR
 FIGURES_DIR = os.path.join(RESULTS_DIR, "figures")
 
 
-# ---------------------------------------------------------------------------
-# val-metric wrappers: adapt the metric-dict helpers to (y_true, y_pred)->scalar
-# (the signature train_one_model's early-stop monitor expects). REUSE only.
-# ---------------------------------------------------------------------------
+# Wrap the metric-dict helpers as (y_true, y_pred) -> scalar for the early-stop monitor.
 def _val_macc(y_true, y_pred):
-    """Heart early-stop monitor: recording/window-level MAcc (cycle-free) — REUSE heart_macc."""
+    """Heart early-stop monitor: window-level MAcc."""
     return float(heart_macc(np.asarray(y_true), np.asarray(y_pred))["MAcc"])
 
 
 def _val_icbhi(y_true, y_pred):
-    """Lung early-stop monitor: cycle-level ICBHI Score — REUSE icbhi_score."""
+    """Lung early-stop monitor: cycle-level ICBHI score."""
     return float(
         icbhi_score(np.asarray(y_true), np.asarray(y_pred), normal_label=LUNG_NORMAL_LABEL)[
             "ICBHI_Score"
@@ -90,51 +66,41 @@ def _val_icbhi(y_true, y_pred):
     )
 
 
-# ---------------------------------------------------------------------------
-# Precise-BN: recompute BatchNorm running stats so eval matches the trained weights
-# ---------------------------------------------------------------------------
+# Precise-BN: recompute BatchNorm running stats so eval matches the trained weights.
 def _recalibrate_batchnorm(model, train_loader, device, n_passes=3, max_batches=None):
     """Recompute BatchNorm running mean/var as an exact average over the train loader.
 
-    Fixes the train/eval BatchNorm-statistic mismatch that, on small batches / few epochs,
-    collapses the eval-mode forward to a near-constant output (degenerate predictions). Each
-    module's running stats are reset and ``momentum=None`` (cumulative moving average), then
-    a handful of no-grad TRAIN-MODE forward passes accumulate the exact dataset statistics.
-    No gradients are taken and no weights change — only the running buffers are recalibrated.
-    A no-op when the model has no BatchNorm layers.
+    With small batches or few epochs the eval-mode running stats lag the per-batch stats
+    the weights were trained under, which can collapse the eval forward to a near-constant
+    output. Resetting the running stats and accumulating them over a few no-grad train-mode
+    passes (the standard "precise BN" technique) fixes that. No gradients are taken and no
+    weights change. A no-op when the model has no BatchNorm layers.
 
-    Deadline/efficiency guards (Rule 1 fix):
-      - **Frozen-backbone skip:** when the BatchNorm layers are FROZEN
-        (``weight.requires_grad is False`` — the EfficientNet head-only fallback path, D-04),
-        their running stats were never disturbed by training (the backbone never updated), so
-        recomputing them is a no-benefit operation that, on the 33k-window heart EffNet, costs
-        ~3 full forward passes over the whole train set (tens of minutes on CPU). Skip it.
-      - **Pass batch cap:** ``max_batches`` bounds the number of batches per pass so the
-        recalibration cannot dominate the wall-clock cap on large datasets; a few hundred
-        batches already give an accurate running-stat estimate.
+    ``max_batches`` bounds the batches per pass so the recalibration cannot dominate the
+    wall-clock budget on large datasets; a few hundred batches give an accurate estimate.
     """
     bns = [m for m in model.modules() if isinstance(m, nn.modules.batchnorm._BatchNorm)]
     if not bns:
         return
-    # Frozen-backbone skip: if the BN affine params are frozen, the backbone did not train,
-    # so its pretrained running stats are already correct — recomputing wastes compute.
+    # If the BN affine params are frozen the backbone never trained, so its pretrained
+    # running stats are already correct and recomputing them only wastes compute.
     trainable_bn = [
         m for m in bns
         if getattr(m, "weight", None) is not None and m.weight.requires_grad
     ]
     if not trainable_bn:
-        return  # all BN layers frozen (e.g. EffNet head-only freeze, D-04) → no-op
+        return
     saved_momentum = [m.momentum for m in bns]
     for m in bns:
         m.reset_running_stats()
-        m.momentum = None  # cumulative moving average → exact dataset mean/var
+        m.momentum = None  # cumulative moving average -> exact dataset mean/var
     was_training = model.training
     model.train()
     with torch.no_grad():
         for _ in range(max(1, n_passes)):
             for i, (xb, _yb) in enumerate(train_loader):
                 if max_batches is not None and i >= max_batches:
-                    break  # bound the recalibration cost on large datasets
+                    break
                 model(xb.to(device))
     for m, mom in zip(bns, saved_momentum):
         m.momentum = mom
@@ -142,9 +108,6 @@ def _recalibrate_batchnorm(model, train_loader, device, n_passes=3, max_batches=
         model.eval()
 
 
-# ---------------------------------------------------------------------------
-# §Code Examples 6 — training loop: device auto-detect, early stop, wall-cap, curve
-# ---------------------------------------------------------------------------
 def train_one_model(
     model,
     train_loader,
@@ -160,19 +123,15 @@ def train_one_model(
     device=None,
     weight_decay=0.0,
 ):
-    """Train ``model`` with early stop + wall cap; restore best by val metric; write curve PNG.
+    """Train ``model`` with early stop and a wall-clock cap, restore the best epoch by val
+    metric, and write a learning-curve PNG.
 
-    ``device`` auto-detects CUDA→CPU (D-07) so the SAME code runs on the funded GPU and the
-    CPU fallback. Adam optimises only the ``requires_grad`` params (so the EfficientNet
-    head-only freeze path trains just the classifier). Each epoch accumulates a train loss,
-    then a val loss + val preds; ``score = val_metric_fn(true, pred)`` is the val primary
-    metric (val MAcc heart / val ICBHI lung, D-06). The best ``state_dict`` (by score) is
-    deep-copied; the loop early-stops after ``patience`` non-improving epochs and hard-breaks
-    when the wall-clock cap ``wall_cap_s`` is exceeded (D-03). Returns
+    ``device`` auto-detects CUDA then CPU. Adam optimises only the ``requires_grad`` params
+    (so the EfficientNet head-only freeze path trains just the classifier). Each epoch the
+    val primary metric ``val_metric_fn(true, pred)`` is computed (MAcc for heart, ICBHI for
+    lung); the best ``state_dict`` is kept, the loop early-stops after ``patience``
+    non-improving epochs and hard-breaks once ``wall_cap_s`` is exceeded. Returns
     ``(model, {"best_val_score", "train_time_s", "epochs_ran"})``.
-
-    HPO knob: ``weight_decay`` (default 0.0 → same Adam as 04-04; any positive value adds L2
-    regularisation).
     """
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -200,19 +159,16 @@ def train_one_model(
             opt.step()
             run += loss.item() * xb.size(0)
             seen += xb.size(0)
-            # MID-EPOCH wall-cap check (Rule 1/D-03 deadline protection): on a large
-            # dataset a single epoch can vastly exceed wall_cap_s, so the end-of-epoch cap
-            # alone is ineffective (the loop cannot interrupt an in-flight epoch). Break out
-            # of the train loop here, then still run ONE validation pass below so the
-            # partially-trained epoch contributes a val score + best_state (a non-degenerate
-            # model) rather than wasting the compute. This makes the cap honest for the 33k
-            # heart-window EfficientNet path where one CPU epoch can take ~40+ min.
+            # Mid-epoch wall-cap check: on a large dataset a single epoch can exceed
+            # wall_cap_s, so an end-of-epoch check alone cannot interrupt it. Break here,
+            # then still run one validation pass below so the partially-trained epoch
+            # contributes a val score and best_state instead of wasting the compute.
             if time.perf_counter() - t0 > wall_cap_s:
                 capped_mid_epoch = True
                 break
         tr_losses.append(run / max(1, seen))
 
-        # ---- validation: loss + primary metric (val MAcc heart / val ICBHI lung) ----
+        # ---- validation: loss + primary metric (MAcc for heart, ICBHI for lung) ----
         model.eval()
         vloss = 0.0
         vpred, vtrue = [], []
@@ -236,24 +192,15 @@ def train_one_model(
             bad += 1
 
         if bad >= patience:
-            break  # early stop (D-06)
+            break  # early stop
         if capped_mid_epoch or time.perf_counter() - t0 > wall_cap_s:
-            break  # wall-clock cap (D-03 deadline protection; mid- or end-of-epoch)
+            break  # wall-clock cap (mid- or end-of-epoch)
 
     if best_state is not None:
         model.load_state_dict(best_state)
 
-    # Precise-BN recalibration (Rule 1 fix): with small batches / few epochs the BatchNorm
-    # *running* statistics used at eval time lag the per-batch statistics the weights were
-    # trained under, so eval-mode forward can collapse to a near-constant (degenerate)
-    # output until the running stats warm up over many epochs. Recompute the running
-    # mean/var as an exact average over the (augmentation-free style) train pass so the
-    # eval-time normalisation matches the learned weights. This is the standard "precise BN"
-    # technique (Ioffe 2017 / He et al.) — it improves eval stability on the real runs too,
-    # and is what makes the 2-epoch smoke run produce a non-degenerate confusion matrix.
-    # Cap precise-BN to ~200 batches/pass so it cannot dominate the wall-clock budget on the
-    # 33k-window heart set (a few hundred batches give an accurate running-stat estimate);
-    # frozen-backbone EffNet is skipped entirely inside the helper (Rule 1 deadline fix).
+    # Recompute BatchNorm running stats so eval-mode normalisation matches the learned
+    # weights (see _recalibrate_batchnorm). Capped to 200 batches/pass to bound its cost.
     _recalibrate_batchnorm(model, train_loader, device, max_batches=200)
 
     if ckpt_path:
@@ -266,9 +213,7 @@ def train_one_model(
         ax.set_xlabel("epoch")
         ax.set_ylabel("loss")
         ax.legend()
-        # No chart title: the figure is described by its caption in the report.
-        # (Previously the raw output filename was used as the title, which looked
-        # unprofessional in the compiled PDF.)
+        # No chart title — the figure is described by its caption in the report.
         fig.tight_layout()
         fig.savefig(curve_png, dpi=150, bbox_inches="tight")
         plt.close(fig)
@@ -280,14 +225,11 @@ def train_one_model(
     }
 
 
-# ---------------------------------------------------------------------------
-# prediction helper: per-batch TEST argmax + softmax column-1 (heart abnormal score)
-# ---------------------------------------------------------------------------
 def _predict_test(model, test_loader, device):
-    """Run TEST inference; return (y_true, y_pred, abnormal_score) numpy arrays.
+    """Run test inference; return (y_true, y_pred, abnormal_score) numpy arrays.
 
-    ``abnormal_score`` is softmax column-1 (P(abnormal)) — the CNN analogue of
-    classical ``_abnormal_proba`` used for the heart recording-level AUC (§Pattern 3).
+    ``abnormal_score`` is softmax column 1 (P(abnormal)), used for the heart
+    recording-level AUC.
     """
     model.eval()
     y_true, y_pred, score1 = [], [], []
@@ -298,7 +240,7 @@ def _predict_test(model, test_loader, device):
             prob = torch.softmax(out, dim=1).cpu().numpy()
             y_pred.append(out.argmax(1).cpu().numpy())
             y_true.append(np.asarray(yb))
-            # softmax column-1 = P(abnormal) for the binary heart head.
+            # softmax column 1 = P(abnormal) for the binary heart head
             score1.append(prob[:, 1] if prob.shape[1] > 1 else prob[:, 0])
     return (
         np.concatenate(y_true),
@@ -307,9 +249,7 @@ def _predict_test(model, test_loader, device):
     )
 
 
-# ---------------------------------------------------------------------------
-# §Pattern 5/6/7 — evaluation: heart recording-level MAcc / lung cycle-level ICBHI
-# ---------------------------------------------------------------------------
+# Evaluation: heart at recording-level MAcc, lung at cycle-level ICBHI.
 def evaluate(
     model,
     test_loader,
@@ -323,15 +263,13 @@ def evaluate(
     volumetrics,
     device=None,
 ):
-    """Evaluate ``model`` on TEST and return the Phase-3-shaped metric+volumetric row dict.
+    """Evaluate ``model`` on the test set and return the metric + volumetric row dict.
 
-    HEART — copies the train_classical.py recording-level aggregation VERBATIM (swapping
-    ``estimator.predict``→CNN argmax and ``_abnormal_proba``→softmax column-1): per-window
-    preds are reduced to recording level via ``majority_vote``, the per-recording abnormal
-    score is the mean softmax-col1, and ``heart_macc`` yields the MAcc suite + AUC. LUNG —
-    cycle-level ``icbhi_score`` + ``per_class_se`` (no aggregation). Both write a
-    non-degenerate ``save_cm`` figure. Returns the row dict (metric suite + volumetrics +
-    ``params``) plus the raw ``test_true``/``test_pred`` arrays (for the smoke CM contract).
+    Heart: per-window predictions are reduced to recording level via ``majority_vote``, the
+    per-recording abnormal score is the mean softmax column 1, and ``heart_macc`` yields the
+    MAcc suite plus AUC. Lung: cycle-level ``icbhi_score`` and ``per_class_se``. Both write a
+    confusion-matrix figure. The returned dict also carries the raw ``test_true``/
+    ``test_pred`` arrays.
     """
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     os.makedirs(figures_dir, exist_ok=True)
@@ -339,7 +277,7 @@ def evaluate(
     y_test, preds, win_score = _predict_test(model, test_loader, device)
 
     if modality == "heart":
-        # Recording-level majority vote → MAcc (§Pattern 5). VERBATIM from train_classical.py.
+        # Recording-level majority vote -> MAcc.
         rec_test = np.asarray(list(map(str, rec_test)), dtype=object)
         pred_rec = majority_vote(preds, rec_test)  # Series idx=recording_id
         true_rec = majority_vote(y_test, rec_test).reindex(pred_rec.index)
@@ -377,7 +315,7 @@ def evaluate(
             "cm_figure": os.path.basename(cm_png),
         }
     else:
-        # Cycle-level ICBHI Score (§Pattern 6). No recording aggregation.
+        # Cycle-level ICBHI score; no recording aggregation.
         m = icbhi_score(y_test, preds, normal_label=LUNG_NORMAL_LABEL)
         pcs = per_class_se(y_test, preds, LUNG_LABELS)
         cm_png = os.path.join(figures_dir, f"cm_lung_{fs_label}_{model_name}.png")
@@ -398,7 +336,7 @@ def evaluate(
             "Se": float(m["Se"]),
             "Sp": float(m["Sp"]),
             "macro_f1": float(macro_f1(y_test, preds)),
-            "auc_roc": "",  # AUC not defined for the 4-class ICBHI headline (Pattern 8)
+            "auc_roc": "",  # AUC undefined for the 4-class ICBHI headline metric
             "accuracy": float(accuracy(y_test, preds)),
             "se_crackle": pcs[0],
             "se_wheeze": pcs[1],
@@ -409,7 +347,7 @@ def evaluate(
             "cm_figure": os.path.basename(cm_png),
         }
 
-    # Volumetric block (shared shape with classical rows — §Pattern 9) + DL extras.
+    # Volumetric block (shared shape with the classical rows) plus DL extras.
     row.update(
         {
             "train_time_s": float(train_time_s),
@@ -419,19 +357,17 @@ def evaluate(
             "n_test_recordings": volumetrics["n_test_recordings"],
             "n_train_patients": volumetrics["n_train_patients"],
             "n_test_patients": volumetrics["n_test_patients"],
-            "params": int(params_count),  # D-09 DL volumetric field
+            "params": int(params_count),
         }
     )
-    # Raw arrays for the smoke non-degenerate-CM contract (not part of the CSV schema).
+    # Raw arrays (not part of the CSV schema).
     row["test_true"] = y_test
     row["test_pred"] = preds
     row["cm_figure_path"] = cm_png
     return row
 
 
-# ---------------------------------------------------------------------------
-# per-experiment driver: build_loaders -> model -> train_one_model -> evaluate
-# ---------------------------------------------------------------------------
+# Per-experiment driver: build_loaders -> model -> train_one_model -> evaluate.
 def run_modality(
     cache,
     modality,
@@ -452,29 +388,25 @@ def run_modality(
     p=0.3,
     **_ignored,
 ):
-    """Train + evaluate ONE DL experiment (modality × model); return its row dict.
+    """Train and evaluate one experiment (modality x model); return its row dict.
 
-    Builds leakage-safe loaders (``build_loaders`` re-asserts (train,test)+(train,val)
-    disjointness), constructs the model (``cnn`` → ``SmallCNN`` / ``effnet_b0`` →
-    ``build_efficientnet_b0``), trains with weighted CE (TRAIN-only class weights, D-05) and
-    the modality-appropriate val monitor (MAcc heart / ICBHI lung), then evaluates on TEST.
-    ``lr`` defaults to 1e-3 for the small CNN and 1e-4 for EfficientNet (the caller may
-    override). Writes a learning-curve PNG + checkpoint under ``out_dir`` (PNG/ckpt only — no
-    CSV). Returns the Phase-3-shaped row dict (with ``params``, ``epochs_ran``,
-    ``curve_png``, and raw ``test_true``/``test_pred``).
+    Builds leakage-safe loaders (``build_loaders`` re-asserts train/test and train/val
+    disjointness), constructs the model (``cnn`` -> ``SmallCNN``, ``effnet_b0`` ->
+    ``build_efficientnet_b0``), trains with weighted CE (train-only class weights) and the
+    modality-appropriate val monitor (MAcc for heart, ICBHI for lung), then evaluates on the
+    test set. ``lr`` defaults to 1e-3 for the small CNN and 1e-4 for EfficientNet. Writes a
+    learning-curve PNG and checkpoint under ``out_dir``; no CSV.
 
-    ``seed`` controls val-carve split + DataLoader shuffle + model weight init. Set all
-    global RNGs (random, numpy, torch) here so multi-seed callers only need to pass the int.
-
-    HPO knobs (all default to 04-04 values so no-arg call is behaviour-identical to 04-04):
-      - ``weight_decay``: L2 regularisation for Adam (default 0.0 — 04-04 behaviour).
-      - ``label_smoothing``: CrossEntropyLoss label smoothing (default 0.0 — 04-04 behaviour).
-      - ``aug_strength``: SpecAugment mask-param + noise scaling for the TRAIN set only
-        (default 1.0 — 04-04 behaviour; threaded into build_loaders).
-      - ``sampler_mode``: imbalance strategy — ``"class_weight"`` (default, weighted CE) or
-        ``"weighted_sampler"`` (WeightedRandomSampler + unweighted CE, never double-applied).
-      - ``cnn_widths``: 4-tuple of SmallCNN channel widths (default None → (16,32,64,128)).
-      - ``p``: SmallCNN dropout ≥ 0.3 (default 0.3 — 04-04 behaviour).
+    ``seed`` controls the val-carve split, DataLoader shuffle, and weight init; all global
+    RNGs are set here. The remaining tuning knobs default to the values used for the reported
+    runs:
+      - ``weight_decay``: L2 regularisation for Adam.
+      - ``label_smoothing``: CrossEntropyLoss label smoothing.
+      - ``aug_strength``: SpecAugment mask param and noise scaling for the train set only.
+      - ``sampler_mode``: ``"class_weight"`` (weighted CE) or ``"weighted_sampler"``
+        (WeightedRandomSampler with unweighted CE); the two are never combined.
+      - ``cnn_widths``: SmallCNN channel widths (None -> (16, 32, 64, 128)).
+      - ``p``: SmallCNN dropout probability.
     """
     import random as _random
     _random.seed(seed)
@@ -493,22 +425,20 @@ def run_modality(
     figures_dir = out_dir
     fs_label = "log_mel_64x128"
 
-    # Build loaders (leakage re-assert lives inside build_loaders → assert_no_patient_leakage).
-    # Thread aug_strength + sampler_mode as HPO knobs; defaults reproduce 04-04 exactly.
+    # build_loaders re-asserts patient-level disjointness internally.
     loaders = build_loaders(
         cache, modality, for_effnet=for_effnet, batch_size=batch_size, seed=seed,
         aug_strength=aug_strength, sampler_mode=sampler_mode,
     )
     n_classes = loaders["n_classes"]
 
-    # Redundant explicit leakage guard at the driver top (defence in depth, D-03 / T-04-07):
-    # build_loaders already asserts, but a second check here documents the contract at the
-    # single train+evaluate entry point the Plan-04 driver calls.
+    # Explicit leakage guard at the entry point (defence in depth; build_loaders already
+    # asserts this).
     split = np.asarray(cache["split"])
     pid = np.asarray(cache["patient_id"])
     assert_no_patient_leakage(pid[split == "train"], pid[split == "test"])
 
-    # Volumetrics (segment/recording/patient counts — §Pattern 9).
+    # Segment / recording / patient counts.
     rec_id = np.asarray(cache["recording_id"])
     is_tr, is_te = split == "train", split == "test"
     volumetrics = {
@@ -520,13 +450,11 @@ def run_modality(
         "n_test_patients": len(set(map(str, pid[is_te]))),
     }
 
-    # Model.
     if for_effnet:
-        # CPU head-only freeze fallback (D-04) when no GPU is available (deadline protection).
+        # Freeze the backbone and train the head only when no GPU is available.
         freeze = not torch.cuda.is_available()
         net = build_efficientnet_b0(n_classes, freeze_backbone=freeze)
     else:
-        # Thread HPO width + dropout knobs; defaults reproduce 04-04 exactly.
         net = SmallCNN(
             n_classes=n_classes,
             p=p,
@@ -536,13 +464,12 @@ def run_modality(
 
     dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Imbalance strategy: when using WeightedRandomSampler the sampler handles class
-    # imbalance — do NOT also apply class-weighted CE loss (T-04-13: never double-apply).
+    # When the WeightedRandomSampler handles imbalance, use unweighted CE — never apply
+    # both class weighting and sampling at once.
     if sampler_mode == "weighted_sampler":
-        # Unweighted CE + sampler (two strategies are mutually exclusive, D-05).
         criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
     else:
-        # Default "class_weight" path: weighted CE + standard shuffle (04-04 behaviour).
+        # Default path: class-weighted CE with standard shuffling.
         criterion = nn.CrossEntropyLoss(
             weight=loaders["class_weights"].to(dev),
             label_smoothing=label_smoothing,
@@ -582,7 +509,7 @@ def run_modality(
         volumetrics,
         device=dev,
     )
-    # Attach training diagnostics + artifact paths for the caller / smoke contracts.
+    # Attach training diagnostics and artifact paths for the caller.
     row["best_val_score"] = train_info["best_val_score"]
     row["epochs_ran"] = train_info["epochs_ran"]
     row["lr"] = float(lr)

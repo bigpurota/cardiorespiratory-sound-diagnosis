@@ -3,26 +3,19 @@
 import pathlib
 import yaml
 
-# Import PARAMS_DIR from config so the path is derived from the single
-# authoritative source of truth, not hard-coded here.
-from config import PARAMS_DIR
+# PARAMS_DIR comes from config so the path is defined in one place.
+from src.config import PARAMS_DIR
 
 
 def load_params(modality: str) -> dict:
     """Load preprocessing parameters for the given modality.
 
-    Reads ``params/{modality}.yaml`` relative to the project root (via
-    ``PARAMS_DIR`` from ``config.py``) and returns the parsed dict.
+    Reads ``params/{modality}.yaml`` and returns the parsed dict.
 
     Parameters
     ----------
     modality:
         One of ``"heart"`` (PhysioNet/CinC 2016) or ``"lung"`` (ICBHI 2017).
-
-    Returns
-    -------
-    dict
-        The YAML document parsed by ``yaml.safe_load``.
 
     Raises
     ------

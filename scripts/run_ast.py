@@ -1,34 +1,25 @@
 #!/usr/bin/env python
 """
-scripts/run_ast.py — fine-tune pretrained AST on both modalities and write CSVs.
+Fine-tune a pretrained Audio Spectrogram Transformer (AST) on heart and lung sounds.
 
-Exact analog of ``scripts/run_cnn.py`` for the Audio Spectrogram Transformer (AST) arm of
-the comparative study (MODL-02 / ADV-02). Fine-tunes
-``MIT/ast-finetuned-audioset-10-10-0.4593`` (transformers 5.9.0, already on the GPU box)
-on BOTH modalities using the EXISTING log-mel spectrogram caches
-(``features/{modality}_spectrograms.npy``), reusing the SAME leakage-safe loaders +
-metrics as the CNN / EfficientNet experiments so the two new ``model='ast'`` rows are
-byte-comparable with every other row in ``unified_comparison.csv``.
+Fine-tunes ``MIT/ast-finetuned-audioset-10-10-0.4593`` on both modalities using the
+log-mel spectrogram caches (``features/{modality}_spectrograms.npy``), reusing the same
+leakage-safe loaders and metrics as the CNN/EfficientNet experiments so the AST rows are
+directly comparable in ``unified_comparison.csv``. Heart is headlined on MAcc, lung on
+the ICBHI Score.
 
-Adds:
-  - #11  heart AST (model=ast, modality=heart) — primary metric MAcc
-  - #12  lung  AST (model=ast, modality=lung)  — primary metric ICBHI_Score
-
-HONEST FAILURE HOOK: any per-modality failure (HF download failure, OOM, non-convergence)
-is caught, written as a limitation row in ``metrics_ast.csv`` (primary_metric=NaN,
-fallback_from=<reason>), and does NOT add a row to ``unified_comparison.csv`` so the
-unified table never shows a fabricated AST number.
+Any per-modality failure (download failure, OOM, non-convergence) is caught and written
+as a limitation row in ``metrics_ast.csv`` with a NaN primary metric; it is not merged
+into ``unified_comparison.csv``, so the unified table never carries a fabricated number.
 
     uv run python scripts/run_ast.py --modality heart
     uv run python scripts/run_ast.py --modality all --wall-cap-min 45
 """
 import os
 
-# macOS duplicate-OpenMP-runtime guard (copied VERBATIM from scripts/run_cnn.py): torch and
-# any sklearn/xgboost loaded alongside each bundle their own libomp.dylib; capping OpenMP
-# to a single team + allowing the duplicate runtime prevents the collision segfault. MUST
-# run BEFORE the first ``import torch`` (transitively pulled in below). ``setdefault`` lets a
-# caller override.
+# macOS duplicate-OpenMP-runtime guard: torch and sklearn/xgboost each bundle their own
+# libomp.dylib; capping OpenMP threads and allowing the duplicate runtime avoids the
+# collision segfault. Must run before the first ``import torch``.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -41,7 +32,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import config  # noqa: E402,F401 — import FIRST (seeds RNGs, exposes paths)
+from src import config  # noqa: E402,F401 — import FIRST (seeds RNGs, exposes paths)
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
@@ -60,14 +51,13 @@ FIGURES_DIR = os.path.join(config.RESULTS_DIR, "figures")
 UNIFIED_CSV = os.path.join(TABLES_DIR, "unified_comparison.csv")
 VOLUMETRICS_CSV = os.path.join(TABLES_DIR, "volumetrics_cnn.csv")
 
-# Pattern-8 unified_comparison.csv column order (IDENTICAL to run_cnn.py — 12-column
-# schema; never add/reorder columns, T-04-08).
+# unified_comparison.csv column order (12-column schema shared with the other drivers).
 UNIFIED_COLUMNS = [
     "modality", "feature_set", "model", "primary_metric_name", "primary_metric",
     "Se", "Sp", "macro_f1", "auc_roc", "accuracy", "n_train", "n_test",
 ]
 
-# Pattern-9 volumetrics_cnn.csv column order (mirrors run_cnn.py + params column).
+# volumetrics_cnn.csv column order.
 VOLUMETRICS_COLUMNS = [
     "modality", "feature_set", "model", "train_time_s",
     "n_train_segments", "n_test_segments",
@@ -76,7 +66,7 @@ VOLUMETRICS_COLUMNS = [
     "params", "fallback_from", "data_volume_mb",
 ]
 
-# Per-modality metrics CSV columns (full suite matching run_cnn.py + fallback_from note).
+# Per-modality metrics CSV columns (full suite + a fallback_from provenance column).
 METRICS_COLUMNS = {
     "heart": [
         "feature_set", "model", "primary_metric_name", "primary_metric",
@@ -91,22 +81,18 @@ METRICS_COLUMNS = {
     ],
 }
 
-# Chance-level threshold (mirrors run_cnn.py).
+# Chance-level threshold below which a run is judged non-converged.
 _CHANCE_THRESHOLD = {"heart": 0.5, "lung": 0.5}
 
 # Feature-set label for AST rows in unified_comparison.csv.
 _AST_FS_LABEL = "log_mel_64x128"
 
-# Default fine-tune learning rate (transformer: much lower than the CNN's 1e-3).
+# Default fine-tune learning rate (transformers fine-tune much lower than a CNN).
 _DEFAULT_LR = 1e-5
 
 
-# ---------------------------------------------------------------------------
-# Cache loader (mirrors run_cnn.py::_load_cache exactly)
-# ---------------------------------------------------------------------------
-
 def _load_cache(modality):
-    """np.load the Wave-2 spectrogram cache for ``modality`` (build it if absent)."""
+    """Load the spectrogram cache for ``modality``, building it if absent."""
     path = os.path.join(FEATURES_DIR, f"{modality}_spectrograms.npy")
     if not os.path.exists(path):
         print(
@@ -122,10 +108,6 @@ def _load_cache(modality):
         )
     return np.load(path, allow_pickle=True).item(), path
 
-
-# ---------------------------------------------------------------------------
-# metrics_ast.csv writer
-# ---------------------------------------------------------------------------
 
 def _write_metrics_csv(modality, rows):
     """Write ``results/tables/metrics_ast.csv`` (creates or appends per modality)."""
@@ -159,16 +141,11 @@ def _write_metrics_csv(modality, rows):
     return out
 
 
-# ---------------------------------------------------------------------------
-# Idempotent unified_comparison.csv merge — targets model=='ast' ONLY
-# ---------------------------------------------------------------------------
-
 def _rebuild_unified(modality, rows):
     """Idempotently merge AST rows into unified_comparison.csv.
 
-    Mirrors ``run_cnn.py::_rebuild_unified`` but the drop-mask targets ONLY
-    ``model=='ast'`` for the current modality — so the 16 classical + 4 cnn/effnet rows
-    survive untouched → 22 rows total. Re-runs are idempotent (T-04-14).
+    The drop-mask targets only ``model=='ast'`` for the current modality, so the
+    classical and CNN/EffNet rows survive untouched and re-runs are idempotent.
     """
     new = pd.DataFrame([{c: r.get(c, "") for c in UNIFIED_COLUMNS} for r in rows])
 
@@ -178,7 +155,7 @@ def _rebuild_unified(modality, rows):
             if c not in existing.columns:
                 existing[c] = ""
         existing = existing[UNIFIED_COLUMNS]
-        # Drop ONLY model=='ast' rows for the current modality (idempotent — T-04-14).
+        # Drop only this modality's AST rows so re-runs are idempotent.
         drop_mask = (
             (existing["modality"] == modality)
             & (existing["model"] == "ast")
@@ -195,12 +172,8 @@ def _rebuild_unified(modality, rows):
     return UNIFIED_CSV
 
 
-# ---------------------------------------------------------------------------
-# volumetrics_cnn.csv update (appends AST row)
-# ---------------------------------------------------------------------------
-
 def _rebuild_volumetrics(modality, rows, cache_path):
-    """Append AST volumetrics to volumetrics_cnn.csv (params ~87M for AST)."""
+    """Merge this modality's AST volumetrics into volumetrics_cnn.csv."""
     data_volume_mb = os.path.getsize(cache_path) / 1e6
     new_rows = []
     for r in rows:
@@ -215,7 +188,7 @@ def _rebuild_volumetrics(modality, rows, cache_path):
             if c not in existing.columns:
                 existing[c] = ""
         existing = existing[VOLUMETRICS_COLUMNS]
-        # Drop existing AST rows for this modality (idempotent).
+        # Drop existing AST rows for this modality so re-runs are idempotent.
         drop_mask = (existing["modality"] == modality) & (existing["model"] == "ast")
         existing = existing[~drop_mask]
         combined = pd.concat([existing, new], ignore_index=True)
@@ -228,26 +201,16 @@ def _rebuild_volumetrics(modality, rows, cache_path):
     return VOLUMETRICS_CSV
 
 
-# ---------------------------------------------------------------------------
-# Canonical figure names (stem='ast', mirrors run_cnn.py::_stable_figure_names)
-# ---------------------------------------------------------------------------
-
 def _stable_figure_names(modality, row):
-    """Rename per-experiment PNGs to the canonical 'ast' flat names.
-
-    Writes ``results/figures/learning_curve_{modality}_ast.png`` and
-    ``results/figures/cm_{modality}_ast.png``.
-    """
+    """Rename per-experiment PNGs to the canonical ``..._ast.png`` flat names."""
     os.makedirs(FIGURES_DIR, exist_ok=True)
 
-    # Learning curve.
     src_curve = row.get("learning_curve_png") or row.get("curve_png")
     dst_curve = os.path.join(FIGURES_DIR, f"learning_curve_{modality}_ast.png")
     if src_curve and os.path.exists(src_curve) and os.path.abspath(src_curve) != os.path.abspath(dst_curve):
         os.replace(src_curve, dst_curve)
     row["learning_curve_png"] = dst_curve
 
-    # Confusion matrix.
     src_cm = row.get("cm_figure_path")
     dst_cm = os.path.join(FIGURES_DIR, f"cm_{modality}_ast.png")
     if src_cm and os.path.exists(src_cm) and os.path.abspath(src_cm) != os.path.abspath(dst_cm):
@@ -257,36 +220,20 @@ def _stable_figure_names(modality, row):
     return row
 
 
-# ---------------------------------------------------------------------------
-# Non-convergence check
-# ---------------------------------------------------------------------------
-
 def _is_nonconverged(modality, row):
-    """True when the AST run did not beat chance (honest-failure trigger)."""
+    """True when the AST run did not beat chance."""
     bvs = row.get("best_val_score", None)
     if bvs is None:
         return False
     return float(bvs) <= _CHANCE_THRESHOLD.get(modality, 0.5)
 
 
-# ---------------------------------------------------------------------------
-# Per-modality AST experiment driver
-# ---------------------------------------------------------------------------
-
 def _run_ast_modality(cache, modality, lr, wall_cap_s, batch_size=32, seed=42):
     """Fine-tune AST on ``modality`` and return the metric row dict.
 
-    Reuses:
-      - ``src.datasets.build_loaders`` for leakage-safe loaders (patient-level split + val
-        carve via carve_val; assert_no_patient_leakage runs inside build_loaders).
-      - ``src.ast_model.build_ast`` for the pretrained AST model.
-      - ``src.train_cnn.train_one_model`` for the training loop (early stop, wall cap).
-      - ``src.train_cnn.evaluate`` for TEST evaluation (heart MAcc / lung ICBHI Score).
-
-    The AST input adapter (``_to_ast_input``) is applied inside ``ASTWrapper.forward``,
-    so the DataLoader returns standard ``(B, 1, 64, 128)`` batches (for_effnet=False) and
-    the wrapper handles the freq/time adaptation internally. This keeps val/test
-    augment=False and all leakage asserts intact.
+    The AST input adaptation happens inside ``ASTWrapper.forward``, so the DataLoader
+    returns the same ``(B, 1, 64, 128)`` batches as the small-CNN path and the wrapper
+    handles the freq/time reshaping internally.
     """
     import random as _random
     _random.seed(seed)
@@ -295,21 +242,16 @@ def _run_ast_modality(cache, modality, lr, wall_cap_s, batch_size=32, seed=42):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-    # Build leakage-safe loaders. for_effnet=False → (B, 1, 64, 128) batches.
-    # AST's input adaptation happens inside ASTWrapper.forward, so the loader
-    # contract is the same as the small CNN path (no for_ast flag needed).
     loaders = build_loaders(
         cache, modality, for_effnet=False, batch_size=batch_size, seed=seed,
     )
     n_classes = loaders["n_classes"]
 
-    # Redundant explicit leakage guard at the driver top (defence in depth, mirroring
-    # run_cnn.py and src.train_cnn.run_modality).
+    # Defence-in-depth leakage guard before training.
     split = np.asarray(cache["split"])
     pid = np.asarray(cache["patient_id"])
     assert_no_patient_leakage(pid[split == "train"], pid[split == "test"])
 
-    # Volumetrics.
     rec_id = np.asarray(cache["recording_id"])
     is_tr, is_te = split == "train", split == "test"
     volumetrics = {
@@ -330,12 +272,11 @@ def _run_ast_modality(cache, modality, lr, wall_cap_s, batch_size=32, seed=42):
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"  [run_ast] device={dev}")
 
-    # Weighted CrossEntropy from TRAIN-only class weights (D-05).
+    # Weighted cross-entropy using train-only class weights.
     criterion = nn.CrossEntropyLoss(weight=loaders["class_weights"].to(dev))
 
     val_metric_fn = _val_macc if modality == "heart" else _val_icbhi
 
-    # Canonical output dir under FIGURES_DIR.
     out_dir = os.path.join(FIGURES_DIR, f"{modality}_ast")
     os.makedirs(out_dir, exist_ok=True)
 
@@ -350,7 +291,7 @@ def _run_ast_modality(cache, modality, lr, wall_cap_s, batch_size=32, seed=42):
         lr=lr,
         val_metric_fn=val_metric_fn,
         max_epochs=30,
-        patience=10,  # AST fine-tune: allow more patience (larger model, slower convergence)
+        patience=10,  # larger model converges slower than the small CNN
         wall_cap_s=wall_cap_s,
         ckpt_path=ckpt_path,
         curve_png=curve_png,
@@ -383,23 +324,18 @@ def _run_ast_modality(cache, modality, lr, wall_cap_s, batch_size=32, seed=42):
     return row
 
 
-# ---------------------------------------------------------------------------
-# Top-level per-modality driver (with honest-failure hook)
-# ---------------------------------------------------------------------------
-
 def run_modality(modality, lr, wall_cap_s):
-    """Run AST fine-tune for ``modality`` and write all CSVs + figures.
+    """Run the AST fine-tune for ``modality`` and write all CSVs + figures.
 
-    Wraps ``_run_ast_modality`` in a try/except that records an honest limitation row on
-    any failure (HF download, OOM, non-convergence) instead of crashing. The limitation
-    row is written to ``metrics_ast.csv`` but is NOT merged into ``unified_comparison.csv``
-    (so the unified table never shows a fabricated AST number — T-04-15).
+    On any failure (download, OOM, non-convergence) it records a limitation row in
+    ``metrics_ast.csv`` with a NaN primary metric instead of crashing; that row is not
+    merged into ``unified_comparison.csv``.
     """
     os.makedirs(TABLES_DIR, exist_ok=True)
     os.makedirs(FIGURES_DIR, exist_ok=True)
     cache, cache_path = _load_cache(modality)
 
-    # Startup leakage re-assert (logs [leakage-check OK]).
+    # Re-assert no patient leakage at startup (logs the [leakage-check OK] line).
     pid = np.asarray(list(map(str, cache["patient_id"])), dtype=object)
     split = np.asarray(cache["split"], dtype=object)
     assert_no_patient_leakage(pid[split == "train"], pid[split == "test"])
@@ -409,7 +345,6 @@ def run_modality(modality, lr, wall_cap_s):
     try:
         row = _run_ast_modality(cache, modality, lr=lr, wall_cap_s=wall_cap_s)
 
-        # Non-convergence check (honest-failure trigger, mirrors run_cnn.py D-03 logic).
         if _is_nonconverged(modality, row):
             bvs = row.get("best_val_score", float("nan"))
             print(
@@ -425,7 +360,7 @@ def run_modality(modality, lr, wall_cap_s):
             )
             return []
 
-        # Genuine success: normalise figure names to canonical 'ast' flat names.
+        # Success: normalise figure names to the canonical flat names.
         row = _stable_figure_names(modality, row)
 
         print(
@@ -440,8 +375,8 @@ def run_modality(modality, lr, wall_cap_s):
         return [row]
 
     except Exception as exc:
-        # HONEST FAILURE HOOK: catch HF download failures, OOM, and any other exception.
-        # Determine a machine-readable failure code for the fallback_from column.
+        # Catch download failures, OOM, and any other error; classify into a
+        # machine-readable code for the fallback_from column.
         exc_str = str(exc).lower()
         if "download" in exc_str or "connection" in exc_str or "http" in exc_str or "hf_" in exc_str:
             failure_code = "hf_download_failed"
@@ -456,7 +391,7 @@ def run_modality(modality, lr, wall_cap_s):
             f"  Add to report Limitations section."
         )
 
-        # Write a limitation row to metrics_ast.csv with NaN primary metric.
+        # Limitation row with a NaN primary metric.
         n_classes = 2 if modality == "heart" else 4
         primary_name = "MAcc" if modality == "heart" else "ICBHI_Score"
         limit_row = {
@@ -487,10 +422,6 @@ def run_modality(modality, lr, wall_cap_s):
         )
         return []
 
-
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 
 def main():
     ap = argparse.ArgumentParser(

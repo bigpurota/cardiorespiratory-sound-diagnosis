@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 """
-scripts/run_hpo.py — bounded val-only random hyperparameter search (Phase 4, MODL-02).
+Bounded random hyperparameter search, selecting strictly on the validation metric.
 
-Runs a bounded random search over a CONCRETE declared hyperparameter space for each
-(modality, model) combination — SmallCNN and EfficientNet-B0 on both heart and lung.
-Selection is STRICTLY by ``best_val_score`` (val-carve metric, never the test set).
+Runs a random search over the declared search space for each (modality, model) combination
+— SmallCNN and EfficientNet-B0 on both heart and lung. Winners are chosen strictly by
+``best_val_score`` (the val-carve metric), never the test set.
 
-HPO search space (D-06 centres, A4 tunables, T-04-13 val-only selection):
+Search space:
   learning_rate   : log-uniform [3e-4, 3e-3] (cnn) / [3e-5, 3e-4] (effnet)
   batch_size      : choice {16, 32, 64}
   weight_decay    : log-uniform [1e-6, 1e-3] ∪ {0.0}
@@ -14,15 +14,15 @@ HPO search space (D-06 centres, A4 tunables, T-04-13 val-only selection):
   label_smoothing : choice {0.0, 0.05, 0.1}
   imbalance       : choice {"class_weight", "weighted_sampler"}
   patience        : choice {5, 7, 10}
-  max_epochs      : fixed 30 (D-06)
+  max_epochs      : fixed 30
   (cnn only) cnn_widths : choice {(16,32,64,128), (32,64,128,256)}
   (cnn only) p          : choice {0.3, 0.5}
 
 Output:
-  results/tables/hpo_results.csv    — all trial rows
-  results/tables/hpo_best_configs.json — winner per (modality, model), val-only selection
+  results/tables/hpo_results.csv       — all trial rows
+  results/tables/hpo_best_configs.json — winner per (modality, model)
 
-Usage (GPU box):
+Usage:
     OMP_NUM_THREADS=8 .venv/bin/python scripts/run_hpo.py --n-trials 32 --wall-cap-min 60
 """
 import os
@@ -51,11 +51,10 @@ TABLES_DIR = PROJECT_ROOT / "results" / "tables"
 HPO_CSV = TABLES_DIR / "hpo_results.csv"
 HPO_JSON = TABLES_DIR / "hpo_best_configs.json"
 
-# Per-job env: round-robin assign GPUs 0-3.
+# Trials are round-robin assigned across GPUs 0..NUM_GPUS-1.
 NUM_GPUS = 4
 
-# CONCRETE bounded search space (D-06 centres, A4 tunables).
-# Sampled per trial from these choices; search seed makes it reproducible.
+# Bounded search space; sampled per trial, reproducible given the search seed.
 SEARCH_SPACE = {
     "batch_size": [16, 32, 64],
     "aug_strength": [0.5, 1.0, 1.5],
@@ -67,10 +66,10 @@ SEARCH_SPACE = {
     "p": [0.3, 0.5],
 }
 
-# Learning rate ranges (log-uniform; modality-independent, model-specific).
+# Learning rate ranges (log-uniform; model-specific, modality-independent).
 LR_BOUNDS = {
-    "cnn":   (3e-4, 3e-3),   # D-06 centre 1e-3
-    "effnet": (3e-5, 3e-4),  # D-06 centre 1e-4
+    "cnn":   (3e-4, 3e-3),   # centre ~1e-3
+    "effnet": (3e-5, 3e-4),  # centre ~1e-4
 }
 
 # weight_decay: log-uniform [1e-6, 1e-3] ∪ {0.0} — sample uniformly between 0.0 and log-range.
@@ -79,11 +78,10 @@ WEIGHT_DECAY_LOG_BOUNDS = (1e-6, 1e-3)
 
 
 def _sample_config(model_key, rng):
-    """Sample one hyperparameter config for ``model_key`` from the declared search space.
+    """Sample one hyperparameter config for ``model_key`` from the search space.
 
-    Uses a seeded ``np.random.Generator`` so the sequence of configs is reproducible given
-    the search seed. This function is the ONLY source of sampled configs — no inline
-    np.random calls elsewhere.
+    Uses the passed seeded ``np.random.Generator`` so the config sequence is reproducible.
+    This is the only source of sampled configs.
     """
     config = {}
     config["batch_size"] = int(rng.choice(SEARCH_SPACE["batch_size"]))
@@ -110,7 +108,7 @@ def _sample_config(model_key, rng):
         config["p"] = float(rng.choice(SEARCH_SPACE["p"]))
     else:
         config["cnn_widths"] = None
-        config["p"] = 0.3  # not used for effnet, carries default
+        config["p"] = 0.3  # unused for effnet; carries a default
 
     return config
 
@@ -118,9 +116,9 @@ def _sample_config(model_key, rng):
 def _run_one_trial(modality, model, trial_idx, hparam_config, wall_cap_min, gpu_id, python_exe, search_seed=42):
     """Run a single HPO trial in a subprocess; return (row_dict or None, elapsed_s).
 
-    Each trial calls run_modality with the sampled hyperparameters and a FIXED search
-    seed (42 by default) so trials differ ONLY by hyperparameters, not RNG noise — making
-    the val_score comparison across trials fair and reproducible.
+    Each trial calls run_modality with the sampled hyperparameters and a fixed search seed
+    so trials differ only by hyperparameters, not RNG noise, keeping the val_score
+    comparison fair and reproducible.
     """
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
@@ -204,9 +202,8 @@ def main():
     python_exe = args.python
     n_trials = args.n_trials
 
-    # Normalise model names ("effnet" → "effnet" for the search; run_modality handles the alias).
     configs_to_run = list(product(args.modalities, args.models))
-    search_seed = args.seeds[0]  # use the first seed as the search RNG seed
+    search_seed = args.seeds[0]  # first seed drives the search RNG
 
     print(f"[hpo] {len(configs_to_run)} configs × {n_trials} trials, "
           f"wall_cap={args.wall_cap_min}min/trial, search_seed={search_seed}")
@@ -220,18 +217,18 @@ def main():
         config_key = f"{modality}_{model_key}"
         print(f"\n[hpo] *** {modality}/{model} — {n_trials} trials ***")
 
-        # Seeded RNG for reproducible config sampling (different seed per config combo).
+        # Per-combo seeded RNG for reproducible config sampling.
         combo_seed = search_seed + abs(hash((modality, model))) % 1000
         rng = np.random.default_rng(combo_seed)
 
-        # Pre-sample ALL configs for this (modality, model) combo before launching any trials
-        # so the sampled sequence is deterministic regardless of execution order.
+        # Pre-sample all configs up front so the sequence is deterministic regardless of
+        # trial execution order.
         all_hparams = [_sample_config(model_key, rng) for _ in range(n_trials)]
 
         trial_rows = []
 
         def _run_trial_wrapper(trial_idx):
-            """Wrapper for thread pool — returns (trial_idx, row_or_None, elapsed, hparams)."""
+            """Thread-pool worker — returns (trial_idx, row_or_None, elapsed, gpu_id, hparams)."""
             hp = all_hparams[trial_idx]
             gpu_id = trial_idx % NUM_GPUS
             print(f"  trial {trial_idx+1}/{n_trials}: "
@@ -247,7 +244,7 @@ def main():
             )
             return trial_idx, row, elapsed, gpu_id, hp
 
-        # Run up to NUM_GPUS trials in parallel to saturate all 4 A100s.
+        # Run up to NUM_GPUS trials in parallel to saturate the GPUs.
         with concurrent.futures.ThreadPoolExecutor(max_workers=NUM_GPUS) as executor:
             futures = {executor.submit(_run_trial_wrapper, i): i for i in range(n_trials)}
             for fut in concurrent.futures.as_completed(futures):
@@ -266,8 +263,8 @@ def main():
                         "patience": hp["patience"],
                         "cnn_widths": str(hp.get("cnn_widths")),
                         "p": hp.get("p", 0.3),
-                        # SELECTION METRIC: best_val_score (val-carve ONLY, T-04-13).
-                        # primary_metric_test is recorded for reference but NEVER used for selection.
+                        # Selection is on best_val_score; primary_metric_test is recorded for
+                        # reference only and never used to choose a winner.
                         "best_val_score": row.get("best_val_score"),
                         "primary_metric_test": row.get("primary_metric"),
                         "epochs_ran": row.get("epochs_ran"),
@@ -283,15 +280,13 @@ def main():
                 else:
                     print(f"  [trial {trial_idx+1} FAILED] elapsed={elapsed:.0f}s", flush=True)
 
-        # Write all trial rows so far (cumulative, append-safe).
+        # Write all trial rows so far (cumulative).
         trial_df = pd.DataFrame(all_trial_rows)
         trial_df.to_csv(HPO_CSV, index=False)
 
         if trial_rows:
-            # VAL-ONLY SELECTION (T-04-13): sort by best_val_score DESCENDING.
-            # We ASSERT here that primary_metric_test is never the selection key.
-            # Selection signal: best_val_score (val-carve metric only).
-            best_row = max(trial_rows, key=lambda r: r["best_val_score"])  # argmax by best_val_score
+            # Winner = argmax of best_val_score; the test metric is never the selection key.
+            best_row = max(trial_rows, key=lambda r: r["best_val_score"])
             best_hparam = {
                 "learning_rate": best_row["learning_rate"],
                 "batch_size": best_row["batch_size"],
@@ -302,7 +297,7 @@ def main():
                 "patience": best_row["patience"],
                 "cnn_widths": eval(best_row["cnn_widths"]) if best_row["cnn_widths"] not in (None, "None") else None,
                 "p": best_row["p"],
-                "best_val_score": best_row["best_val_score"],  # val-only selection signal
+                "best_val_score": best_row["best_val_score"],
                 "trial_idx": best_row["trial_idx"],
             }
             best_configs[config_key] = best_hparam
@@ -312,22 +307,19 @@ def main():
         else:
             print(f"\n[hpo] {config_key}: no successful trials — no winner.")
 
-    # Write final hpo_results.csv.
     if all_trial_rows:
         pd.DataFrame(all_trial_rows).to_csv(HPO_CSV, index=False)
         print(f"\n[wrote] {HPO_CSV} ({len(all_trial_rows)} trial rows)")
 
-    # Write hpo_best_configs.json.
     with open(HPO_JSON, "w") as f:
         json.dump(best_configs, f, indent=2)
     print(f"[wrote] {HPO_JSON} ({len(best_configs)} best configs)")
 
-    # Leaderboard.
     print("\n=== HPO LEADERBOARD (val-only selection) ===")
     if all_trial_rows:
         df = pd.DataFrame(all_trial_rows)
         for (modality, model), grp in df.groupby(["modality", "model"]):
-            # Sort by best_val_score — the ONLY selection signal.
+            # Sort by best_val_score, the only selection signal.
             top = grp.sort_values("best_val_score", ascending=False).head(3)
             print(f"\n  {modality}/{model}:")
             for _, r in top.iterrows():

@@ -1,30 +1,27 @@
 #!/usr/bin/env python
 """
-scripts/run_cross_modal.py — GPU CLI for cross-modal transfer + joint multi-task.
+Cross-modal transfer and joint multi-task experiments between heart and lung sounds.
 
-Runs all 5 experiment cells and writes the cross-modal summary artefacts:
-  - IN-DOMAIN baselines (2):   heart→heart, lung→lung (via run_modality)
-  - CROSS-DOMAIN transfer (2): heart→lung, lung→heart (via transfer_modality)
-  - JOINT multi-task (1 model → 2 rows): train_joint → evaluate_joint
+Runs five cells and writes the cross-modal summary artefacts:
+  - in-domain baselines (2):   heart→heart, lung→lung (via run_modality)
+  - cross-domain transfer (2): heart→lung, lung→heart (via transfer_modality)
+  - joint multi-task (1 model → 2 rows): train_joint → evaluate_joint
 
-Outputs (DO NOT modify unified_comparison.csv — it is READ-ONLY here):
+This script treats unified_comparison.csv as read-only. Outputs:
   results/tables/cross_modal_summary.csv   — one row per cell, idempotent
   results/tables/cross_modal_spearman.csv  — Spearman rho from unified_comparison.csv
   results/figures/cross_modal_heatmap.png  — source×target transfer-matrix heatmap
 
-Device auto-detect (train_one_model / train_joint both call torch.cuda.is_available())
-so the SAME script runs on CPU (tiny smoke) and the 4×A100 box (full run).
+Device is auto-detected so the same script runs on CPU and GPU.
 
 Usage:
     uv run python scripts/run_cross_modal.py --arch cnn --wall-cap-min 1 --seed 42
-    # Full GPU run (from the rented box):
     OMP_NUM_THREADS=8 .venv/bin/python scripts/run_cross_modal.py --arch both \\
         --wall-cap-min 45 --seed 42
 """
 import os
 
-# macOS duplicate-OpenMP-runtime guard (VERBATIM from src/train_cnn.py / scripts/run_cnn.py):
-# MUST run BEFORE the first ``import torch``.  ``setdefault`` lets a caller override.
+# macOS duplicate-OpenMP-runtime guard: must run before the first ``import torch``.
 os.environ.setdefault("OMP_NUM_THREADS", "8")
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -36,13 +33,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import config  # noqa: E402,F401 — import FIRST (seeds RNGs, exposes paths)
+from src import config  # noqa: E402,F401 — import FIRST (seeds RNGs, exposes paths)
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 import matplotlib  # noqa: E402
-matplotlib.use("Agg")  # MUST precede pyplot import — headless (Pitfall 7)
+matplotlib.use("Agg")  # headless backend; must precede the pyplot import
 import matplotlib.pyplot as plt  # noqa: E402
 
 import torch  # noqa: E402
@@ -75,12 +72,8 @@ SUMMARY_COLUMNS = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# Cache loader (mirrors scripts/run_cnn.py::_load_cache)
-# ---------------------------------------------------------------------------
-
 def _load_cache(modality):
-    """np.load the spectrogram cache; build it if absent."""
+    """Load the spectrogram cache for ``modality``, building it if absent."""
     path = os.path.join(FEATURES_DIR, f"{modality}_spectrograms.npy")
     if not os.path.exists(path):
         print(
@@ -95,10 +88,6 @@ def _load_cache(modality):
         )
     return np.load(path, allow_pickle=True).item()
 
-
-# ---------------------------------------------------------------------------
-# Idempotent summary CSV writer (drop-mask by (setting, source, target, model))
-# ---------------------------------------------------------------------------
 
 def _write_summary(rows):
     """Write/merge cross_modal_summary.csv idempotently.
@@ -134,10 +123,6 @@ def _write_summary(rows):
     print(f"[wrote] {SUMMARY_CSV} ({len(combined)} rows)")
 
 
-# ---------------------------------------------------------------------------
-# Spearman CSV writer
-# ---------------------------------------------------------------------------
-
 def _write_spearman(rho, pvalue, n, labels, heart_scores, lung_scores):
     os.makedirs(TABLES_DIR, exist_ok=True)
     df = pd.DataFrame([{
@@ -153,24 +138,18 @@ def _write_spearman(rho, pvalue, n, labels, heart_scores, lung_scores):
     print(f"[wrote] {SPEARMAN_CSV}  rho={rho:.4f}  pvalue={pvalue:.4f}")
 
 
-# ---------------------------------------------------------------------------
-# Heatmap renderer
-# ---------------------------------------------------------------------------
-
 def _render_heatmap(rows):
     """Render a source×target primary-metric heatmap and save to HEATMAP_PNG."""
     os.makedirs(FIGURES_DIR, exist_ok=True)
 
-    # Build matrix: rows = source modality (heart / lung / heart+lung),
-    #               cols = target modality (heart / lung).
+    # Matrix rows = source modality, cols = target modality.
     sources = ["heart", "lung", "heart+lung"]
     targets = ["heart", "lung"]
 
-    # Index rows by (source, target) → primary_metric.
+    # Index by (source, target) → primary_metric.
     lookup = {}
     for r in rows:
         key = (r.get("source_modality", ""), r.get("target_modality", ""))
-        # For joint rows, take either heart or lung target.
         existing = lookup.get(key)
         if existing is None or r.get("setting") != "in_domain":
             lookup[key] = r.get("primary_metric", float("nan"))
@@ -182,7 +161,6 @@ def _render_heatmap(rows):
         for tgt in targets:
             val = lookup.get((src, tgt), float("nan"))
             row_vals.append(val)
-            # Track metric name for the label.
             for r in rows:
                 if r.get("source_modality") == src and r.get("target_modality") == tgt:
                     metric_names.append(r.get("primary_metric_name", ""))
@@ -200,7 +178,7 @@ def _render_heatmap(rows):
     ax.set_ylabel("Source (training) modality", fontsize=11)
     ax.set_title("Cross-Modal Transfer Matrix — Primary Metric", fontsize=12)
 
-    # Annotate cells with the numeric value.
+    # Annotate each cell with its value.
     for i, src in enumerate(sources):
         for j, tgt in enumerate(targets):
             val = matrix_arr[i, j]
@@ -215,17 +193,12 @@ def _render_heatmap(rows):
     print(f"[wrote] {HEATMAP_PNG}")
 
 
-# ---------------------------------------------------------------------------
-# In-domain baseline helper (wraps run_modality from src.train_cnn)
-# ---------------------------------------------------------------------------
-
 def _run_in_domain(cache, modality, arch, wall_cap_s, seed, out_dir):
-    """Run a single in-domain experiment via src.train_cnn.run_modality."""
+    """Run a single in-domain experiment and shape its row to the summary schema."""
     row = _run_modality_single(
         cache, modality, model=arch,
         wall_cap_s=wall_cap_s, seed=seed, out_dir=out_dir,
     )
-    # Shape the row to match cross_modal_summary schema.
     return {
         "setting": "in_domain",
         "source_modality": modality,
@@ -242,10 +215,6 @@ def _run_in_domain(cache, modality, arch, wall_cap_s, seed, out_dir):
     }
 
 
-# ---------------------------------------------------------------------------
-# Main experiment runner
-# ---------------------------------------------------------------------------
-
 def main():
     ap = argparse.ArgumentParser(
         description=(
@@ -259,7 +228,7 @@ def main():
     )
     ap.add_argument(
         "--wall-cap-min", type=float, default=20.0,
-        help="Per-experiment wall-clock cap in minutes (D-03; relax on GPU).",
+        help="Per-experiment wall-clock cap in minutes (relax on GPU).",
     )
     ap.add_argument("--seed", type=int, default=42, help="RNG seed (default 42).")
     ap.add_argument(
@@ -278,13 +247,12 @@ def main():
     device_str = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"[run_cross_modal] device={device_str}  archs={archs}  wall_cap_s={wall_cap_s}  seed={seed}")
 
-    # --- Load + leakage-assert BOTH caches at startup ---
+    # Load both caches and re-assert no patient leakage at startup.
     print("[run_cross_modal] loading heart cache ...")
     heart_cache = _load_cache("heart")
     print("[run_cross_modal] loading lung cache ...")
     lung_cache = _load_cache("lung")
 
-    # Startup leakage re-assert on both (logs [leakage-check OK] × 2).
     for cache, mod in ((heart_cache, "heart"), (lung_cache, "lung")):
         pid = np.asarray(list(map(str, cache["patient_id"])), dtype=object)
         spl = np.asarray(cache["split"], dtype=object)
@@ -339,7 +307,7 @@ def main():
                 out_dir=os.path.join(out_base, "transfer_heart_lung"),
             )
             print(f"      heart→lung  {row_h2l['primary_metric_name']}={row_h2l['primary_metric']:.4f}")
-            # Honest reporting: flag weak/negative transfer.
+            # Flag weak/negative transfer against the in-domain baseline.
             in_domain_lung_metric = next(
                 (r["primary_metric"] for r in all_rows
                  if r["setting"] == "in_domain" and r["target_modality"] == "lung"
@@ -396,7 +364,7 @@ def main():
             print(f"      joint best_val_score={train_info['best_val_score']:.4f}  "
                   f"epochs={train_info['epochs_ran']}")
 
-            # Build loaders for evaluation (same loaders as training — reuse build_loaders).
+            # Build the same loaders used for training to evaluate the joint model.
             heart_loaders = build_loaders(
                 heart_cache, "heart",
                 for_effnet=for_effnet, batch_size=32, seed=seed,
@@ -420,10 +388,9 @@ def main():
         except Exception as e:
             print(f"      [WARN] joint multi-task failed: {e}")
 
-    # --- Write cross_modal_summary.csv ---
     _write_summary(all_rows)
 
-    # --- Spearman rank correlation (reads unified_comparison.csv — READ-ONLY there) ---
+    # --- Spearman rank correlation (reads unified_comparison.csv read-only) ---
     if os.path.exists(UNIFIED_CSV):
         try:
             rho, pvalue, n, labels, h_scores, l_scores = spearman_method_rankings(UNIFIED_CSV)
@@ -434,11 +401,10 @@ def main():
     else:
         print(f"[WARN] {UNIFIED_CSV} not found — skipping Spearman (unified_comparison.csv required).")
 
-    # --- Heatmap ---
     if all_rows:
         _render_heatmap(all_rows)
 
-    # --- Verify unified_comparison.csv is untouched ---
+    # Verify unified_comparison.csv was left untouched.
     if os.path.exists(UNIFIED_CSV):
         n_unified = len(pd.read_csv(UNIFIED_CSV))
         print(f"\n[verify] unified_comparison.csv still has {n_unified} rows (untouched).")

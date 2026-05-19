@@ -1,24 +1,20 @@
-"""
-tests/test_environment.py — EVAL-04 import and version assertions.
+"""Import and version checks for the project's pinned dependencies.
 
-Tests that all required packages are importable and that pinned versions match
+Verifies that all required packages are importable and that pinned versions match
 the project's pyproject.toml specification.
-
-Wave 0: These tests will FAIL or SKIP until the uv environment is set up
-(Phase 1, Wave 1). Collection must succeed with 0 errors.
 """
 import importlib
 import pytest
 
 # ---------------------------------------------------------------------------
-# Skip the whole module if torch is not importable (Wave 0 / pre-install state)
+# Skip the whole module if torch is not importable (pre-install state)
 # ---------------------------------------------------------------------------
 torch_spec = importlib.util.find_spec("torch")
 _torch_missing = torch_spec is None
 
 
 def test_imports():
-    """All required packages import without error — EVAL-04."""
+    """All required packages import without error."""
     packages = [
         "librosa",
         "torch",
@@ -44,10 +40,10 @@ def test_imports():
 
 @pytest.mark.skipif(
     _torch_missing,
-    reason="torch not installed — run `uv sync` to set up the environment (Wave 0 skip)",
+    reason="torch not installed — run `uv sync` to set up the environment",
 )
 def test_versions():
-    """Pinned versions match pyproject.toml — EVAL-04."""
+    """Pinned versions match pyproject.toml."""
     import torch  # noqa: E501
     import librosa  # noqa: E501
     import sklearn  # noqa: E501

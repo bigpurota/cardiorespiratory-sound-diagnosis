@@ -1,24 +1,18 @@
 #!/usr/bin/env python
 """
-scripts/run_classical.py — run the 8 classical experiments per modality & write CSVs.
+Run the classical (features + classifiers) experiments per modality and write the CSVs.
 
 CLI ``--modality {heart,lung,all}`` that:
-  1. loads the Wave-1 feature cache ``features/{modality}_classical.npy`` (np.load
-     allow_pickle, ``.item()``);
-  2. re-asserts ``assert_no_patient_leakage`` on the cached train/test patient groups
-     (D-03 — logs the ``[leakage-check OK]`` line);
-  3. calls ``src.train_classical.run_experiments(modality, cache)`` to fit/evaluate the
-     8 (feature_set × model) experiments and save a confusion-matrix figure per model;
-  4. writes ``results/tables/metrics_{modality}_classical.csv`` (8 rows, full metric
-     suite headlined on MAcc / ICBHI_Score — NOT accuracy), deterministically rebuilds
-     the classical rows of ``results/tables/unified_comparison.csv`` (Pattern-8 long
-     format, 16 rows after both modalities — Phase 4 appends model=cnn rows), and
-     ``results/tables/volumetrics_classical.csv`` (Pattern-9: train_time_s + segment AND
-     recording/patient counts + data_volume_mb).
+  1. loads the feature cache ``features/{modality}_classical.npy``;
+  2. re-asserts ``assert_no_patient_leakage`` on the cached train/test patient groups;
+  3. calls ``src.train_classical.run_experiments(modality, cache)`` to fit and evaluate the
+     (feature_set × model) experiments, saving a confusion-matrix figure per model;
+  4. writes ``results/tables/metrics_{modality}_classical.csv`` (full metric suite headlined
+     on MAcc / ICBHI_Score, not accuracy), rebuilds the classical rows of
+     ``results/tables/unified_comparison.csv``, and refreshes
+     ``results/tables/volumetrics_classical.csv``.
 
-Mirrors the import-config-first + ``sys.path.insert`` convention of scripts/run_eda.py /
-scripts/build_features.py. Each modality is independently runnable so a lung failure
-never loses heart results.
+Each modality is independently runnable so a lung failure never loses heart results.
 
     uv run python scripts/run_classical.py --modality heart
     uv run python scripts/run_classical.py --modality lung
@@ -32,7 +26,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import config  # noqa: E402,F401 — import FIRST (seeds RNGs, exposes paths)
+from src import config  # noqa: E402,F401 — import FIRST (seeds RNGs, exposes paths)
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
@@ -46,13 +40,13 @@ TABLES_DIR = os.path.join(config.RESULTS_DIR, "tables")
 UNIFIED_CSV = os.path.join(TABLES_DIR, "unified_comparison.csv")
 VOLUMETRICS_CSV = os.path.join(TABLES_DIR, "volumetrics_classical.csv")
 
-# Pattern-8 unified_comparison.csv column order (Phase-4-extensible).
+# unified_comparison.csv column order (long format; extended by the DL drivers later).
 UNIFIED_COLUMNS = [
     "modality", "feature_set", "model", "primary_metric_name", "primary_metric",
     "Se", "Sp", "macro_f1", "auc_roc", "accuracy", "n_train", "n_test",
 ]
 
-# Pattern-9 volumetrics_classical.csv column order.
+# volumetrics_classical.csv column order.
 VOLUMETRICS_COLUMNS = [
     "modality", "feature_set", "model", "train_time_s",
     "n_train_segments", "n_test_segments",
@@ -78,7 +72,7 @@ METRICS_COLUMNS = {
 
 
 def _load_cache(modality):
-    """np.load the Wave-1 feature cache for ``modality`` and return the payload dict."""
+    """Load the feature cache for ``modality`` and return the payload dict + path."""
     path = os.path.join(FEATURES_DIR, f"{modality}_classical.npy")
     if not os.path.exists(path):
         raise FileNotFoundError(
@@ -89,7 +83,7 @@ def _load_cache(modality):
 
 
 def _write_metrics_csv(modality, rows):
-    """Write the per-modality metrics CSV (8 rows) with the full metric suite."""
+    """Write the per-modality metrics CSV with the full metric suite."""
     cols = METRICS_COLUMNS[modality]
     df = pd.DataFrame(rows)
     for c in cols:
@@ -103,12 +97,10 @@ def _write_metrics_csv(modality, rows):
 
 
 def _rebuild_unified(modality, rows):
-    """Deterministically merge this modality's rows into unified_comparison.csv.
+    """Idempotently merge this modality's classical rows into unified_comparison.csv.
 
-    Reads any existing file, drops rows with the same (modality, feature_set, model)
-    classical keys, appends the fresh classical rows, and rewrites in Pattern-8 column
-    order. Phase-4 CNN rows (model=cnn) are preserved untouched. After both heart and
-    lung runs the file holds 16 classical rows.
+    Drops this modality's existing classical rows, appends the fresh ones, and rewrites in
+    column order. Any DL rows written by the other drivers are preserved untouched.
     """
     new = pd.DataFrame([{c: r.get(c, "") for c in UNIFIED_COLUMNS} for r in rows])
 
@@ -118,7 +110,7 @@ def _rebuild_unified(modality, rows):
             if c not in existing.columns:
                 existing[c] = ""
         existing = existing[UNIFIED_COLUMNS]
-        # Drop only this modality's CLASSICAL rows (keep other modality + any cnn rows).
+        # Drop only this modality's classical rows (keep other modality + any DL rows).
         drop_mask = (
             (existing["modality"] == modality)
             & (existing["model"].isin(MODEL_NAMES))
@@ -163,11 +155,11 @@ def _rebuild_volumetrics(modality, rows, cache_path):
 
 
 def run_modality(modality):
-    """Run the 8 experiments for ``modality`` and write all three CSVs + CM figures."""
+    """Run all experiments for ``modality`` and write the three CSVs + CM figures."""
     os.makedirs(TABLES_DIR, exist_ok=True)
     cache, cache_path = _load_cache(modality)
 
-    # D-03: re-assert zero patient leakage at startup ([leakage-check OK] line).
+    # Re-assert no patient leakage at startup (logs the [leakage-check OK] line).
     pid = np.asarray(list(map(str, cache["patient_id"])), dtype=object)
     split = np.asarray(cache["split"], dtype=object)
     assert_no_patient_leakage(pid[split == "train"], pid[split == "test"])

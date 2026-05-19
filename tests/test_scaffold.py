@@ -1,25 +1,15 @@
-"""
-tests/test_scaffold.py — DELV-01 directory structure and params YAML assertions.
+"""Project-scaffold tests: directory layout and params YAML files.
 
-Tests that:
-  - Required project directories exist (src, data, params, results, report, notebooks).
-    This test FAILS (not skips) if directories are absent — that is correct Wave 0
-    behavior and the intent is that Wave 1 will create those dirs.
-  - params/heart.yaml and params/lung.yaml are valid YAML files containing all
-    required preprocessing parameter keys. These tests SKIP if the files do not
-    exist yet (they are created in Wave 1).
-
-Wave 0: test_dir_structure will FAIL (intentionally) until Wave 1 creates the dirs.
-        test_yaml_params will SKIP until Wave 1 creates the YAML files.
-        Collection must succeed with 0 errors.
+Checks that the required project directories exist and that params/heart.yaml and
+params/lung.yaml are valid YAML containing the expected preprocessing keys. The
+directory test fails when dirs are missing; the YAML test skips when the files
+are absent.
 """
 import pathlib
 
 import pytest
 
-# ---------------------------------------------------------------------------
-# DELV-01 — directory structure
-# ---------------------------------------------------------------------------
+# Directory structure
 # pytest runs with cwd = project root when invoked as `pytest tests/` from root,
 # so relative Path() lookups resolve correctly.
 
@@ -27,10 +17,9 @@ _REQUIRED_DIRS = ["src", "data", "params", "results", "report", "notebooks"]
 
 
 def test_dir_structure():
-    """ROADMAP success criterion 4: required project directories exist — DELV-01.
+    """Required project directories exist.
 
-    This test FAILS (not skips) when directories are absent. That is the correct
-    Wave 0 state — the failure drives Wave 1 to create the scaffold.
+    This test fails (rather than skips) when directories are absent.
     """
     missing = []
     for d in _REQUIRED_DIRS:
@@ -39,16 +28,14 @@ def test_dir_structure():
 
     assert not missing, (
         f"Missing required directories: {missing}. "
-        "Run the Phase 1 scaffold plan (01-01) to create the project structure."
+        "Create the project structure first."
     )
 
 
-# ---------------------------------------------------------------------------
-# DELV-01 — params YAML keys
-# ---------------------------------------------------------------------------
+# params YAML keys
 
 def test_yaml_params():
-    """params/heart.yaml and params/lung.yaml are valid YAML with required keys — DELV-01."""
+    """params/heart.yaml and params/lung.yaml are valid YAML with the required keys."""
     try:
         import yaml  # noqa: E501
     except ImportError:
@@ -63,7 +50,7 @@ def test_yaml_params():
     ]:
         p = pathlib.Path(path_str)
         if not p.exists():
-            pytest.skip(f"{path_str} not created yet — Wave 0 skip; will pass after Wave 1")
+            pytest.skip(f"{path_str} not created yet")
 
         with open(p) as fh:
             data = yaml.safe_load(fh)

@@ -1,22 +1,9 @@
-"""
-tests/test_cross_modal.py — MODL-03 cross-modal transfer + joint model contracts.
+"""Contracts for the cross-modal transfer and joint multi-task model.
 
-Mirrors tests/test_train_cnn_smoke.py (skip-on-missing, synthetic fixture):
-
-  STATIC grep tests:
-    - head swap present (Linear(feature_dim) + comment about 2-class/4-class)
-    - assert_no_patient_leakage called ≥2 times
-    - metrics imported not re-implemented (no def heart_macc / def icbhi_score)
-    - no leakage anti-patterns (no fit_transform/SMOTE)
-
-  UNIT tests:
-    - build_shared_encoder returns the right feature_dim per arch
-    - JointMultiTaskModel.forward(x,"heart") emits (B,2); (x,"lung") emits (B,4)
-
-  SMOKE test:
-    - transfer_modality on a synthetic 2-class→4-class cache returns a finite primary_metric
-      and non-negative Se/Sp.
-"""
+Static checks confirm src/cross_modal.py reuses the shared building blocks (no
+re-implemented models/metrics, leakage guards present); unit checks verify the
+encoder feature dim and the joint model's per-modality output shapes; a smoke
+test runs transfer_modality on a synthetic 2-class -> 4-class cache."""
 import importlib
 import pathlib
 import sys
@@ -90,14 +77,14 @@ def test_static_head_swap_present():
     assert "head_heart" in src, "cross_modal.py missing 'head_heart' (joint model)"
     assert "head_lung" in src, "cross_modal.py missing 'head_lung' (joint model)"
 
-    # Comment documenting the MODL-03 label-space-mismatch handling
+    # A comment documenting the 2-class/4-class label-space handling must be present.
     has_comment = bool(re.search(
-        r"(2.class|4.class|heart.binary|label.space|head.swap|binary.*4|MODL-03)",
+        r"(2.class|4.class|heart.binary|label.space|head.swap|binary.*4)",
         src, re.IGNORECASE
     ))
     assert has_comment, (
         "cross_modal.py must contain a comment documenting the 2-class/4-class head-swap "
-        "mismatch (MODL-03)"
+        "mismatch"
     )
 
 

@@ -1,36 +1,26 @@
 """
-src/cross_modal.py — deep cross-modal transfer + joint multi-task model (Phase 5, MODL-03).
+Cross-modal transfer and joint multi-task models for the heart/lung sound study.
 
-Implements the cross-modal transfer and joint multi-task experiments that form the novelty
-chapter's empirical core.  EVERYTHING here REUSES existing building blocks — no model,
-metric, or patient-leakage logic is re-implemented:
+Reuses the encoders, metrics, and patient-leakage checks from elsewhere in ``src``:
 
-  - ``build_shared_encoder(arch, for_effnet)`` — wraps the SmallCNN / EfficientNet-B0
-    backbone from ``src.cnn`` as a headless feature extractor.
-  - ``transfer_modality(...)`` — PRETRAINS an encoder+source-head on the SOURCE modality,
-    SWAPS in a fresh target-sized head (heart-binary 2-class ↔ lung 4-class label-space
-    mismatch handled here, MODL-03), FINE-TUNES on the TARGET, and EVALUATES.
-  - ``JointMultiTaskModel(arch, for_effnet)`` — ONE shared encoder + TWO per-modality
-    heads (``head_heart`` Linear(feature_dim, 2), ``head_lung`` Linear(feature_dim, 4)).
-  - ``train_joint(...)`` — trains the joint model on POOLED heart+lung batches (interleaved),
-    early-stopping on the average of val heart MAcc + val lung ICBHI.
-  - ``evaluate_joint(...)`` — evaluates the joint model on both test loaders; returns two
-    per-modality row dicts.
-  - ``spearman_method_rankings(unified_csv_path)`` — reads the existing unified_comparison.csv
-    classical rows at feature set A and computes scipy.stats.spearmanr over heart MAcc vs
-    lung ICBHI rankings for {logreg, svm, rf, xgb}.
+  - ``build_shared_encoder`` wraps the SmallCNN / EfficientNet-B0 backbone as a headless
+    feature extractor.
+  - ``transfer_modality`` pretrains an encoder on the source modality, swaps in a fresh
+    target-sized head (handling the heart 2-class vs lung 4-class mismatch), fine-tunes on
+    the target, and evaluates.
+  - ``JointMultiTaskModel`` is one shared encoder with separate heart (2-class) and lung
+    (4-class) heads; ``train_joint`` trains it on interleaved heart+lung batches and
+    ``evaluate_joint`` scores it on both test sets.
+  - ``spearman_method_rankings`` reads the classical rows of unified_comparison.csv and
+    correlates the heart MAcc vs lung ICBHI rankings.
 
-Splits are ALWAYS patient-level leakage-safe: ``assert_no_patient_leakage`` is called on
-(train,test) AND (train,val) for every modality touched, via ``build_loaders`` (which runs
-the assertion internally) AND an explicit defence-in-depth call at the top of each public
-entry point.  SEED=42 is threaded throughout.  NO global scaler, NO SMOTE.
-
-``import config`` runs first for the SEED=42 determinism side effect.
+All splits are patient-level leakage-safe: ``assert_no_patient_leakage`` runs inside
+``build_loaders`` and again explicitly at the top of each public entry point. No global
+scaler, no SMOTE.
 """
 import os
 
-# macOS duplicate-OpenMP-runtime guard (VERBATIM from src/train_cnn.py):
-# MUST run BEFORE the first ``import torch``.  ``setdefault`` lets a caller override.
+# macOS duplicate-OpenMP-runtime guard; must run before the first ``import torch``.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -38,7 +28,7 @@ import copy
 import time
 import random as _random
 
-import config  # noqa: F401 — import FIRST for the SEED=42 side effect (determinism)
+from src import config  # noqa: F401 — import first for the SEED=42 side effect (determinism)
 
 import numpy as np
 import torch
@@ -57,7 +47,7 @@ from src.train_cnn import (  # noqa: F401
     LUNG_LABELS,
     LUNG_NORMAL_LABEL,
 )
-from src.metrics import (  # noqa: F401 — REUSE; NEVER re-implement
+from src.metrics import (  # noqa: F401
     majority_vote,
     heart_macc,
     icbhi_score,
@@ -78,16 +68,12 @@ __all__ = [
 ]
 
 import matplotlib
-matplotlib.use("Agg")  # headless, must precede pyplot
+matplotlib.use("Agg")  # headless backend, must precede the pyplot import
 import matplotlib.pyplot as plt  # noqa: E402
 
 RESULTS_DIR = config.RESULTS_DIR
 FIGURES_DIR = os.path.join(RESULTS_DIR, "figures")
 
-
-# ---------------------------------------------------------------------------
-# Shared encoder factory
-# ---------------------------------------------------------------------------
 
 def build_shared_encoder(arch="cnn", for_effnet=False):
     """Return a (encoder_module, feature_dim) pair for the shared cross-modal backbone.
@@ -118,31 +104,24 @@ def build_shared_encoder(arch="cnn", for_effnet=False):
         feature_dim = m.num_features
         return m, feature_dim
     else:
-        # CNN: pull features + pool + flatten out of a default SmallCNN.
-        # Default widths = (16, 32, 64, 128) -> feature_dim = 128.
-        _tmp = SmallCNN(n_classes=2)  # n_classes is irrelevant — we extract the encoder
+        # CNN: pull features + pool + flatten out of a default SmallCNN; n_classes is
+        # irrelevant here since we discard the head.
+        _tmp = SmallCNN(n_classes=2)
         encoder = nn.Sequential(
             _tmp.features,
             _tmp.pool,
             nn.Flatten(),
         )
-        feature_dim = 128  # widths[-1] of (16, 32, 64, 128)
+        feature_dim = 128  # widths[-1] of the default (16, 32, 64, 128)
         return encoder, feature_dim
 
 
-# ---------------------------------------------------------------------------
-# Simple single-head wrapper used during source pretraining + target fine-tuning
-# ---------------------------------------------------------------------------
-
 class _EncoderWithHead(nn.Module):
-    """Thin container: shared encoder + a single linear head.
+    """Shared encoder plus a single linear head, sized 2 for heart or 4 for lung.
 
-    Used during the transfer_modality pretrain and fine-tune stages.  The head
-    is modality-sized: 2 for heart, 4 for lung.  The HEAD SWAP (step 4 in
-    transfer_modality) is the documented MODL-03 mechanism for handling the
-    heart-binary (2-class) ↔ lung-4-class label-space mismatch: the pretrained
-    encoder weights are retained and only the head is replaced with a freshly-
-    initialised Linear sized to the TARGET class count.
+    Used during the transfer_modality pretrain and fine-tune stages. Swapping the head
+    while keeping the pretrained encoder is how the heart 2-class vs lung 4-class
+    label-space mismatch is handled.
     """
 
     def __init__(self, encoder, feature_dim, n_classes, p_dropout=0.3):
@@ -158,17 +137,13 @@ class _EncoderWithHead(nn.Module):
 
 
 def _seed_all(seed=42):
-    """Set Python/NumPy/PyTorch RNG seeds (defence-in-depth for determinism)."""
+    """Set the Python, NumPy, and PyTorch RNG seeds for determinism."""
     _random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-
-# ---------------------------------------------------------------------------
-# transfer_modality — pretrain source → HEAD SWAP → fine-tune target → evaluate
-# ---------------------------------------------------------------------------
 
 def transfer_modality(
     source_cache,
@@ -184,22 +159,13 @@ def transfer_modality(
     seed=42,
     out_dir=None,
 ):
-    """Pretrain on SOURCE, swap head for TARGET class count, fine-tune, evaluate.
+    """Pretrain on the source modality, swap the head for the target class count, fine-tune,
+    and evaluate.
 
-    This function implements the MODL-03 label-space-mismatch handling:
-      - SOURCE head has Linear(feature_dim, source_n_classes).
-      - After pretraining, the source head is DISCARDED and replaced with a fresh
-        Linear(feature_dim, target_n_classes).  This is the HEAD SWAP for the
-        2-class heart ↔ 4-class lung mismatch.  The pretrained encoder weights
-        carry over unchanged through the swap.
-      - The encoder + new head are then fine-tuned on the TARGET modality.
-
-    Returns
-    -------
-    dict
-        Row dict with keys: setting, source_modality, target_modality, model,
-        primary_metric_name, primary_metric, Se, Sp, macro_f1, accuracy,
-        n_train, n_test, best_val_score, epochs_ran (pretrain + fine-tune).
+    After pretraining, the source head is discarded and replaced with a fresh
+    Linear(feature_dim, target_n_classes) while the pretrained encoder weights carry over
+    unchanged; the encoder and new head are then fine-tuned on the target modality. Returns
+    a row dict with the usual metric and volumetric fields.
     """
     _seed_all(seed)
 
@@ -213,19 +179,18 @@ def transfer_modality(
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # --- STEP 1: leakage-safe SOURCE loaders (build_loaders re-asserts internally) ---
+    # Source loaders (build_loaders re-asserts leakage internally).
     src_loaders = build_loaders(
         source_cache, source_modality,
         for_effnet=for_effnet, batch_size=batch_size, seed=seed,
     )
     src_n_classes = src_loaders["n_classes"]
 
-    # Defence-in-depth: explicit leakage re-assert on SOURCE (train,test).
     src_split = np.asarray(source_cache["split"])
     src_pid = np.asarray(source_cache["patient_id"])
     assert_no_patient_leakage(src_pid[src_split == "train"], src_pid[src_split == "test"])
 
-    # --- STEP 2: build encoder + source-sized head, pretrain on SOURCE ---
+    # Build encoder + source-sized head and pretrain on the source.
     encoder, feature_dim = build_shared_encoder(arch, for_effnet=for_effnet)
     source_model = _EncoderWithHead(encoder, feature_dim, src_n_classes)
 
@@ -248,29 +213,26 @@ def transfer_modality(
         curve_png=os.path.join(out_dir, f"curve_pretrain_{source_modality}_{model_name}.png"),
     )
 
-    # --- STEP 3: leakage-safe TARGET loaders ---
+    # Target loaders.
     tgt_loaders = build_loaders(
         target_cache, target_modality,
         for_effnet=for_effnet, batch_size=batch_size, seed=seed,
     )
     tgt_n_classes = tgt_loaders["n_classes"]
 
-    # Defence-in-depth: explicit leakage re-assert on TARGET (train,test).
     tgt_split = np.asarray(target_cache["split"])
     tgt_pid = np.asarray(target_cache["patient_id"])
     assert_no_patient_leakage(tgt_pid[tgt_split == "train"], tgt_pid[tgt_split == "test"])
 
-    # --- STEP 4: HEAD SWAP — MODL-03 heart-binary (2-class) ↔ lung-4-class mismatch ---
-    # The pretrained ENCODER weights are retained; only the head is replaced with a
-    # fresh Linear(feature_dim, target_n_classes).  This is the canonical solution
-    # for the heart-binary / lung-4-class label-space mismatch documented in MODL-03.
+    # Head swap: keep the pretrained encoder, replace the head with a fresh one sized to
+    # the target class count.
     transfer_model = _EncoderWithHead(
-        source_model.encoder,  # keep pretrained encoder
+        source_model.encoder,
         feature_dim,
-        tgt_n_classes,         # fresh head sized to target (2 or 4 classes)
+        tgt_n_classes,
     )
 
-    # --- STEP 5: fine-tune encoder + new head on TARGET ---
+    # Fine-tune the encoder + new head on the target.
     tgt_criterion = nn.CrossEntropyLoss(
         weight=tgt_loaders["class_weights"].to(device)
     )
@@ -290,7 +252,7 @@ def transfer_modality(
         curve_png=os.path.join(out_dir, f"curve_finetune_{target_modality}_{model_name}.png"),
     )
 
-    # --- STEP 6: evaluate on TARGET test loader ---
+    # Evaluate on the target test loader.
     transfer_model.eval()
     y_test, preds, win_score = _predict_test(transfer_model, tgt_loaders["test_loader"], device)
 
@@ -305,7 +267,7 @@ def transfer_modality(
         try:
             save_cm(y_true_rec, y_pred_rec, HEART_LABELS, f"transfer {source_modality}→{target_modality}", cm_png)
         except AssertionError:
-            pass  # degenerate CM on tiny smoke — log and continue
+            pass  # skip a degenerate confusion matrix on tiny runs
         primary_metric_name = "MAcc"
         primary_metric = float(m["MAcc"])
         Se = float(m["Se"])
@@ -351,27 +313,12 @@ def transfer_modality(
     }
 
 
-# ---------------------------------------------------------------------------
-# JointMultiTaskModel — shared encoder + two per-modality heads
-# ---------------------------------------------------------------------------
-
 class JointMultiTaskModel(nn.Module):
-    """Shared spectrogram encoder with ONE heart head and ONE lung head (MODL-03).
+    """Shared spectrogram encoder with a 2-class heart head and a 4-class lung head.
 
-    Architecture:
-      - One shared encoder (SmallCNN backbone OR headless EfficientNet-B0).
-      - ``head_heart``: Linear(feature_dim, 2) — binary heart classification.
-      - ``head_lung`` : Linear(feature_dim, 4) — 4-class lung classification.
-
-    ``forward(x, modality)`` dispatches to the matching head; ``modality`` must be
-    "heart" or "lung".
-
-    Parameters
-    ----------
-    arch : str
-        "cnn" or "effnet" / "effnet_b0".
-    for_effnet : bool
-        Convenience flag; determines which build_loaders path the caller should use.
+    The encoder is a SmallCNN backbone or a headless EfficientNet-B0. ``forward(x,
+    modality)`` runs the encoder then dispatches to the head for ``modality`` ("heart" or
+    "lung").
     """
 
     def __init__(self, arch="cnn", for_effnet=False):
@@ -379,22 +326,11 @@ class JointMultiTaskModel(nn.Module):
         encoder, feature_dim = build_shared_encoder(arch, for_effnet=for_effnet)
         self.encoder = encoder
         self.feature_dim = feature_dim
-        self.head_heart = nn.Linear(feature_dim, 2)  # 2-class heart head
-        self.head_lung = nn.Linear(feature_dim, 4)   # 4-class lung head
+        self.head_heart = nn.Linear(feature_dim, 2)
+        self.head_lung = nn.Linear(feature_dim, 4)
         self._arch = arch
 
     def forward(self, x, modality):
-        """Run shared encoder then dispatch to the modality-specific head.
-
-        Parameters
-        ----------
-        x : Tensor (B, C, H, W)
-        modality : str  "heart" or "lung"
-
-        Returns
-        -------
-        Tensor (B, 2) for heart, (B, 4) for lung.
-        """
         assert modality in {"heart", "lung"}, (
             f"JointMultiTaskModel.forward: modality must be 'heart' or 'lung', got {modality!r}"
         )
@@ -403,10 +339,6 @@ class JointMultiTaskModel(nn.Module):
             return self.head_heart(features)
         return self.head_lung(features)
 
-
-# ---------------------------------------------------------------------------
-# train_joint — interleaved POOLED training on heart + lung
-# ---------------------------------------------------------------------------
 
 def train_joint(
     heart_cache,
@@ -422,18 +354,10 @@ def train_joint(
 ):
     """Train the JointMultiTaskModel on pooled heart+lung batches.
 
-    Per-epoch strategy:
-      - Builds leakage-safe loaders for BOTH modalities (build_loaders re-asserts
-        leakage on (train,test) AND (train,val) for each).
-      - Interleaves heart and lung TRAIN batches in a deterministic seeded order by
-        zipping with cycling (shorter iterator repeats to match the longer one).
-      - Per-batch CrossEntropyLoss uses the modality's TRAIN-only class weights (D-05).
-      - Early stop on the AVERAGE of (val heart MAcc + val lung ICBHI).
-      - Best-state restore (deep copy) when the joint val score improves.
-
-    Returns
-    -------
-    (model, train_info) where train_info = {best_val_score, train_time_s, epochs_ran}.
+    Builds leakage-safe loaders for both modalities, interleaves their train batches (the
+    shorter loader cycles to match the longer one), and applies per-batch CrossEntropyLoss
+    with the modality's train-only class weights. Early-stops on the average of val heart
+    MAcc and val lung ICBHI. Returns ``(model, {best_val_score, train_time_s, epochs_ran})``.
     """
     _seed_all(seed)
 
@@ -446,7 +370,7 @@ def train_joint(
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # Build leakage-safe loaders for BOTH modalities.
+    # Leakage-safe loaders for both modalities.
     heart_loaders = build_loaders(
         heart_cache, "heart",
         for_effnet=for_effnet, batch_size=batch_size, seed=seed,
@@ -456,7 +380,6 @@ def train_joint(
         for_effnet=for_effnet, batch_size=batch_size, seed=seed,
     )
 
-    # Defence-in-depth: explicit leakage re-assert on both modalities (train,test).
     for cache, modality in ((heart_cache, "heart"), (lung_cache, "lung")):
         sp = np.asarray(cache["split"])
         pid = np.asarray(cache["patient_id"])
@@ -506,7 +429,7 @@ def train_joint(
 
         capped = False
         for (xh, yh), (xl, yl) in paired:
-            # Heart batch.
+            # Heart batch
             xh, yh = xh.to(device), yh.to(device)
             opt.zero_grad()
             out_h = model(xh, "heart")
@@ -516,7 +439,7 @@ def train_joint(
             run_loss += loss_h.item() * xh.size(0)
             seen += xh.size(0)
 
-            # Lung batch.
+            # Lung batch
             xl, yl = xl.to(device), yl.to(device)
             opt.zero_grad()
             out_l = model(xl, "lung")
@@ -532,10 +455,10 @@ def train_joint(
 
         epoch_list.append(run_loss / max(1, seen))
 
-        # Validation: heart MAcc + lung ICBHI (both cycle-level/recording-level via reused fns).
+        # Validation: heart MAcc + lung ICBHI.
         model.eval()
         with torch.no_grad():
-            # Heart val.
+            # Heart
             h_pred, h_true = [], []
             for xb, yb in heart_loaders["val_loader"]:
                 h_pred.append(model(xb.to(device), "heart").argmax(1).cpu())
@@ -544,7 +467,7 @@ def train_joint(
             h_true = torch.cat(h_true).numpy()
             val_heart = _val_macc(h_true, h_pred)
 
-            # Lung val.
+            # Lung
             l_pred, l_true = [], []
             for xb, yb in lung_loaders["val_loader"]:
                 l_pred.append(model(xb.to(device), "lung").argmax(1).cpu())
@@ -578,10 +501,6 @@ def train_joint(
     return model, train_info
 
 
-# ---------------------------------------------------------------------------
-# evaluate_joint — evaluate the joint model on BOTH test loaders
-# ---------------------------------------------------------------------------
-
 def evaluate_joint(
     model,
     heart_loaders,
@@ -589,11 +508,9 @@ def evaluate_joint(
     out_dir=None,
     model_name="cnn",
 ):
-    """Evaluate the JointMultiTaskModel on the heart and lung TEST loaders.
+    """Evaluate the JointMultiTaskModel on the heart and lung test loaders.
 
-    Returns two row dicts:
-      - One with ``setting="joint", target_modality="heart"`` — recording-level MAcc.
-      - One with ``setting="joint", target_modality="lung"``  — cycle-level ICBHI Score.
+    Returns two row dicts: heart at recording-level MAcc and lung at cycle-level ICBHI score.
     """
     out_dir = out_dir or FIGURES_DIR
     os.makedirs(out_dir, exist_ok=True)
@@ -603,7 +520,7 @@ def evaluate_joint(
 
     rows = []
 
-    # --- Heart test (recording-level majority vote → MAcc) ---
+    # Heart test: recording-level majority vote -> MAcc.
     y_h, p_h, s_h = _predict_test(
         _ModalityAdapter(model, "heart"),
         heart_loaders["test_loader"],
@@ -635,7 +552,7 @@ def evaluate_joint(
         "n_test": heart_loaders["n_test"],
     })
 
-    # --- Lung test (cycle-level ICBHI Score) ---
+    # Lung test: cycle-level ICBHI score.
     y_l, p_l, _s_l = _predict_test(
         _ModalityAdapter(model, "lung"),
         lung_loaders["test_loader"],
@@ -677,27 +594,13 @@ class _ModalityAdapter(nn.Module):
         return self.joint_model(x, self.modality)
 
 
-# ---------------------------------------------------------------------------
-# spearman_method_rankings — Spearman rho of heart MAcc vs lung ICBHI at feature set A
-# ---------------------------------------------------------------------------
-
 def spearman_method_rankings(unified_csv_path):
-    """Read unified_comparison.csv and compute Spearman rank correlation heart↔lung.
+    """Compute the Spearman rank correlation between heart and lung classifier rankings.
 
-    Selects the 4 per-classifier classical rows at feature_set == "A_mfcc_delta":
-      - heart: primary_metric_name == "MAcc" for {logreg, svm, rf, xgb}
-      - lung:  primary_metric_name == "ICBHI_Score" for {logreg, svm, rf, xgb}
-    Aligns them by model name, and computes scipy.stats.spearmanr over the two score
-    vectors.  This reads already-published report numbers — NO new leakage surface.
-
-    Returns
-    -------
-    rho : float
-    pvalue : float
-    n : int      number of methods aligned
-    method_labels : list[str]
-    heart_scores : list[float]
-    lung_scores : list[float]
+    Reads unified_comparison.csv, selects the per-classifier classical rows at
+    feature_set == "A_mfcc_delta" (heart MAcc and lung ICBHI for {logreg, svm, rf, xgb}),
+    aligns them by model name, and runs ``scipy.stats.spearmanr`` over the two score vectors.
+    Returns ``(rho, pvalue, n, method_labels, heart_scores, lung_scores)``.
     """
     import pandas as pd
     from scipy.stats import spearmanr

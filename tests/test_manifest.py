@@ -1,20 +1,8 @@
-"""
-tests/test_manifest.py — DATA-04 manifest assertions (Wave 0, RED).
+"""Manifest checks for the ingest step (src/ingest.py).
 
-Specifies the contract for the Wave-1 manifest builder (src/ingest.py) per
-02-RESEARCH.md Code Examples §2/§3 and the ROADMAP Phase-2 success criteria:
-
-  - data/processed/manifest.csv has EXACTLY the columns (order-sensitive):
-        filepath,patient_id,label,modality,duration_s,db_source,segment_id
-  - every `filepath` value points to an existing file (the join is total).
-  - heart label distribution (modality == "heart") is 2495 normal(-1) /
-    631 abnormal(1) with ZERO unsure rows (label == 0 count == 0). [VERIFIED]
-  - lung 4-class cycle distribution (data/processed/lung_cycles.csv) is
-        normal:3642  crackle:1864  wheeze:886  both:506.
-
-All tests SKIP when the artifacts are absent (Wave 0) and only assert once the
-Wave-1 implementation has produced them. Collection MUST succeed with 0 errors.
-Mirrors the skip-on-missing-data pattern in tests/test_data_integrity.py.
+Covers the schema and label distributions of data/processed/manifest.csv and
+data/processed/lung_cycles.csv. Every test skips when the artifacts are not
+present, so collection works on a fresh checkout.
 """
 import pathlib
 import sys
@@ -22,12 +10,12 @@ import sys
 import pytest
 
 PROJECT_ROOT = pathlib.Path(__file__).parent.parent
-sys.path.insert(0, str(pathlib.Path(__file__).parent))  # conftest import parity
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
 MANIFEST_PATH = PROJECT_ROOT / "data" / "processed" / "manifest.csv"
 LUNG_CYCLES_PATH = PROJECT_ROOT / "data" / "processed" / "lung_cycles.csv"
 
-# Exact, order-sensitive manifest header (ROADMAP Phase-2 success criterion).
+# Exact, order-sensitive manifest header.
 EXPECTED_COLUMNS = [
     "filepath",
     "patient_id",
@@ -38,11 +26,11 @@ EXPECTED_COLUMNS = [
     "segment_id",
 ]
 
-# VERIFIED on-disk heart label distribution across A–E (REFERENCE.csv).
+# Heart label distribution across databases A–E.
 HEART_NORMAL_COUNT = 2495    # label == -1
 HEART_ABNORMAL_COUNT = 631   # label == 1
 
-# VERIFIED ICBHI cycle-level 4-class distribution.
+# ICBHI cycle-level 4-class distribution.
 LUNG_CLASS_COUNTS = {
     "normal": 3642,
     "crackle": 1864,
@@ -52,16 +40,14 @@ LUNG_CLASS_COUNTS = {
 
 
 def _read_csv(path):
-    """Read a CSV with pandas, skipping the test if the file is absent (Wave 0)."""
+    """Read a CSV with pandas, skipping the test if the file is absent."""
     if not path.exists():
-        pytest.skip(f"{path.name} not built yet — run the Wave-1 ingest step first")
+        pytest.skip(f"{path.name} not built yet — run the ingest step first")
     import pandas as pd
     return pd.read_csv(path)
 
 
-# ---------------------------------------------------------------------------
-# Schema + total-join
-# ---------------------------------------------------------------------------
+# Schema + total join
 
 def test_columns():
     """manifest.csv header must equal the expected columns, in order."""
@@ -87,12 +73,10 @@ def test_files_exist():
     )
 
 
-# ---------------------------------------------------------------------------
 # Label distributions
-# ---------------------------------------------------------------------------
 
 def test_heart_label_dist():
-    """Heart rows: 2495 normal(-1) / 631 abnormal(1); zero unsure(0) rows (D-08)."""
+    """Heart rows: 2495 normal(-1) / 631 abnormal(1); zero unsure(0) rows."""
     df = _read_csv(MANIFEST_PATH)
     heart = df[df["modality"] == "heart"]
     counts = heart["label"].value_counts().to_dict()

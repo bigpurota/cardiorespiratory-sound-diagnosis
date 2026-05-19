@@ -1,7 +1,6 @@
 """
-Download PhysioNet/CinC 2016 heart-sound training set (databases A-E only) to
-data/raw/cinc2016/.  Uses training.zip which contains ONLY A-E (excludes training-f).
-Expected: 3,126 WAV files across training-a through training-e.
+Download the PhysioNet/CinC 2016 heart-sound training set (databases A-E) into
+data/raw/cinc2016/. Expects 3,126 WAV files across training-a..training-e.
 """
 import pathlib
 import subprocess
@@ -35,7 +34,7 @@ def download():
             print(f"[WARN] {ZIP_PATH} exists but is incomplete/corrupt — re-downloading.")
             ZIP_PATH.unlink()
     print(f"[INFO] Downloading training.zip from PhysioNet (~181 MB)...")
-    # Try wget first; fall back to curl if wget is not available
+    # Prefer wget; fall back to curl if it isn't installed.
     try:
         subprocess.run(
             ["wget", "-N", "-c", URL, "-O", str(ZIP_PATH)],
@@ -56,10 +55,8 @@ def extract():
     ZIP_PATH.unlink()
     print("[INFO] Extraction complete; training.zip removed.")
 
-    # Remove training-f if present — it was added after the official challenge ended
-    # and is NOT part of the standard A-E training set.  The official training.zip
-    # from PhysioNet currently includes training-f (114 recordings), but we must
-    # exclude it to obtain the canonical 3,126-recording A-E dataset.
+    # training-f (114 recordings) was added after the challenge closed and is not
+    # part of the A-E set, so drop it to get the canonical 3,126-recording dataset.
     training_f = DEST / "training-f"
     if training_f.exists():
         import shutil
@@ -74,7 +71,6 @@ def verify():
         print(f"[ERROR] Expected 3126 WAV files, got {wav_count}.", file=sys.stderr)
         sys.exit(1)
 
-    # Ensure training-f is absent
     if (DEST / "training-f").exists():
         print("[ERROR] training-f/ directory found — it must NOT be present.", file=sys.stderr)
         sys.exit(1)
@@ -104,16 +100,14 @@ def verify_references():
 
 
 def main():
-    # Idempotency: if WAVs already present and training-f absent, skip download+extract
+    # If WAVs are already present and training-f is gone, there's nothing to do.
     wav_count = sum(1 for _ in DEST.rglob("*.wav"))
     if wav_count > 0 and not (DEST / "training-f").exists():
         print(f"[INFO] {wav_count} WAV files already present and training-f absent — skipping download/extraction.")
-        # Clean up stale zip if somehow present
         if ZIP_PATH.exists():
             ZIP_PATH.unlink()
     else:
         download()
-        # Only extract if needed (no WAVs yet, or training-f still present)
         wav_count = sum(1 for _ in DEST.rglob("*.wav"))
         if wav_count == 0:
             extract()
@@ -121,7 +115,7 @@ def main():
             print(f"[INFO] {wav_count} WAV files already present — skipping extraction.")
             if ZIP_PATH.exists():
                 ZIP_PATH.unlink()
-            # Remove training-f if it exists from a previous incomplete run
+            # A previous interrupted run may have left training-f behind.
             training_f = DEST / "training-f"
             if training_f.exists():
                 import shutil

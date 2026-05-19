@@ -1,26 +1,21 @@
 """
-src/split.py — leakage-safe patient-level train/test splits (DATA-03).
+Leakage-safe patient-level train/test splits.
 
-Zero patient leakage is the #1 correctness requirement of this project. Every
-downstream experiment script (Phase 3+) imports ``assert_no_patient_leakage`` and
-logs disjointness at startup.
+Avoiding patient leakage is the main correctness requirement here: every downstream
+experiment imports ``assert_no_patient_leakage`` and logs disjointness at startup.
 
-Heart (D-10): seeded ``GroupShuffleSplit(test_size=0.20, random_state=42)`` computed
-WITHIN databases A–E (patient_id = DB-prefixed recording stem). The never-released
-private test set is not touched.
+Heart: seeded ``GroupShuffleSplit(test_size=0.20, random_state=42)`` computed within
+databases A-E (patient_id = DB-prefixed recording stem); the private test set is untouched.
 
-Lung (D-03/D-04, Open Question 1): fetch the official ICBHI split, validate it, REPAIR
-the 2 patients (156, 218) that the official file places on BOTH sides by forcing all
-their recordings to train, assert disjoint, and log the provenance. If the fetch/
-validation fails, fall back to a seeded patient-level ``GroupShuffleSplit`` 60/40.
-
-Code derived from 02-RESEARCH.md Code Examples §4 (make_heart_splits), §5
-(assert_no_patient_leakage), and §8 (fetch-then-fallback + repair).
+Lung: fetch the official ICBHI split, validate it, then force the two patients (156, 218)
+that the official file places on both sides onto the train side, assert disjointness, and
+log provenance. If the fetch or validation fails, fall back to a seeded patient-level
+``GroupShuffleSplit`` 60/40.
 """
 import os
 import sys
 
-import config  # import FIRST — seeds RNGs, exposes paths (config.py)
+from src import config  # import first — seeds RNGs and exposes paths
 
 sys.path.insert(0, config.PROJECT_ROOT)  # allow `import scripts.fetch_icbhi_split`
 
@@ -29,23 +24,19 @@ HEART_SPLITS_CSV = os.path.join(config.SPLITS_DIR, "heart_splits.csv")
 LUNG_SPLITS_CSV = os.path.join(config.SPLITS_DIR, "lung_splits.csv")
 LUNG_PROVENANCE = os.path.join(config.SPLITS_DIR, "lung_split_provenance.txt")
 
-# VERIFIED (02-RESEARCH §8 / Pitfall 1): the official ICBHI split places these 2
-# patients in BOTH train and test. Force all their recordings to the TRAIN side.
+# The official ICBHI split places these 2 patients in both train and test; force all
+# their recordings to the train side.
 OVERLAP_PATIENTS = {"156", "218"}
 
-# CinC 2016 training databases (D-10): heart split is computed within these only.
+# CinC 2016 training databases; the heart split is computed within these only.
 HEART_DBS = {"a", "b", "c", "d", "e"}
 
 
-# ---------------------------------------------------------------------------
-# §5 — Importable zero-leakage assertion (reusable by every experiment script)
-# ---------------------------------------------------------------------------
 def assert_no_patient_leakage(train_ids, test_ids):
     """Raise AssertionError on any patient overlap; log counts on disjoint sets.
 
-    Used at the startup of every Phase-3+ experiment script. On disjoint sets it
-    prints the ``[leakage-check OK] ...`` line that surfaces in the Methods section
-    (D-04) and returns ``None``.
+    Called at the start of every experiment script. On disjoint sets it prints the
+    ``[leakage-check OK] ...`` line and returns ``None``.
     """
     train, test = set(map(str, train_ids)), set(map(str, test_ids))
     overlap = train & test
@@ -58,19 +49,16 @@ def assert_no_patient_leakage(train_ids, test_ids):
     )
 
 
-# ---------------------------------------------------------------------------
-# §4 — Heart patient-level split (CinC, WITHIN A–E), deterministic at seed=42
-# ---------------------------------------------------------------------------
 def make_heart_splits(
     manifest_csv=DEFAULT_MANIFEST,
     out_csv=HEART_SPLITS_CSV,
     test_size=0.20,
     seed=42,
 ):
-    """Build the seeded GroupShuffleSplit heart split WITHIN databases A–E (D-10).
+    """Build the seeded GroupShuffleSplit heart split within databases A-E.
 
-    Writes a de-duplicated patient-level CSV (patient_id, db_source, split) and
-    asserts zero patient leakage on the saved split. Deterministic at seed=42.
+    Writes a de-duplicated patient-level CSV (patient_id, db_source, split) and asserts zero
+    patient leakage on the saved split. Deterministic at seed=42.
     """
     import pandas as pd
     from sklearn.model_selection import GroupShuffleSplit
@@ -78,8 +66,7 @@ def make_heart_splits(
     df = pd.read_csv(manifest_csv)
     df = df[df.modality == "heart"].copy()
     df["db_source"] = df["db_source"].astype(str)
-    # D-10: compute the split WITHIN A–E only; never merge/re-split across the
-    # never-released private test. Each DB grouped by its patient_id.
+    # Compute the split within A-E only; the private test set is never re-split.
     df = df[df["db_source"].isin(HEART_DBS)].copy()
     df["patient_id"] = df["patient_id"].astype(str)
 
@@ -99,9 +86,6 @@ def make_heart_splits(
     return out
 
 
-# ---------------------------------------------------------------------------
-# §8 — Lung patient-level split (official ICBHI + repair, else fallback)
-# ---------------------------------------------------------------------------
 def make_lung_splits(
     manifest_csv=DEFAULT_MANIFEST,
     out_csv=LUNG_SPLITS_CSV,
@@ -109,13 +93,13 @@ def make_lung_splits(
     test_size=0.40,
     seed=42,
 ):
-    """Build the lung split: official ICBHI (validated) + 156/218 repair, else fallback.
+    """Build the lung split: official ICBHI (validated) + 156/218 fix, else fallback.
 
-    Official path: adopt official recording assignments, derive patient_id from the
-    recording stem, then REPAIR — force every recording of patients 156 and 218 to the
-    train side (Open Question 1 / Pitfall 1). Fallback path: seeded patient-level
-    ``GroupShuffleSplit(test_size=0.40, random_state=42)``. Either way: assert disjoint,
-    write the CSV (patient_id, split) and a provenance line recording the path taken.
+    Official path: adopt the official recording assignments, derive patient_id from the
+    recording stem, then force every recording of patients 156 and 218 onto the train side.
+    Fallback path: seeded patient-level ``GroupShuffleSplit(test_size=0.40, random_state=42)``.
+    Either way, assert disjointness and write the CSV (patient_id, split) plus a provenance
+    line recording which path was taken.
     """
     import pandas as pd
 
@@ -134,8 +118,8 @@ def make_lung_splits(
         rec["split"] = rec["split"].astype(str)
 
         out = rec[["patient_id", "split"]].copy()
-        # REPAIR: force ALL recordings of overlap patients (156, 218) to train, so each
-        # patient lands on exactly ONE side and the disjoint assertion passes.
+        # Force all recordings of the overlap patients (156, 218) to train so each patient
+        # lands on exactly one side and the disjoint assertion passes.
         repair_mask = out["patient_id"].isin(OVERLAP_PATIENTS)
         out.loc[repair_mask, "split"] = "train"
         out = out.drop_duplicates(subset=["patient_id"])
@@ -145,11 +129,10 @@ def make_lung_splits(
             f"source: {source_url}\n"
             "canonical: Harvard Dataverse DOI 10.7910/DVN/HT6PKI\n"
             "2 patients (156, 218) reassigned to train for strict patient-level "
-            "integrity; deviates from official split by 2 patients (Open Question 1, "
-            "Pitfall 1).\n"
+            "integrity; deviates from the official split by 2 patients.\n"
         )
     else:
-        # Fallback: seeded patient-level GroupShuffleSplit 60/40 (D-03).
+        # Fallback: seeded patient-level GroupShuffleSplit 60/40.
         from sklearn.model_selection import GroupShuffleSplit
 
         lung["split"] = "train"
@@ -162,7 +145,7 @@ def make_lung_splits(
             "reconstructed seeded GroupShuffleSplit 60/40 "
             f"(test_size={test_size}, random_state={seed})\n"
             "official ICBHI split fetch/validation failed — fell back to seeded "
-            "patient-level GroupShuffleSplit (D-03 fallback).\n"
+            "patient-level GroupShuffleSplit.\n"
         )
 
     os.makedirs(os.path.dirname(out_csv), exist_ok=True)

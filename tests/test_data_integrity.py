@@ -1,14 +1,12 @@
-"""
-tests/test_data_integrity.py — DATA-01 and DATA-02 assertions.
+"""Dataset integrity checks for the downloaded raw audio.
 
 Tests that:
   - CinC 2016 (PhysioNet) has exactly 3,126 WAV files across training-a through -e
-    and that each sub-database REFERENCE.csv has the correct row count (DATA-01).
-  - ICBHI 2017 has exactly 920 WAV files and 920 matching annotation TXT files (DATA-02).
+    and that each sub-database REFERENCE.csv has the correct row count.
+  - ICBHI 2017 has exactly 920 WAV files and 920 matching annotation TXT files.
 
-Wave 0: All four tests will SKIP with explanatory messages when the data directories
-are absent (i.e., before the download scripts have been run). Collection must succeed
-with 0 errors.
+Each test skips with an explanatory message when the data directories are absent
+(i.e., before the download scripts have been run).
 """
 import csv
 import pathlib
@@ -33,11 +31,11 @@ from conftest import (  # noqa: E501
 
 
 # ---------------------------------------------------------------------------
-# CinC 2016 — heart sound (DATA-01)
+# CinC 2016 — heart sound
 # ---------------------------------------------------------------------------
 
 def test_cinc2016_count():
-    """ROADMAP success criterion 1: exactly 3,126 WAV recordings in training-A through -E."""
+    """Exactly 3,126 WAV recordings in training-A through -E."""
     if not CINC_ROOT.exists():
         pytest.skip(
             "CinC 2016 not downloaded yet — run scripts/download_heart.py first"
@@ -51,7 +49,7 @@ def test_cinc2016_count():
 
 
 def test_cinc2016_references():
-    """Each sub-database has a REFERENCE.csv with the expected row count — DATA-01."""
+    """Each sub-database has a REFERENCE.csv with the expected row count."""
     if not CINC_ROOT.exists():
         pytest.skip(
             "CinC 2016 not downloaded yet — run scripts/download_heart.py first"
@@ -70,11 +68,11 @@ def test_cinc2016_references():
 
 
 # ---------------------------------------------------------------------------
-# ICBHI 2017 — lung sound (DATA-02)
+# ICBHI 2017 — lung sound
 # ---------------------------------------------------------------------------
 
 def test_icbhi_wav_count():
-    """ROADMAP success criterion 2: exactly 920 WAV files in ICBHI 2017."""
+    """Exactly 920 WAV files in ICBHI 2017."""
     if not ICBHI_ROOT.exists():
         pytest.skip(
             "ICBHI 2017 not downloaded yet — run scripts/download_lung.py first"
@@ -87,7 +85,7 @@ def test_icbhi_wav_count():
 
 
 def test_icbhi_annotation_count():
-    """Each WAV file in ICBHI 2017 has a matching annotation TXT file — DATA-02."""
+    """Each WAV file in ICBHI 2017 has a matching annotation TXT file."""
     if not ICBHI_ROOT.exists():
         pytest.skip(
             "ICBHI 2017 not downloaded yet — run scripts/download_lung.py first"

@@ -1,21 +1,10 @@
 """
-scripts/build_features.py — cache classical feature matrices (Phase 3, DATA-05/D-11).
+Cache classical feature matrices for one modality.
 
-CLI ``--modality {heart,lung}`` that:
-  1. loads the patient-level split CSV and re-asserts ``assert_no_patient_leakage``
-     (D-03) so the ``[leakage-check OK]`` line surfaces at startup;
-  2. reads the Phase-2 manifest (heart) / lung_cycles (lung), joins the split on
-     patient_id, runs the preprocess chain (load_resampled → bandpass_sos →
-     peak_normalize) and the §Pattern 1/2 feature extraction (heart: per 3-s window,
-     TRAIN hop 1.5 s / TEST hop 3.0 s; lung: per padded respiratory cycle); and
-  3. saves a single dict payload to ``features/{modality}_classical.npy`` (gitignored
-     via ``*.npy``) with aligned X_A (N×240), X_B (N×250), labels, patient_id (group),
-     split, recording_id, feature_names_A/B — the cache Wave 2 consumes so experiments
-     never re-extract.
-
-No global StandardScaler is fit here (scaling is a Wave-2 in-pipeline, train-fold-only
-concern — D-05). No raw-audio cache is written (features only). Mirrors the
-import-config-first + ``sys.path.insert`` convention of scripts/make_splits.py.
+Loads the patient-level split, joins it onto the manifest (heart) or lung_cycles
+(lung), runs the preprocess + feature-extraction chain, and saves an aligned dict
+payload to features/{modality}_classical.npy so experiments never re-extract. No
+StandardScaler is fit here — scaling is done train-fold-only inside the pipeline.
 
     uv run python scripts/build_features.py --modality heart
     uv run python scripts/build_features.py --modality lung
@@ -27,7 +16,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-import config  # noqa: F401  import FIRST (seeds RNGs, exposes paths)
+from src import config  # noqa: F401  import FIRST (seeds RNGs, exposes paths)
 
 import numpy as np
 import pandas as pd
@@ -63,7 +52,7 @@ def build(modality):
     """Build and cache the feature matrix for ``modality``; print volumetrics."""
     df, splits = _load_inputs(modality)
 
-    # D-03: re-assert zero patient leakage at startup (logs the [leakage-check OK] line).
+    # Re-check patient-level separation before extracting anything.
     train_ids = splits.loc[splits.split == "train", "patient_id"]
     test_ids = splits.loc[splits.split == "test", "patient_id"]
     assert_no_patient_leakage(train_ids, test_ids)
@@ -75,7 +64,7 @@ def build(modality):
     out_path = os.path.join(FEATURES_DIR, f"{modality}_classical.npy")
     np.save(out_path, payload, allow_pickle=True)
 
-    # Volumetrics for Wave-2 (Annex-5 §2.5): segment/cycle counts, recordings, patients.
+    # Report segment/cycle counts, recordings and patients.
     split_arr = payload["split"]
     rec_arr = payload["recording_id"]
     pid_arr = payload["patient_id"]

@@ -1,7 +1,7 @@
 """
-Download ICBHI 2017 respiratory sound database via Kaggle API.
-Requires ~/.kaggle/kaggle.json (chmod 600).  Fails fast with clear instructions if missing.
-Expected: 920 WAV files + 920 annotation TXT files in data/raw/icbhi2017/.
+Download the ICBHI 2017 respiratory sound database via the Kaggle API into
+data/raw/icbhi2017/. Requires ~/.kaggle/kaggle.json (chmod 600). Expects
+920 WAV files plus 920 annotation TXT files.
 """
 import pathlib
 import subprocess
@@ -18,7 +18,7 @@ KAGGLE_SLUG_FALLBACK = "nimalanparameshwaran/icbhi-2017-challenge-respiratory-so
 
 
 def check_credentials():
-    """Fail fast with clear instructions if ~/.kaggle/kaggle.json is missing or insecure."""
+    """Abort with setup instructions if the Kaggle token is missing or insecure."""
     kaggle_json = pathlib.Path.home() / ".kaggle" / "kaggle.json"
 
     if not kaggle_json.exists():
@@ -37,7 +37,7 @@ def check_credentials():
         )
         sys.exit(1)
 
-    # Check permissions: file must not be group- or world-readable (0o077 bits must be 0)
+    # The token must not be group- or world-accessible.
     mode = os.stat(kaggle_json).st_mode
     if (mode & 0o077) != 0:
         print(
@@ -51,8 +51,7 @@ def check_credentials():
 
 
 def download():
-    """Download the ICBHI dataset via kaggle CLI; fall back to alternate slug on failure."""
-    # Check if WAVs are already present (idempotent re-run)
+    """Download the ICBHI dataset via the kaggle CLI; try a fallback slug on failure."""
     existing_wavs = list(DEST.rglob("*.wav"))
     if len(existing_wavs) >= 920:
         print(f"[INFO] {len(existing_wavs)} WAV files already present — skipping download.")
@@ -99,7 +98,7 @@ def download():
 
 
 def extract():
-    """Unzip all .zip files found under DEST, then remove the archives."""
+    """Unzip every .zip under DEST and remove the archive afterwards."""
     for zip_path in list(DEST.rglob("*.zip")):
         print(f"[INFO] Extracting {zip_path} ...")
         with zipfile.ZipFile(zip_path) as zf:
@@ -109,7 +108,7 @@ def extract():
 
 
 def verify():
-    """Assert exactly 920 WAV files and 920 matching annotation TXT files."""
+    """Check that exactly 920 WAVs and 920 matching annotation TXTs are present."""
     wav_files = list(DEST.rglob("*.wav"))
     wav_count = len(wav_files)
     print(f"[INFO] WAV files found: {wav_count} (expected 920)")
@@ -131,18 +130,18 @@ def verify():
 
 
 def discover_split_file():
-    """Find and log non-annotation TXT files (split/metadata files) for Phase 2 to use."""
+    """Locate and log any non-annotation TXT files (e.g. split/metadata files)."""
     wav_files = list(DEST.rglob("*.wav"))
     wav_stems = {p.stem for p in wav_files}
     all_txt = list(DEST.rglob("*.txt"))
     non_annotation_txt = [f for f in all_txt if f.stem not in wav_stems]
 
     if non_annotation_txt:
-        print("[INFO] Split/metadata TXT files found (Phase 2 will use these):")
+        print("[INFO] Split/metadata TXT files found:")
         for f in sorted(non_annotation_txt):
             print(f"  {f}")
     else:
-        print("[WARN] No split/metadata TXT files found — Phase 2 may need to reconstruct the split.")
+        print("[WARN] No split/metadata TXT files found — the split may need to be reconstructed.")
 
     return non_annotation_txt
 
@@ -155,7 +154,7 @@ def main():
     split_files = discover_split_file()
     print("Lung download complete. 920 WAVs and 920 annotation TXTs verified.")
     if split_files:
-        print(f"[INFO] {len(split_files)} split/metadata file(s) discovered for Phase 2.")
+        print(f"[INFO] {len(split_files)} split/metadata file(s) discovered.")
     sys.exit(0)
 
 

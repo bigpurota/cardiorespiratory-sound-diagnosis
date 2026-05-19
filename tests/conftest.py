@@ -1,8 +1,7 @@
-"""
-Shared fixtures and constants for the DSBA cardiorespiratory sound project test suite.
+"""Shared fixtures and constants for the cardiorespiratory sound test suite.
 
-This file is collected automatically by pytest. It must NOT import config.py
-(which does not exist in Wave 0).
+Collected automatically by pytest. Deliberately does not import config.py at
+module level so collection stays decoupled from the project config.
 """
 import os
 import pathlib
@@ -18,14 +17,14 @@ CINC_ROOT = PROJECT_ROOT / "data" / "raw" / "cinc2016"
 ICBHI_ROOT = PROJECT_ROOT / "data" / "raw" / "icbhi2017"
 
 # ---------------------------------------------------------------------------
-# Expected dataset counts (ROADMAP success criteria)
+# Expected dataset counts
 # ---------------------------------------------------------------------------
 CINC_EXPECTED = 3126  # total WAVs across training-a through training-e (A-E only, not F)
 
 ICBHI_EXPECTED_WAV = 920   # WAV files in ICBHI 2017
 ICBHI_EXPECTED_TXT = 920   # annotation TXT files (one per WAV)
 
-# Per-database recording counts for CinC 2016 (verified: PMC7199391 Table 4)
+# Per-database recording counts for CinC 2016 (PMC7199391 Table 4)
 CINC_DB_COUNTS = {
     "training-a": 409,
     "training-b": 490,
@@ -69,18 +68,16 @@ def pytest_configure(config):
 
 @pytest.fixture
 def synthetic_signal():
-    """Return a deterministic 5-second mono audio array sampled at 2000 Hz.
+    """A deterministic 5-second mono audio array at 2000 Hz (no data needed).
 
-    Used by the Phase-2 preprocess tests so they need NO downloaded data: the
-    array stands in for a real heart-sound recording when exercising the
-    resample / bandpass / segment pure functions in ``src.preprocess`` and
-    ``src.segment``.
+    Stands in for a real heart-sound recording when exercising the resample /
+    bandpass / segment functions in ``src.preprocess`` and ``src.segment``.
 
     The signal is a fixed-seed mix of a 100 Hz sine (in the cardiac band) plus
-    low-amplitude Gaussian noise, returned as ``float32``. Returns a dict with
-    the array and its native sampling rate so callers do not hard-code the SR.
+    low-amplitude Gaussian noise, as ``float32``. Returns a dict with the array
+    and its native sampling rate so callers do not hard-code the SR.
     """
-    import numpy as np  # local import — conftest must not import config at top level
+    import numpy as np  # keep imports local so conftest stays config-free
 
     rng = np.random.default_rng(42)
     fs = 2000           # native rate (PhysioNet/CinC 2016 raw rate)
@@ -95,17 +92,17 @@ def synthetic_signal():
 
 
 # ---------------------------------------------------------------------------
-# Synthetic-feature-matrix fixture (no data dependency) — Phase 3 Wave 0
+# Synthetic feature-matrix fixture (no data dependency)
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
 def synthetic_feature_matrix():
-    """Return a deterministic ``(X, y, groups)`` tuple for the Phase-3 train/metric tests.
+    """A deterministic ``(X, y, groups)`` tuple for the train/metric tests.
 
-    No downloaded data is required: a fixed-seed ``numpy.default_rng(42)`` builds a
-    small tabular feature matrix that stands in for the cached classical feature
-    cache (``features/*_classical.npy``) when exercising the leakage-safe
-    ``src.train_classical`` pipelines and the ``src.metrics`` majority-vote helper.
+    A fixed-seed ``numpy.default_rng(42)`` builds a small tabular feature matrix
+    that stands in for the cached classical features (``features/*_classical.npy``)
+    when exercising the leakage-safe ``src.train_classical`` pipelines and the
+    ``src.metrics`` majority-vote helper.
 
     Shape contract (relied on by the train/metric tests):
       - ``X``: ``(60, 12)`` ``float64`` feature matrix — enough rows/columns to
@@ -119,7 +116,7 @@ def synthetic_feature_matrix():
     A mild class-dependent shift is added to ``X`` so the toy classifiers are not
     degenerate, while the fixed seed keeps the matrix fully reproducible.
     """
-    import numpy as np  # local import — conftest must not import config at top level
+    import numpy as np  # keep imports local so conftest stays config-free
 
     rng = np.random.default_rng(42)
     n_groups = 12
@@ -140,19 +137,18 @@ def synthetic_feature_matrix():
 
 
 # ---------------------------------------------------------------------------
-# Synthetic-spectrogram-cache fixture (no audio dependency) — Phase 4 Wave 0
+# Synthetic spectrogram-cache fixture (no audio dependency)
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
 def synthetic_spectrogram_cache():
-    """Return a deterministic 2-class heart + 4-class lung log-mel cache (no audio).
+    """A deterministic 2-class heart + 4-class lung log-mel cache (no audio).
 
-    No downloaded audio is required: a fixed-seed ``numpy.default_rng(42)`` builds two
-    small ``(N, 64, 128)`` float32 log-mel "cache" payloads that stand in for the
-    Wave-1 spectrogram cache (``features/*_logmel.npy``) when exercising the
-    leakage-safe ``src.datasets`` / ``src.cnn`` / ``src.train_cnn`` pipelines and the
-    ``src.metrics`` suite. The smoke tests train a tiny model on this fixture so they
-    need NO real PhysioNet/ICBHI WAV files.
+    A fixed-seed ``numpy.default_rng(42)`` builds two small ``(N, 64, 128)`` float32
+    log-mel "cache" payloads that stand in for the spectrogram cache
+    (``features/*_logmel.npy``) when exercising the leakage-safe ``src.datasets`` /
+    ``src.cnn`` / ``src.train_cnn`` pipelines and the ``src.metrics`` suite. The smoke
+    tests train a tiny model on this fixture so they need no real PhysioNet/ICBHI WAVs.
 
     Returns a dict ``{"heart": <payload>, "lung": <payload>}`` where each payload is a
     dict mirroring the on-disk spectrogram-cache schema:
@@ -175,7 +171,7 @@ def synthetic_spectrogram_cache():
     cache fully reproducible. ``N`` is kept small (heart 40, lung 64 rows) so smoke
     training runs in seconds on CPU.
     """
-    import numpy as np  # local import — conftest must not import config at top level
+    import numpy as np  # keep imports local so conftest stays config-free
 
     rng = np.random.default_rng(42)
 

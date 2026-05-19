@@ -1,20 +1,13 @@
-"""
-tests/test_config_fixed.py — DATA-04 config-fix assertions (Wave 0, RED).
+"""Config-consistency assertions for sampling rates and the heart label map.
 
-Encodes the decisions D-01 / D-02 / D-08 from 02-RESEARCH.md:
-  - D-01  config.py sampling rates unify to 4000 Hz for BOTH modalities
-          (currently SR_HEART=2000, SR_LUNG=8000 — these tests fail until fixed).
-  - D-02  params/heart.yaml and params/lung.yaml `sample_rate` become 4000
-          (currently 2000 / 8000 respectively).
-  - D-08  heart `label_map` de-inversion: PhysioNet/CinC convention is
-          -1 -> normal, 1 -> abnormal. params/heart.yaml is currently INVERTED
-          (1: normal, -1: abnormal) and must be corrected.
+Checks:
+  - config.py sampling rates unify to 4000 Hz for both modalities.
+  - params/heart.yaml and params/lung.yaml ``sample_rate`` are 4000.
+  - heart ``label_map`` follows the PhysioNet/CinC convention:
+    -1 -> normal, 1 -> abnormal (not the inverted mapping).
 
-These assertions are INTENTIONALLY RED in Wave 0: no implementation/config edits
-exist yet. Collection MUST succeed with zero errors — imports of `config` and
-`load_params` are done INSIDE the test bodies so a transient import problem skips
-the test rather than erroring at collection time. This mirrors the
-sys.path-insert + conftest pattern in tests/test_data_integrity.py.
+Imports of ``config`` and ``load_params`` happen inside the test bodies so a
+transient import problem skips the test rather than erroring at collection time.
 """
 import pathlib
 import sys
@@ -35,7 +28,7 @@ def _import_config():
     collection always succeeds.
     """
     try:
-        import config  # noqa: WPS433  (intentional in-body import)
+        from src import config  # noqa: WPS433  (intentional in-body import)
     except Exception as exc:  # pragma: no cover - defensive
         pytest.skip(f"config.py not importable yet: {exc}")
     return config
@@ -51,48 +44,48 @@ def _load_params(modality):
 
 
 # ---------------------------------------------------------------------------
-# D-01 — config.py sampling rates unified to 4000 Hz
+# config.py sampling rates unified to 4000 Hz
 # ---------------------------------------------------------------------------
 
 def test_config_sr_4000():
-    """config.SR_HEART and config.SR_LUNG must both equal 4000 Hz (D-01)."""
+    """config.SR_HEART and config.SR_LUNG must both equal 4000 Hz."""
     config = _import_config()
     assert config.SR_HEART == 4000, (
-        f"config.SR_HEART must be 4000 (D-01), got {getattr(config, 'SR_HEART', None)}"
+        f"config.SR_HEART must be 4000, got {getattr(config, 'SR_HEART', None)}"
     )
     assert config.SR_LUNG == 4000, (
-        f"config.SR_LUNG must be 4000 (D-01), got {getattr(config, 'SR_LUNG', None)}"
+        f"config.SR_LUNG must be 4000, got {getattr(config, 'SR_LUNG', None)}"
     )
 
 
 # ---------------------------------------------------------------------------
-# D-02 — params YAML sample_rate fixed to 4000 Hz for both modalities
+# params YAML sample_rate is 4000 Hz for both modalities
 # ---------------------------------------------------------------------------
 
 def test_heart_yaml_sample_rate():
-    """params/heart.yaml `sample_rate` must be 4000 (was 2000) — D-02."""
+    """params/heart.yaml `sample_rate` must be 4000."""
     params = _load_params("heart")
     assert params["sample_rate"] == 4000, (
-        f"params/heart.yaml sample_rate must be 4000 (D-02), got {params['sample_rate']}"
+        f"params/heart.yaml sample_rate must be 4000, got {params['sample_rate']}"
     )
 
 
 def test_lung_yaml_sample_rate():
-    """params/lung.yaml `sample_rate` must be 4000 (was 8000) — D-02."""
+    """params/lung.yaml `sample_rate` must be 4000."""
     params = _load_params("lung")
     assert params["sample_rate"] == 4000, (
-        f"params/lung.yaml sample_rate must be 4000 (D-02), got {params['sample_rate']}"
+        f"params/lung.yaml sample_rate must be 4000, got {params['sample_rate']}"
     )
 
 
 # ---------------------------------------------------------------------------
-# D-08 — heart label_map de-inversion: -1 -> normal, 1 -> abnormal
+# heart label_map: -1 -> normal, 1 -> abnormal
 # ---------------------------------------------------------------------------
 
 def test_heart_label_map_deinverted():
-    """heart label_map must resolve -1 -> normal and 1 -> abnormal (D-08).
+    """heart label_map must resolve -1 -> normal and 1 -> abnormal.
 
-    PhysioNet/CinC 2016 convention (verified against REFERENCE.csv and the .hea
+    PhysioNet/CinC 2016 convention (per REFERENCE.csv and the .hea
     `# Normal`/`# Abnormal` comments): -1 is normal, 1 is abnormal. The YAML keys
     may be parsed as ints or strings, so accept both spellings.
     """
@@ -106,8 +99,8 @@ def test_heart_label_map_deinverted():
         raise AssertionError(f"label_map missing key {key!r}: {label_map!r}")
 
     assert _lookup(-1) == "normal", (
-        f"label_map[-1] must be 'normal' (D-08 de-inversion), got {_lookup(-1)!r}"
+        f"label_map[-1] must be 'normal', got {_lookup(-1)!r}"
     )
     assert _lookup(1) == "abnormal", (
-        f"label_map[1] must be 'abnormal' (D-08 de-inversion), got {_lookup(1)!r}"
+        f"label_map[1] must be 'abnormal', got {_lookup(1)!r}"
     )

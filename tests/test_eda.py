@@ -1,18 +1,15 @@
-"""
-tests/test_eda.py — DATA-04 EDA figure assertions (Wave 0, RED).
+"""EDA figure assertions for the plots saved under results/figures/eda/.
 
-Specifies the contract for the Wave-2 EDA scripts (D-07): they save PNG figures to
-results/figures/eda/. Per ROADMAP Phase-2 success criteria the figure set covers:
-  - class distribution for BOTH modalities (heart, lung)
-  - duration histograms for BOTH modalities
+The EDA scripts save PNG figures covering:
+  - class distribution for both modalities (heart, lung)
+  - duration histograms for both modalities
   - heart per-DB (A–E) recording counts
   - lung per-class cycle counts
   - ICBHI native sampling-rate distribution
 
-This is a file-existence + non-empty check only (plot content is verified manually,
-see 02-VALIDATION.md "Manual-Only Verifications"). The test SKIPS when the EDA
-directory is empty/absent (Wave 0) and asserts once the Wave-2 scripts have run.
-Collection MUST succeed with zero errors.
+This is a file-existence + non-empty check only (plot content is verified manually).
+The test skips when the EDA directory is empty/absent and asserts once the EDA scripts
+have run.
 """
 import pathlib
 
@@ -37,7 +34,7 @@ def test_eda_figures_exist():
     """The expected EDA PNGs must exist and be non-empty under results/figures/eda/."""
     if not EDA_DIR.exists() or not any(EDA_DIR.glob("*.png")):
         pytest.skip(
-            "results/figures/eda/ has no PNGs yet — run the Wave-2 EDA scripts first"
+            "results/figures/eda/ has no PNGs yet — run the EDA scripts first"
         )
 
     pngs = list(EDA_DIR.glob("*.png"))

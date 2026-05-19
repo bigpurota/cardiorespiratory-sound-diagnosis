@@ -1,11 +1,10 @@
 """
-scripts/build_manifest.py — thin CLI for the Phase-2 manifest builder.
+Build the recording-level manifest and the per-cycle ICBHI label table.
 
-Builds data/processed/manifest.csv (recording-level, one row per .wav) and the
-companion data/processed/lung_cycles.csv (per-respiratory-cycle ICBHI labels) by
-calling src.ingest.build_manifest(). Mirrors the structure of scripts/download_*.py.
+Calls src.ingest.build_manifest() to write data/processed/manifest.csv (one row
+per .wav) and data/processed/lung_cycles.csv (one row per respiratory cycle).
 
-Run with: ``uv run python scripts/build_manifest.py``
+    uv run python scripts/build_manifest.py
 """
 import sys
 

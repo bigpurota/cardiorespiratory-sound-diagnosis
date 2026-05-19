@@ -1,57 +1,31 @@
 #!/usr/bin/env python
 """
-scripts/run_cnn.py — run the 4 deep-learning experiments per modality & write CSVs.
+Run the deep-learning experiments per modality and write the result CSVs.
 
-EXACT analog of ``scripts/run_classical.py`` (the classical driver): a CLI
-``--modality {heart,lung,all} --model {cnn,effnet,all}`` that turns the Wave-2 spectrogram
-cache (``features/{modality}_spectrograms.npy``) and the Wave-3 models/training loop
-(``src.train_cnn``) into the 4 deep-learning rows of the report:
+CLI ``--modality {heart,lung,all} --model {cnn,effnet,all}`` that turns the spectrogram
+cache (``features/{modality}_spectrograms.npy``) and the training loop (``src.train_cnn``)
+into the four deep-learning rows of the report: a small CNN and an EfficientNet-B0 for each
+of heart and lung. Heart is headlined on MAcc, lung on the ICBHI Score.
 
-  - #5  heart small CNN   (model=cnn,       modality=heart)
-  - #8  lung  small CNN   (model=cnn,       modality=lung)
-  - #9  heart EfficientNet (model=effnet_b0, modality=heart)
-  - #10 lung  EfficientNet (model=effnet_b0, modality=lung)
+The small CNN runs before EfficientNet for each modality so its row is available as a
+fallback if the EffNet run fails. It writes ``results/tables/metrics_{modality}_cnn.csv``,
+idempotently merges the DL rows into ``results/tables/unified_comparison.csv`` (leaving the
+classical rows untouched), and rebuilds ``results/tables/volumetrics_cnn.csv``.
 
-CNNs (#5/#8) are sequenced BEFORE EfficientNet (#9/#10) so the lung small-CNN row is in
-hand as the D-03 fallback before the high-risk #10 EffNet-ICBHI run is attempted
-(Open Question 2 / 04-RESEARCH §Open Questions).
-
-The driver:
-  1. loads / builds the spectrogram cache (``features/{modality}_spectrograms.npy``; if
-     absent it invokes ``scripts/build_spectrograms.build`` — same payload schema);
-  2. re-asserts ``assert_no_patient_leakage`` on the cached train/test patient groups
-     (D-03 — logs the ``[leakage-check OK]`` line);
-  3. for each (modality, model) selected, calls ``src.train_cnn.run_modality`` to
-     build leakage-safe loaders → train (early stop + wall cap) → evaluate, writing a
-     learning-curve PNG + confusion-matrix PNG + best checkpoint;
-  4. writes ``results/tables/metrics_{modality}_cnn.csv`` (heart headlined MAcc / lung
-     headlined ICBHI_Score, full suite + per-class Se for lung + ``params`` +
-     ``fallback_from`` provenance), idempotently merges the DL rows into
-     ``results/tables/unified_comparison.csv`` (drop-mask targets model∈{cnn,effnet_b0}
-     so the 16 classical rows survive → 20 long-format rows), and rebuilds
-     ``results/tables/volumetrics_cnn.csv`` (Pattern-9 + a ``params`` column).
-
-D-03 EffNet→small-CNN fallback hook: if an EfficientNet run raises, fails to converge
-(best_val_score not better than chance), or overruns the wall-clock cap, the corresponding
-small-CNN row is written as the ``effnet_b0`` row WITH a machine-readable
-``fallback_from="cnn"`` provenance value (a genuine EffNet row carries ``fallback_from=""``)
-— an honest partial matrix instead of a crash. The final accept/keep decision is the
-Plan-04 Task-3 human checkpoint.
-
-The SAME script runs on CPU (fallback path; EffNet head-only freeze per D-04) and on the
-funded GPU (primary; full EffNet fine-tune) — device auto-detect lives in
-``src.train_cnn.train_one_model`` so there is no code fork (D-07).
+If an EfficientNet run raises, fails to beat chance, or overruns the wall-clock cap, the
+small-CNN row is written into the ``effnet_b0`` slot with ``fallback_from="cnn"`` provenance
+(a genuine EffNet row carries ``fallback_from=""``) so the matrix stays complete instead of
+crashing. The same script runs on CPU and GPU; device auto-detection lives in
+``src.train_cnn.train_one_model``.
 
     uv run python scripts/run_cnn.py --modality heart --model all
     uv run python scripts/run_cnn.py --modality all --model all --wall-cap-min 12
 """
 import os
 
-# macOS duplicate-OpenMP-runtime guard (copied VERBATIM from src/train_cnn.py): torch and
-# any sklearn/xgboost loaded alongside each bundle their own libomp.dylib; capping OpenMP
-# to a single team + allowing the duplicate runtime prevents the collision segfault. MUST
-# run BEFORE the first ``import torch`` (transitively pulled in below). ``setdefault`` lets a
-# caller override.
+# macOS duplicate-OpenMP-runtime guard: torch and sklearn/xgboost each bundle their own
+# libomp.dylib; capping OpenMP threads and allowing the duplicate runtime avoids the
+# collision segfault. Must run before the first ``import torch``.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -63,7 +37,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import config  # noqa: E402,F401 — import FIRST (seeds RNGs, exposes paths)
+from src import config  # noqa: E402,F401 — import FIRST (seeds RNGs, exposes paths)
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
@@ -78,18 +52,16 @@ FIGURES_DIR = os.path.join(config.RESULTS_DIR, "figures")
 UNIFIED_CSV = os.path.join(TABLES_DIR, "unified_comparison.csv")
 VOLUMETRICS_CSV = os.path.join(TABLES_DIR, "volumetrics_cnn.csv")
 
-# Pattern-8 unified_comparison.csv column order (IDENTICAL to scripts/run_classical.py —
-# the 12-column schema DL rows MUST match; never add/reorder columns, T-04-08).
+# unified_comparison.csv column order (12-column schema shared with the classical driver).
 UNIFIED_COLUMNS = [
     "modality", "feature_set", "model", "primary_metric_name", "primary_metric",
     "Se", "Sp", "macro_f1", "auc_roc", "accuracy", "n_train", "n_test",
 ]
 
-# DL models written by this driver (the drop-mask target — NOT the classical MODEL_NAMES).
+# DL models written by this driver (the drop-mask target).
 DL_MODELS = ["cnn", "effnet_b0"]
 
-# Pattern-9 volumetrics_cnn.csv column order — mirrors volumetrics_classical.csv + a
-# ``params`` column (D-09 DL volumetric field).
+# volumetrics_cnn.csv column order — classical columns plus a ``params`` column.
 VOLUMETRICS_COLUMNS = [
     "modality", "feature_set", "model", "train_time_s",
     "n_train_segments", "n_test_segments",
@@ -98,8 +70,8 @@ VOLUMETRICS_COLUMNS = [
     "params", "fallback_from", "data_volume_mb",
 ]
 
-# Per-modality metrics CSV columns (full suite; primary metric is the headline column).
-# DL extras vs classical: ``params``, ``fallback_from`` (machine-readable D-03 provenance).
+# Per-modality metrics CSV columns (full suite; the primary metric is the headline column).
+# DL extras vs classical: ``params`` and ``fallback_from`` provenance.
 METRICS_COLUMNS = {
     "heart": [
         "feature_set", "model", "primary_metric_name", "primary_metric",
@@ -114,18 +86,14 @@ METRICS_COLUMNS = {
     ],
 }
 
-# Chance-level best_val_score below which an EffNet run is judged non-converged (D-03):
-# heart binary chance MAcc ~= 0.5; lung 4-class ICBHI Score chance ~= 0.5 (Se+Sp)/2.
+# best_val_score below which an EffNet run is judged non-converged: heart binary chance
+# MAcc ~= 0.5; lung 4-class ICBHI Score chance ~= 0.5.
 _CHANCE_THRESHOLD = {"heart": 0.5, "lung": 0.5}
 
 
 def _load_cache(modality):
-    """np.load the Wave-2 spectrogram cache for ``modality`` (build it if absent).
-
-    Mirrors ``scripts/run_classical.py::_load_cache`` but points at
-    ``features/{modality}_spectrograms.npy`` and, rather than only raising, materialises the
-    cache via ``scripts/build_spectrograms.build`` so an unattended run is self-sufficient.
-    """
+    """Load the spectrogram cache for ``modality``, building it via
+    ``scripts/build_spectrograms.build`` if absent so unattended runs are self-sufficient."""
     path = os.path.join(FEATURES_DIR, f"{modality}_spectrograms.npy")
     if not os.path.exists(path):
         print(
@@ -158,13 +126,10 @@ def _write_metrics_csv(modality, rows):
 
 
 def _rebuild_unified(modality, rows):
-    """Deterministically merge this modality's DL rows into unified_comparison.csv.
+    """Idempotently merge this modality's DL rows into unified_comparison.csv.
 
-    Copies the idempotent merge from ``scripts/run_classical.py::_rebuild_unified`` but the
-    drop-mask targets the DL models — ``existing["model"].isin(["cnn","effnet_b0"]) &
-    (existing["modality"]==modality)`` — so the 16 CLASSICAL rows survive and re-runs are
-    idempotent (T-04-08). After both heart and lung DL runs the file holds 16 classical + 4
-    DL = 20 long-format rows, rewritten in Pattern-8 column order.
+    The drop-mask targets only the DL models for this modality, so the classical rows
+    survive and re-runs do not duplicate rows.
     """
     new = pd.DataFrame([{c: r.get(c, "") for c in UNIFIED_COLUMNS} for r in rows])
 
@@ -219,25 +184,20 @@ def _rebuild_volumetrics(modality, rows, cache_path):
 
 
 def _stable_figure_names(modality, model_name, row):
-    """Rename the per-experiment PNGs to the plan's canonical names and rewrite row paths.
+    """Rename the per-experiment PNGs to the canonical flat names and rewrite row paths.
 
-    ``src.train_cnn`` writes ``learning_curve_{modality}_{model_name}.png`` /
-    ``cm_{modality}_{fs}_{model_name}.png`` under an experiment subdir; the plan/report
-    import the flat names ``results/figures/learning_curve_{modality}_{cnn|effnet}.png`` and
-    ``results/figures/cm_{modality}_{cnn|effnet}.png``. ``cnn``→``cnn`` and ``effnet_b0``→
-    ``effnet`` for the figure stem (matches files_modified in 04-04-PLAN.md).
+    ``src.train_cnn`` writes the figures under an experiment subdir; this moves them to
+    ``results/figures/{learning_curve,cm}_{modality}_{cnn|effnet}.png``.
     """
     fig_stem = "effnet" if model_name == "effnet_b0" else "cnn"
     os.makedirs(FIGURES_DIR, exist_ok=True)
 
-    # Learning curve.
     src_curve = row.get("learning_curve_png") or row.get("curve_png")
     dst_curve = os.path.join(FIGURES_DIR, f"learning_curve_{modality}_{fig_stem}.png")
     if src_curve and os.path.exists(src_curve) and os.path.abspath(src_curve) != os.path.abspath(dst_curve):
         os.replace(src_curve, dst_curve)
     row["learning_curve_png"] = dst_curve
 
-    # Confusion matrix.
     src_cm = row.get("cm_figure_path")
     dst_cm = os.path.join(FIGURES_DIR, f"cm_{modality}_{fig_stem}.png")
     if src_cm and os.path.exists(src_cm) and os.path.abspath(src_cm) != os.path.abspath(dst_cm):
@@ -248,11 +208,11 @@ def _stable_figure_names(modality, model_name, row):
 
 
 def _copy_figures_for_fallback(modality, row):
-    """Copy the small-CNN figures to the effnet canonical names (D-03 fallback).
+    """Copy the small-CNN figures to the effnet canonical names for the fallback row.
 
-    Unlike ``_stable_figure_names`` (which MOVES per-experiment files), this COPIES the
-    already-published ``{kind}_{modality}_cnn.png`` flat figures to ``..._effnet.png`` so the
-    genuine CNN figures survive while the substituted #9/#10 effnet figures still exist.
+    Unlike ``_stable_figure_names`` (which moves files), this copies the published
+    ``{kind}_{modality}_cnn.png`` figures to ``..._effnet.png`` so the genuine CNN figures
+    survive while the substituted effnet figures still exist.
     """
     import shutil
 
@@ -272,10 +232,10 @@ def _copy_figures_for_fallback(modality, row):
 
 
 def _run_experiment(cache, modality, model, wall_cap_s):
-    """Train+evaluate ONE DL experiment via src.train_cnn; normalise figure names.
+    """Train and evaluate one DL experiment via src.train_cnn; normalise figure names.
 
-    Returns the row dict (with ``fallback_from=""`` set for a genuine run). Raises on hard
-    failure — the caller's D-03 hook decides whether to substitute the CNN row.
+    Returns the row dict (with ``fallback_from=""`` for a genuine run). Raises on hard
+    failure — the caller decides whether to substitute the CNN row.
     """
     row = train_run_modality(
         cache, modality, model=model, wall_cap_s=wall_cap_s
@@ -286,7 +246,7 @@ def _run_experiment(cache, modality, model, wall_cap_s):
 
 
 def _is_nonconverged(modality, row):
-    """True when an EffNet run did not beat chance (D-03 fallback trigger)."""
+    """True when an EffNet run did not beat chance (fallback trigger)."""
     bvs = row.get("best_val_score", None)
     if bvs is None:
         return False
@@ -296,14 +256,14 @@ def _is_nonconverged(modality, row):
 def run_modality(modality, models, wall_cap_s):
     """Run the selected DL experiments for ``modality`` and write all three CSVs + figures.
 
-    ORDER: small CNN (#5/#8) FIRST, then EfficientNet (#9/#10) — so the small-CNN row is in
-    hand as the D-03 fallback before the high-risk EffNet run is attempted (Open Question 2).
+    The small CNN runs before EfficientNet so its row is available as the fallback before
+    the higher-risk EffNet run is attempted.
     """
     os.makedirs(TABLES_DIR, exist_ok=True)
     os.makedirs(FIGURES_DIR, exist_ok=True)
     cache, cache_path = _load_cache(modality)
 
-    # D-03: re-assert zero patient leakage at startup ([leakage-check OK] line).
+    # Re-assert no patient leakage at startup (logs the [leakage-check OK] line).
     pid = np.asarray(list(map(str, cache["patient_id"])), dtype=object)
     split = np.asarray(cache["split"], dtype=object)
     assert_no_patient_leakage(pid[split == "train"], pid[split == "test"])
@@ -311,11 +271,11 @@ def run_modality(modality, models, wall_cap_s):
     print(f"[run_cnn] modality={modality} models={models} cache={cache_path} "
           f"wall_cap_s={wall_cap_s}")
 
-    # Sequence CNN before EffNet (Open Question 2): the small-CNN row is the D-03 fallback.
+    # CNN before EffNet so the small-CNN row is the fallback.
     ordered = [m for m in ("cnn", "effnet") if m in models]
 
     rows = []
-    cnn_row = None  # cached for the EffNet→small-CNN fallback (D-03).
+    cnn_row = None  # cached for the EffNet→small-CNN fallback.
     for model in ordered:
         if model == "cnn":
             print(f"  [#{'5' if modality == 'heart' else '8'}] {modality} small CNN ...")
@@ -332,28 +292,26 @@ def run_modality(modality, models, wall_cap_s):
                 row = _run_experiment(cache, modality, "effnet", wall_cap_s)
                 if _is_nonconverged(modality, row):
                     print(f"    EffNet non-converged (best_val_score="
-                          f"{row.get('best_val_score'):.4f} <= chance) — D-03 fallback.")
-                    raise RuntimeError("effnet non-converged below chance (D-03)")
+                          f"{row.get('best_val_score'):.4f} <= chance) — using fallback.")
+                    raise RuntimeError("effnet non-converged below chance")
                 rows.append(row)
                 print(f"    effnet best_val_score={row.get('best_val_score'):.4f} "
                       f"primary={row.get('primary_metric'):.4f} "
                       f"epochs={row.get('epochs_ran')} params={row.get('params')}")
-            except Exception as exc:  # D-03 EffNet→small-CNN fallback (no crash).
-                print(f"    [D-03 fallback] EffNet #{tag} failed/overran: {exc}")
+            except Exception as exc:  # EffNet→small-CNN fallback (no crash).
+                print(f"    [fallback] EffNet #{tag} failed/overran: {exc}")
                 if cnn_row is None:
-                    # No small-CNN row in hand (CNN not selected) — train one now so the
-                    # fallback exists honestly rather than crashing the matrix.
-                    print("    [D-03 fallback] training a small CNN to fill the row ...")
+                    # CNN not selected — train one now so the fallback row exists.
+                    print("    [fallback] training a small CNN to fill the row ...")
                     cnn_row = _run_experiment(cache, modality, "cnn", wall_cap_s)
                 fb = dict(cnn_row)
-                fb["model"] = "effnet_b0"          # report the row under the EffNet slot
-                fb["fallback_from"] = "cnn"         # machine-readable provenance (D-03)
-                # COPY (not move) the small-CNN figures to the effnet canonical names so the
-                # genuine CNN figures (learning_curve/cm_{modality}_cnn.png) stay intact while
-                # the #9/#10 effnet figures still exist for the report (D-03 fallback).
+                fb["model"] = "effnet_b0"          # report under the EffNet slot
+                fb["fallback_from"] = "cnn"         # machine-readable provenance
+                # Copy (not move) the small-CNN figures to the effnet names so the genuine
+                # CNN figures stay intact while the effnet figures also exist.
                 fb = _copy_figures_for_fallback(modality, fb)
                 rows.append(fb)
-                print(f"    [D-03 fallback] wrote small-CNN result as effnet_b0 row "
+                print(f"    [fallback] wrote small-CNN result as effnet_b0 row "
                       f"(fallback_from=cnn).")
 
     _write_metrics_csv(modality, rows)
@@ -372,7 +330,7 @@ def main():
         "--wall-cap-min",
         type=float,
         default=30.0,
-        help="Per-experiment wall-clock cap in minutes (D-03; relax on paid GPU).",
+        help="Per-experiment wall-clock cap in minutes (relax on GPU).",
     )
     args = ap.parse_args()
 

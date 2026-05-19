@@ -1,11 +1,6 @@
-"""
-tests/test_features.py — DATA-05 feature-extraction contracts (Phase 3, Wave 0, RED).
+"""Feature-extraction contracts for the pure functions in ``src.features``.
 
-Specifies the contracts for the Wave-1 pure functions described in
-03-RESEARCH.md §Pattern 1 (heart window → Set A 240-d / Set B 250-d) and
-§Pattern 2 (lung cycle PAD-BEFORE-EXTRACT to 3.0 s so ``librosa.feature.delta``
-does not raise ``ParameterError`` on short cycles):
-
+Two functions:
   - src.features.window_feature_vector(w, sr=4000, include_spectral=False)
       MFCC(n_mfcc=40) + Δ + ΔΔ summarised as mean+std → 240-d (Set A);
       include_spectral=True adds 5 spectral stats × (mean,std) = 10 → 250-d (Set B).
@@ -13,10 +8,8 @@ does not raise ``ParameterError`` on short cycles):
       slices [start_s, end_s], pads/trims to 3.0 s (12000 samples) BEFORE MFCC so
       a 0.2-s cycle (which raw would yield only 2 frames and crash delta) succeeds.
 
-These reference src.features symbols that do NOT exist yet, so the tests MUST be
-RED now. Collection MUST succeed: the import happens INSIDE each test body
-(skip-on-missing) so a missing module never errors at collection time. This
-mirrors tests/test_preprocess.py exactly.
+The import happens inside each test body (skip-on-missing) so a missing module never
+errors at collection time.
 """
 import importlib
 import pathlib
@@ -29,7 +22,7 @@ PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(pathlib.Path(__file__).parent))  # conftest import parity
 
-# Feature-vector dimension contract (VERIFIED live in 03-RESEARCH.md §Pattern 1).
+# Feature-vector dimension contract.
 DIM_SET_A = 240   # 6 * 40 = (mean+std) × (MFCC, Δ, ΔΔ), n_mfcc=40
 DIM_SET_B = 250   # Set A + 5 spectral stats × (mean, std)
 FS = 4000
@@ -37,18 +30,17 @@ HEART_WINDOW = 12000   # int(3.0 * 4000)
 
 
 def _import(module_name):
-    """Import `module_name`, skipping (not erroring) if absent in Wave 0."""
+    """Import `module_name`, skipping (not erroring) if it is absent."""
     try:
         return importlib.import_module(module_name)
-    except Exception as exc:  # pragma: no cover - defensive (Wave 0 module absent)
-        pytest.skip(f"{module_name} not implemented yet (Wave 0): {exc}")
+    except Exception as exc:  # pragma: no cover - defensive (module not yet present)
+        pytest.skip(f"{module_name} not implemented yet: {exc}")
 
 
 def _synthetic_window(n=HEART_WINDOW, seed=42):
     """Deterministic 3-s heart-window-like array (sine + low noise), float32.
 
-    No downloaded data: stands in for a real 3-s window when exercising the
-    pure feature-extraction math.
+    Stands in for a real 3-s window when exercising the pure feature-extraction math.
     """
     rng = np.random.default_rng(seed)
     t = np.arange(n, dtype=np.float64) / FS
@@ -65,7 +57,7 @@ def test_heart_vector_dims():
     """A 12000-sample heart window yields a 240-d (Set A) / 250-d (Set B) float32 vector."""
     features = _import("src.features")
     if not hasattr(features, "window_feature_vector"):
-        pytest.skip("src.features.window_feature_vector not implemented yet (Wave 0)")
+        pytest.skip("src.features.window_feature_vector not implemented yet")
 
     w = _synthetic_window()
 
@@ -89,12 +81,12 @@ def test_lung_short_cycle_pad():
     """A 0.2-s lung cycle is padded to 3.0 s BEFORE MFCC → delta succeeds, finite vector.
 
     Raw, a 0.2-s cycle yields only 2 MFCC frames and ``librosa.feature.delta``
-    (default width=9) raises ParameterError. The pad-before-extract guarantee
-    (03-RESEARCH.md §Pattern 2 / Pitfall 2) must make this succeed.
+    (default width=9) raises ParameterError. Padding before extraction must make this
+    succeed.
     """
     features = _import("src.features")
     if not hasattr(features, "lung_cycle_vector"):
-        pytest.skip("src.features.lung_cycle_vector not implemented yet (Wave 0)")
+        pytest.skip("src.features.lung_cycle_vector not implemented yet")
 
     # A SHORT cycle: 0.2 s = 800 samples, embedded in a slightly longer buffer.
     rng = np.random.default_rng(7)
@@ -113,14 +105,14 @@ def test_lung_short_cycle_pad():
 
 
 # ---------------------------------------------------------------------------
-# Vectors are NaN/Inf free (T-03-V5 data-integrity threat)
+# Vectors are NaN/Inf free
 # ---------------------------------------------------------------------------
 
 def test_vectors_nan_free():
     """Heart and lung feature vectors are entirely finite (no NaN / Inf)."""
     features = _import("src.features")
     if not (hasattr(features, "window_feature_vector") and hasattr(features, "lung_cycle_vector")):
-        pytest.skip("src.features feature functions not implemented yet (Wave 0)")
+        pytest.skip("src.features feature functions not implemented yet")
 
     w = _synthetic_window()
     heart_vec = np.asarray(features.window_feature_vector(w, sr=FS, include_spectral=True))

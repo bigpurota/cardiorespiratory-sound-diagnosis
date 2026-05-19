@@ -1,10 +1,10 @@
 """
-scripts/make_splits.py — thin CLI: build both patient-level splits (DATA-03).
+Build both patient-level train/test splits.
 
-Runs make_heart_splits() (seeded GroupShuffleSplit within A–E, D-10) and
-make_lung_splits() (official ICBHI fetch + 156/218 repair, else seeded fallback;
-D-03/D-04). Each call logs its own ``[leakage-check OK]`` line (surfaces in Methods).
-Outputs land in results/splits/ (config.SPLITS_DIR, git-committed).
+make_heart_splits() uses a seeded GroupShuffleSplit within databases A–E;
+make_lung_splits() uses the official ICBHI split (with the 156/218 overlap repaired)
+or falls back to a seeded split if the fetch fails. Each call verifies there is no
+patient leakage. Outputs are written to results/splits/.
 
     uv run python scripts/make_splits.py
 """
@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-import config  # noqa: F401  import FIRST (seeds, paths)
+from src import config  # noqa: F401  import FIRST (seeds, paths)
 from src.split import make_heart_splits, make_lung_splits
 
 

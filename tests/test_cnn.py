@@ -1,19 +1,16 @@
-"""
-tests/test_cnn.py — MODL-02 / SC2 contracts (Phase 4, Wave 0).
+"""Model and parameter-count contracts for ``src/cnn.py``.
 
-Specifies the model + param-count contract for the Wave-1 ``src/cnn.py`` module
-(04-RESEARCH.md §Code Examples 4):
-
+Covers:
   - ``SmallCNN(n_classes)``: 4-conv-block CNN accepting ``(B, 1, 64, 128)`` and emitting
-    ``(B, n_classes)`` (D-06 dropout >= 0.3 head).
-  - ``build_efficientnet_b0(n_classes)``: timm EfficientNet-B0 transfer model — VERIFIED
-    to have exactly 4,010,110 parameters.
-  - ``count_params(model)``: total parameter count (D-09 volumetric field).
+    ``(B, n_classes)`` (dropout >= 0.3 head).
+  - ``build_efficientnet_b0(n_classes)``: timm EfficientNet-B0 transfer model with
+    exactly 4,010,110 parameters.
+  - ``count_params(model)``: total parameter count.
   - The effnet image adapter (``_to_effnet_image`` / ``for_effnet`` routing) lifts a
     ``(1, 64, 128)`` dB image to the ``(3, 224, 224)`` ImageNet-normalized input.
 
-UNIT flavour: import ``src.cnn`` inside the test bodies, skip-on-missing so Wave-0
-collection has zero errors and the bodies stay RED until Wave 1 ships the module.
+Imports happen inside the test bodies (skip-on-missing) so collection never errors
+when the module is absent.
 """
 import importlib
 import pathlib
@@ -25,32 +22,32 @@ PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(pathlib.Path(__file__).parent))  # conftest import parity
 
-# VERIFIED live in project .venv (timm 1.0.27): EfficientNet-B0 total params.
+# EfficientNet-B0 total params (timm 1.0.27).
 EFFNET_B0_PARAMS = 4_010_110
 
 
 def _import(module_name):
-    """Import `module_name`, skipping (not erroring) if absent in Wave 0."""
+    """Import `module_name`, skipping (not erroring) if it is absent."""
     try:
         return importlib.import_module(module_name)
-    except Exception as exc:  # pragma: no cover - defensive (Wave 0 module absent)
-        pytest.skip(f"{module_name} not implemented yet (Wave 0): {exc}")
+    except Exception as exc:  # pragma: no cover - defensive (module not yet present)
+        pytest.skip(f"{module_name} not implemented yet: {exc}")
 
 
 # ---------------------------------------------------------------------------
-# UNIT — param counts: SmallCNN > 0; EfficientNet-B0 == 4,010,110 (VERIFIED)
+# param counts: SmallCNN > 0; EfficientNet-B0 == 4,010,110
 # ---------------------------------------------------------------------------
 
 def test_param_counts():
     """``count_params(SmallCNN(2)) > 0`` and ``count_params(build_efficientnet_b0(2)) == 4_010_110``.
 
-    The EfficientNet-B0 total parameter count is a fixed, verified invariant (4,010,110)
-    that pins the exact backbone (timm ``efficientnet_b0``, in_chans=3, num_classes=2).
+    The EfficientNet-B0 total parameter count is a fixed invariant (4,010,110) that
+    pins the exact backbone (timm ``efficientnet_b0``, in_chans=3, num_classes=2).
     """
     cnn = _import("src.cnn")
     for fn in ("count_params", "SmallCNN", "build_efficientnet_b0"):
         if not hasattr(cnn, fn):
-            pytest.skip(f"src.cnn.{fn} not implemented yet (Wave 0)")
+            pytest.skip(f"src.cnn.{fn} not implemented yet")
 
     small = cnn.SmallCNN(n_classes=2)
     assert cnn.count_params(small) > 0, "SmallCNN must have trainable parameters"
@@ -61,13 +58,13 @@ def test_param_counts():
         f"(timm efficientnet_b0, num_classes=2); got {cnn.count_params(effnet)}"
     )
 
-    # HPO knob — default widths must reproduce the exact same param count as SmallCNN(2).
+    # Default widths must reproduce the exact same param count as SmallCNN(2).
     small_explicit = cnn.SmallCNN(n_classes=2, widths=(16, 32, 64, 128))
     assert cnn.count_params(small_explicit) == cnn.count_params(small), (
         "SmallCNN(2, widths=(16,32,64,128)) must have the same param count as SmallCNN(2)"
     )
 
-    # HPO knob — wider net must have strictly more parameters.
+    # A wider net must have strictly more parameters.
     wider = cnn.SmallCNN(n_classes=2, widths=(32, 64, 128, 256))
     assert cnn.count_params(wider) > cnn.count_params(small), (
         "SmallCNN with widths=(32,64,128,256) must have more params than the default net"
@@ -75,7 +72,7 @@ def test_param_counts():
 
 
 # ---------------------------------------------------------------------------
-# UNIT — forward shapes: (B,1,64,128) -> (B,n_classes) for both models
+# forward shapes: (B,1,64,128) -> (B,n_classes) for both models
 # ---------------------------------------------------------------------------
 
 def test_forward_shape():
@@ -87,7 +84,7 @@ def test_forward_shape():
     """
     cnn = _import("src.cnn")
     if not hasattr(cnn, "SmallCNN"):
-        pytest.skip("src.cnn.SmallCNN not implemented yet (Wave 0)")
+        pytest.skip("src.cnn.SmallCNN not implemented yet")
 
     import torch
 
@@ -103,7 +100,7 @@ def test_forward_shape():
     # EfficientNet path: route the (B,1,64,128) batch through the image adapter, then
     # the timm backbone -> (B, n_classes).
     if not hasattr(cnn, "build_efficientnet_b0"):
-        pytest.skip("src.cnn.build_efficientnet_b0 not implemented yet (Wave 0)")
+        pytest.skip("src.cnn.build_efficientnet_b0 not implemented yet")
 
     adapter = (
         getattr(cnn, "_to_effnet_image", None)
@@ -111,7 +108,7 @@ def test_forward_shape():
         or getattr(cnn, "for_effnet", None)
     )
     if adapter is None:
-        pytest.skip("src.cnn effnet image adapter not implemented yet (Wave 0)")
+        pytest.skip("src.cnn effnet image adapter not implemented yet")
 
     n_classes = 2
     effnet = cnn.build_efficientnet_b0(n_classes)

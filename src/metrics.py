@@ -1,31 +1,12 @@
 """
-src/metrics.py — evaluation metric framework (Phase 3, EVAL-01).
+Evaluation metrics shared by every experiment so definitions stay identical across models.
 
-Stateless, toy-input-testable metrics shared by every classical (and later CNN)
-experiment so the metric definition is identical across models (PITFALLS Pitfall 3):
-
-  - ``majority_vote(window_preds, patient_ids)`` — reduce per-window predictions to
-    one per recording (group by patient_id → majority class). Returns a pandas Series
-    indexed by patient_id. (03-RESEARCH.md §Pattern 5.)
-  - ``heart_macc(y_true_rec, y_pred_rec, y_score_rec=None)`` — recording-level
-    {MAcc=(Se+Sp)/2, Se=recall(abnormal=1), Sp=recall(normal=0), macro_f1, accuracy,
-    + auc_roc when a recording-level score is supplied}. (D-08, §Pattern 5.)
-  - ``icbhi_score(y_true, y_pred, normal_label=3)`` — cycle-level ICBHI 4-class Score:
-    Se = recall over POOLED abnormal ({crackle,wheeze,both}, i.e. ``label != normal_label``),
-    Sp = recall over normal, ICBHI_Score = (Se+Sp)/2. The official metric credits a
-    true-crackle predicted as wheeze (both abnormal) — it measures normal-vs-abnormal
-    discrimination, not 4-way accuracy. (D-09, §Pattern 6.)
-  - ``assert_not_degenerate(y_true, y_pred, labels)`` — raise AssertionError when a
-    classifier emits predictions in fewer than 2 confusion-matrix columns ("predict-one-
-    class" degeneracy). Returns the column count otherwise. (D-10, §Pattern 7.)
-  - ``save_cm(y_true, y_pred, labels, title, out_png)`` — headless (Agg) confusion-matrix
-    figure; calls ``assert_not_degenerate`` first. (§Pattern 7.)
-  - Helpers: ``per_class_se``, ``macro_f1``, ``accuracy``.
-
-``import config`` runs first (SEED=42 side effect). The matplotlib Agg backend is set
-BEFORE importing pyplot so figures render with no display (safe under ``uv run``).
+Provides recording-level majority voting, the CinC 2016 heart MAcc, the official ICBHI
+4-class Score, a degenerate-classifier guard, a confusion-matrix figure helper, and a few
+small per-class/F1/accuracy helpers. The matplotlib Agg backend is set before importing
+pyplot so figures render with no display.
 """
-import config  # noqa: F401 — import FIRST for the SEED=42 side effect (determinism)
+from src import config  # noqa: F401 — import FIRST for the SEED=42 side effect (determinism)
 
 import numpy as np
 import pandas as pd
@@ -54,28 +35,22 @@ __all__ = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# §Pattern 5 — recording-level majority vote
-# ---------------------------------------------------------------------------
 def majority_vote(window_preds, patient_ids):
     """Reduce per-window predictions to one per recording via per-patient majority class.
 
-    Returns a pandas Series indexed by patient_id. Ties resolve to the smaller index of
-    the tied classes (pandas ``value_counts().idxmax()`` — deterministic).
+    Returns a pandas Series indexed by patient_id. Ties resolve deterministically to the
+    smaller class index (``value_counts().idxmax()``).
     """
     df = pd.DataFrame({"pid": np.asarray(patient_ids), "pred": np.asarray(window_preds)})
     return df.groupby("pid")["pred"].agg(lambda s: s.value_counts().idxmax())
 
 
-# ---------------------------------------------------------------------------
-# §Pattern 5 — heart MAcc (recording-level)
-# ---------------------------------------------------------------------------
 def heart_macc(y_true_rec, y_pred_rec, y_score_rec=None):
     """Recording-level heart metric dict (MAcc, Se, Sp, macro_f1, accuracy[, auc_roc]).
 
-    Labels: normal=0, abnormal=1 (map the manifest -1/1 convention BEFORE calling).
-    Se = recall(abnormal), Sp = recall(normal), MAcc = (Se+Sp)/2 — the official CinC
-    2016 metric. ``y_score_rec`` (mean abnormal-class probability per recording) adds AUC.
+    Labels: normal=0, abnormal=1 (map the manifest -1/1 convention before calling).
+    Se = recall(abnormal), Sp = recall(normal), MAcc = (Se+Sp)/2 (the official CinC 2016
+    metric). Passing ``y_score_rec`` (mean abnormal-class probability per recording) adds AUC.
     """
     y_true_rec = np.asarray(y_true_rec)
     y_pred_rec = np.asarray(y_pred_rec)
@@ -90,8 +65,8 @@ def heart_macc(y_true_rec, y_pred_rec, y_score_rec=None):
         "accuracy": float((y_true_rec == y_pred_rec).mean()),
     }
     if y_score_rec is not None:
-        # AUC needs a recording-level score: mean abnormal-class probability per recording
-        # (§Pitfall 5). Guard the single-class edge case where roc_auc_score is undefined.
+        # AUC needs a recording-level score (mean abnormal-class probability per recording);
+        # guard the single-class case where roc_auc_score is undefined.
         try:
             out["auc_roc"] = roc_auc_score(y_true_rec, y_score_rec)
         except ValueError:
@@ -99,16 +74,13 @@ def heart_macc(y_true_rec, y_pred_rec, y_score_rec=None):
     return out
 
 
-# ---------------------------------------------------------------------------
-# §Pattern 6 — lung ICBHI 4-class Score (cycle-level, pooled-abnormal Se / normal Sp)
-# ---------------------------------------------------------------------------
 def icbhi_score(y_true, y_pred, normal_label=3):
-    """Official ICBHI 4-class Score: (Se+Sp)/2 with pooled-abnormal Se / normal Sp.
+    """Official ICBHI 4-class Score: (Se+Sp)/2 with pooled-abnormal Se and normal Sp.
 
-    Se = fraction of true-abnormal cycles ({crackle,wheeze,both} == ``label != normal_label``)
-    predicted as ANY abnormal class; Sp = fraction of true-normal cycles predicted normal.
-    Se therefore credits a true-crackle predicted as wheeze (both abnormal) — it measures
-    normal-vs-abnormal discrimination, the official metric (report per-class Se alongside).
+    Se = fraction of true-abnormal cycles (``label != normal_label``) predicted as any
+    abnormal class; Sp = fraction of true-normal cycles predicted normal. Se therefore
+    credits a true-crackle predicted as wheeze, since both are abnormal: the metric measures
+    normal-vs-abnormal discrimination rather than 4-way accuracy. Report per-class Se too.
     """
     y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
     is_ab_t = y_true != normal_label
@@ -118,11 +90,9 @@ def icbhi_score(y_true, y_pred, normal_label=3):
     return {"ICBHI_Score": (Se + Sp) / 2, "Se": float(Se), "Sp": float(Sp)}
 
 
-# ---------------------------------------------------------------------------
-# Secondary helpers (per-class Se, macro-F1, accuracy)
-# ---------------------------------------------------------------------------
+# Secondary helpers
 def per_class_se(y_true, y_pred, labels):
-    """Per-class recall (sensitivity) as a {label: recall} dict (D-09)."""
+    """Per-class recall (sensitivity) as a {label: recall} dict."""
     rec = recall_score(y_true, y_pred, labels=labels, average=None, zero_division=0)
     return {lab: float(r) for lab, r in zip(labels, rec)}
 
@@ -137,14 +107,11 @@ def accuracy(y_true, y_pred):
     return float((np.asarray(y_true) == np.asarray(y_pred)).mean())
 
 
-# ---------------------------------------------------------------------------
-# §Pattern 7 — degenerate-classifier guard + headless CM figure (D-10)
-# ---------------------------------------------------------------------------
 def assert_not_degenerate(y_true, y_pred, labels):
     """Raise AssertionError when predictions occupy fewer than 2 confusion columns.
 
-    A "predict-one-class-always" model (e.g. always-normal on imbalanced lung) uses a
-    single predicted-class column. Returns the number of columns used otherwise (D-10).
+    A model that always predicts one class (e.g. always-normal on imbalanced lung) uses a
+    single predicted-class column. Returns the number of columns used otherwise.
     """
     cm = confusion_matrix(y_true, y_pred, labels=labels)
     cols_used = int((cm.sum(axis=0) > 0).sum())
@@ -162,9 +129,8 @@ def save_cm(y_true, y_pred, labels, title, out_png):
     ConfusionMatrixDisplay(cm, display_labels=labels).plot(
         ax=ax, colorbar=False, cmap="Blues", values_format="d")
     ax.grid(False)
-    # No chart title: the report supplies a caption, and a raw internal title looked
-    # unprofessional in the compiled PDF. `title` is retained in the signature for
-    # call-site compatibility.
+    # No chart title: the report figure caption serves that role. `title` is kept in the
+    # signature for call-site compatibility.
     _ = title
     fig.tight_layout()
     fig.savefig(out_png, dpi=150, bbox_inches="tight")

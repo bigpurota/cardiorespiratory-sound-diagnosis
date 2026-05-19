@@ -1,33 +1,16 @@
 """
-scripts/build_spectrograms.py — cache log-mel spectrograms (Phase 4, MODL-02).
+Cache log-mel spectrograms for one modality (input to the CNN models).
 
-One-time, leakage-FREE spectrogram cache builder. Mirrors ``scripts/build_features.py``
-almost verbatim — same ``_load_inputs`` / startup leakage assert / ``np.save`` payload /
-volumetric print — but swaps the classical feature extraction for the Phase-4 mel
-transform (``src.spectrograms.window_to_logmel``).
+Closely parallels scripts/build_features.py — same split join, startup leakage
+check, payload format and volumetric print — but replaces classical feature
+extraction with the mel transform. The audio path (load_resampled → bandpass_sos
+→ peak_normalize) is identical to src/features.extract_features so the deep-learning
+rows stay comparable with the classical ones.
 
-CLI ``--modality {heart,lung}`` that:
-  1. loads the patient-level split CSV and re-asserts ``assert_no_patient_leakage`` (D-03)
-     so the ``[leakage-check OK]`` line surfaces at startup;
-  2. reads the Phase-2 manifest (heart) / lung_cycles (lung), joins the split on
-     patient_id, runs the EXACT Phase-2 audio path (load_resampled → bandpass_sos →
-     peak_normalize) — identical to ``src/features.extract_features`` so DL rows stay
-     byte-comparable with classical rows — then:
-       * HEART: ``segment_fixed`` per 3.0 s window (TRAIN hop 1.5 s / TEST hop 3.0 s),
-         label via ``HEART_LABEL_MAP``, ``recording_id == patient_id``;
-       * LUNG: slice each annotated cycle, pad/trim to exactly 12000 samples (same rule
-         as ``src.features.lung_cycle_vector``), label via ``LUNG_LABEL_MAP``,
-         ``recording_id`` = the source WAV stem;
-     and turns each 12000-sample window/cycle into a ``(64, 128)`` log-mel via
-     ``window_to_logmel(..., make_mel(fmin, fmax))`` (the mel is built ONCE per modality);
-  3. saves a single dict payload to ``features/{modality}_spectrograms.npy`` (gitignored
-     via ``*.npy``) with the 5 mirror keys: X (N×64×128 float32), labels, patient_id
-     (group), split, recording_id — the cache the DL training driver consumes.
-
-NO augmentation anywhere in this script (leakage-safe, D-05 / Pitfall 3): spec-augment +
-Gaussian noise live ONLY in the train DataLoader transform (src/datasets.py). Labels are
-NEVER re-derived from filenames — the reused ``HEART_LABEL_MAP``/``LUNG_LABEL_MAP`` from
-``src.features`` and the manifest/cycles CSV are the source of truth (T-04-03).
+Output is features/{modality}_spectrograms.npy holding X (N×64×128 float32) plus
+labels, patient_id, split and recording_id. No augmentation happens here; spec-augment
+and noise live only in the train DataLoader. Labels come from the manifest/cycles CSV
+via HEART_LABEL_MAP / LUNG_LABEL_MAP, never from filenames.
 
     uv run python scripts/build_spectrograms.py --modality heart
     uv run python scripts/build_spectrograms.py --modality lung
@@ -39,7 +22,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-import config  # noqa: F401  import FIRST (seeds RNGs, exposes paths)
+from src import config  # noqa: F401  import FIRST (seeds RNGs, exposes paths)
 
 import numpy as np
 import pandas as pd
@@ -57,15 +40,14 @@ HEART_SPLITS_CSV = os.path.join(config.SPLITS_DIR, "heart_splits.csv")
 LUNG_SPLITS_CSV = os.path.join(config.SPLITS_DIR, "lung_splits.csv")
 FEATURES_DIR = os.path.join(config.PROJECT_ROOT, "features")
 
-WINDOW_SAMPLES = 12000  # 3.0 s @ 4000 Hz — fixed log-mel input length (Pitfall 2)
+WINDOW_SAMPLES = 12000  # 3.0 s @ 4000 Hz — fixed log-mel input length
 
 
 def _load_inputs(modality):
     """Return (df, splits_df) for the modality, with patient_id as str.
 
-    Identical to ``scripts/build_features.py::_load_inputs`` — heart reads the manifest
-    filtered to ``modality == "heart"``; lung reads ``lung_cycles.csv``; both join the
-    patient-level split CSV. Reused so split/leakage logic is byte-identical to classical.
+    Same logic as scripts/build_features.py: heart reads the manifest filtered to
+    ``modality == "heart"``, lung reads lung_cycles.csv, and both join the split CSV.
     """
     if modality == "heart":
         df = pd.read_csv(MANIFEST_CSV)
@@ -82,18 +64,18 @@ def _load_inputs(modality):
 
 
 def _extract_spectrograms(modality, df, splits, params):
-    """Run the Phase-2 audio path + mel transform → aligned (X, labels, pid, split, rec_id).
+    """Run the audio path + mel transform into aligned (X, labels, pid, split, rec_id).
 
-    Mirrors ``src/features.extract_features`` step-for-step but emits a (64,128) log-mel
-    per window/cycle instead of a feature vector. The mel transform is built ONCE per
-    modality (fmin/fmax from the params bandpass) and reused across every row.
+    Follows src/features.extract_features but emits a (64,128) log-mel per window/cycle
+    instead of a feature vector. The mel filterbank is built once per modality (fmin/fmax
+    from the params bandpass) and reused for every row.
     """
     fmin = int(params.get("bandpass_low_hz"))
     fmax = int(params.get("bandpass_high_hz"))
     order = int(params.get("bandpass_order", 4))
     sr = int(params.get("sample_rate", 4000))
 
-    mel = make_mel(fmin, fmax, sr=sr)  # build ONCE; reuse across all rows
+    mel = make_mel(fmin, fmax, sr=sr)  # built once, reused for every row
 
     split_lookup = {str(r.patient_id): str(r.split) for r in splits.itertuples()}
 
@@ -104,14 +86,13 @@ def _extract_spectrograms(modality, df, splits, params):
             pid = str(row.patient_id)
             split = split_lookup.get(pid)
             if split is None:
-                continue  # recording not in the (within-A–E) split → skip
+                continue  # recording not in the split
             label = HEART_LABEL_MAP.get(float(row.label))
             if label is None:
-                continue  # unsure / out-of-domain label → exclude
+                continue  # unsure / out-of-domain label
             y = load_resampled(row.filepath, target_sr=sr)
             yb = peak_normalize(bandpass_sos(y, fmin, fmax, fs=sr, order=order))
-            # TRAIN: 50% overlap (hop_s=1.5); TEST: no overlap (hop_s=3.0) — identical to
-            # the classical path; changes only the majority-vote denominator downstream.
+            # 50% overlap on train, none on test (same as the classical path).
             hop_s = 1.5 if split == "train" else 3.0
             for w in segment_fixed(yb, win_s=3.0, hop_s=hop_s, fs=sr):
                 spec = window_to_logmel(w, mel)
@@ -121,7 +102,7 @@ def _extract_spectrograms(modality, df, splits, params):
                 splits_out.append(split)
                 rec_ids.append(pid)  # heart recording_id == patient_id
     elif modality == "lung":
-        # Preprocess each recording ONCE, then slice all its cycles (avoid re-loading).
+        # Preprocess each recording once, then slice all of its cycles.
         for filepath, grp in df.groupby("filepath"):
             first = grp.iloc[0]
             pid = str(first.patient_id)
@@ -134,10 +115,10 @@ def _extract_spectrograms(modality, df, splits, params):
             for cyc in grp.itertuples():
                 label = LUNG_LABEL_MAP.get(str(cyc.label).strip().lower())
                 if label is None:
-                    continue  # unknown label string → skip (data-integrity guard)
+                    continue  # unknown label string
                 s, e = int(float(cyc.start_s) * sr), int(float(cyc.end_s) * sr)
                 clip = yb[s:e]
-                # Pad/trim to exactly 12000 samples — SAME rule as lung_cycle_vector.
+                # Pad/trim to exactly 12000 samples, matching lung_cycle_vector.
                 if len(clip) < WINDOW_SAMPLES:
                     clip = np.pad(clip, (0, WINDOW_SAMPLES - len(clip)))
                 else:
@@ -170,7 +151,7 @@ def build(modality):
     """Build and cache the spectrogram tensor for ``modality``; print volumetrics."""
     df, splits = _load_inputs(modality)
 
-    # D-03: re-assert zero patient leakage at startup (logs the [leakage-check OK] line).
+    # Re-check patient-level separation before extracting anything.
     train_ids = splits.loc[splits.split == "train", "patient_id"]
     test_ids = splits.loc[splits.split == "test", "patient_id"]
     assert_no_patient_leakage(train_ids, test_ids)
@@ -182,7 +163,7 @@ def build(modality):
     out_path = os.path.join(FEATURES_DIR, f"{modality}_spectrograms.npy")
     np.save(out_path, payload, allow_pickle=True)
 
-    # Volumetrics for the DL training driver (Annex-5 §2.5): window/cycle counts.
+    # Report window/cycle counts, recordings and patients.
     split_arr = payload["split"]
     rec_arr = payload["recording_id"]
     pid_arr = payload["patient_id"]

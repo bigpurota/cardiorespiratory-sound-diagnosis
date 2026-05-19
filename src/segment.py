@@ -1,16 +1,12 @@
 """
-src/segment.py — fixed-window segmenter (Phase 2, D-05).
+Fixed-window segmenter.
 
-Implements the heart fixed-window segmenter from 02-RESEARCH.md Code Examples §7.
 Pure function: slides a fixed-length window over a 1-D signal, drops the ragged
-tail and near-silent windows, and asserts every emitted segment shares one
-identical shape ``(int(win_s*fs),)`` (== 12000 for the heart 3.0 s @ 4000 Hz
-default). Per D-05 it returns in-memory ndarrays and MUST NOT write any segmented
-audio / `.npy` cache to disk (that materialisation is Phase 3).
-
-`import config` runs first for the SEED=42 determinism side effect.
+tail and near-silent windows, and returns in-memory ndarrays (nothing is written
+to disk). Every emitted segment has the same shape ``(int(win_s*fs),)`` — 12000
+samples for the heart 3.0 s @ 4000 Hz default.
 """
-import config  # noqa: F401 — import FIRST for the SEED=42 side effect (determinism)
+from src import config  # noqa: F401 — import first to seed RNGs deterministically
 
 import numpy as np
 

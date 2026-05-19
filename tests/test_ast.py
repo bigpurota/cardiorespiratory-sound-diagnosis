@@ -1,24 +1,16 @@
-"""
-tests/test_ast.py — Wave-0 skip-on-missing scaffold for the AST path (Phase 4, MODL-02).
+"""Tests for the AST (Audio Spectrogram Transformer) model path.
 
-Mirrors ``tests/test_cnn.py``'s importlib + pytest.skip pattern so local test collection
-(on a machine without ``transformers``) never errors — tests SKIP instead.
+Skip-on-missing: imports happen inside test bodies so collection never errors on a
+machine without ``transformers`` — those tests skip instead.
 
-Two contracts:
-
+Covers:
   - ``test_build_ast_forward_shape`` — ``build_ast(n_classes)`` returns a model whose
     forward maps ``(B, 1, 64, 128)`` → ``(B, n_classes)`` via ``_to_ast_input``.
-    SKIPPED if ``transformers`` or ``src.ast_model`` is absent (local, no HF checkpoint).
-
+    Skipped if ``transformers`` or ``src.ast_model`` is absent (no HF checkpoint).
   - ``test_ast_input_adapter_shape`` — ``_to_ast_input`` on a synthetic ``(64, 128)``
-    tensor returns a 1-D vector of length ``num_mel_bins * max_length`` (128 * 1024).
-    SKIPPED only if ``src.ast_model`` is absent — does NOT require ``transformers``.
-
-  - ``test_unified_adds_ast`` — after a real GPU run, ``unified_comparison.csv`` contains
-    ``model=='ast'`` rows AND preserves the 16 classical + 4 cnn/effnet rows.
-    SKIPPED if the CSV lacks an ``'ast'`` row (expected until GPU run completes).
-
-All imports are INSIDE test bodies so collection never errors on a transformers-less machine.
+    tensor returns the expected 2-D shape. Does not require ``transformers``.
+  - ``test_unified_adds_ast`` — once AST rows are present, ``unified_comparison.csv``
+    contains ``model=='ast'`` rows and preserves the prior classical + cnn/effnet rows.
 """
 import importlib
 import pathlib
@@ -32,39 +24,36 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))  # conftest import parity
 
 
 def _import(module_name):
-    """Import ``module_name``, skipping (not erroring) if absent in Wave 0."""
+    """Import ``module_name``, skipping (not erroring) if it is absent."""
     try:
         return importlib.import_module(module_name)
-    except Exception as exc:  # pragma: no cover — defensive (Wave 0 module absent)
+    except Exception as exc:  # pragma: no cover — defensive (module not yet present)
         pytest.skip(f"{module_name} not implemented yet or missing dependency: {exc}")
 
 
 def _require_transformers():
-    """Skip the test if ``transformers`` is not installed (GPU-box-only dependency)."""
+    """Skip the test if ``transformers`` is not installed."""
     try:
         import transformers  # noqa: F401
     except ImportError:
-        pytest.skip(
-            "transformers not installed locally — AST tests require the GPU box venv "
-            "(transformers==5.9.0 pinned there). Skipping."
-        )
+        pytest.skip("transformers not installed — skipping AST tests")
 
 
 # ---------------------------------------------------------------------------
-# UNIT — _to_ast_input adapter shape (no transformers needed)
+# _to_ast_input adapter shape (no transformers needed)
 # ---------------------------------------------------------------------------
 
 def test_ast_input_adapter_shape():
     """``_to_ast_input((64,128))`` returns a 2-D ``(max_length, num_mel_bins)`` tensor.
 
     AST's ``input_values`` contract is ``(batch, max_length, num_mel_bins)``, so the
-    per-clip adapter must emit ``(max_length, num_mel_bins) = (1024, 128)`` — NOT a
+    per-clip adapter must emit ``(max_length, num_mel_bins) = (1024, 128)``, not a
     flattened 1-D vector (which triggers a "Dimension out of range" error in the AST
-    patch embedding). This test does NOT require ``transformers``.
+    patch embedding). This test does not require ``transformers``.
     """
     ast_mod = _import("src.ast_model")
     if not hasattr(ast_mod, "_to_ast_input"):
-        pytest.skip("src.ast_model._to_ast_input not implemented yet (Wave 0)")
+        pytest.skip("src.ast_model._to_ast_input not implemented yet")
 
     import torch  # noqa: E402
 
@@ -89,20 +78,20 @@ def test_ast_input_adapter_shape():
 
 
 # ---------------------------------------------------------------------------
-# UNIT — build_ast forward shape: (B,1,64,128) -> (B,n_classes)  [transformers needed]
+# build_ast forward shape: (B,1,64,128) -> (B,n_classes)  [needs transformers]
 # ---------------------------------------------------------------------------
 
 def test_build_ast_forward_shape():
     """``build_ast(n_classes).forward((B,1,64,128))`` → ``(B,n_classes)``.
 
-    SKIPPED if ``transformers`` is not installed (GPU-box-only dependency) or if
-    ``src.ast_model`` is absent. This test DOWNLOADS the AST checkpoint on first run —
-    defer to the GPU box; do not run locally unless transformers + network are available.
+    Skipped if ``transformers`` is not installed or ``src.ast_model`` is absent. This
+    downloads the AST checkpoint on first run, so it only runs where transformers and
+    network access are available.
     """
     _require_transformers()
     ast_mod = _import("src.ast_model")
     if not hasattr(ast_mod, "build_ast"):
-        pytest.skip("src.ast_model.build_ast not implemented yet (Wave 0)")
+        pytest.skip("src.ast_model.build_ast not implemented yet")
 
     import torch  # noqa: E402
 
@@ -130,15 +119,15 @@ def test_build_ast_forward_shape():
 
 
 # ---------------------------------------------------------------------------
-# INTEGRATION — unified_comparison.csv gains model='ast' rows, prior rows preserved
+# unified_comparison.csv gains model='ast' rows, prior rows preserved
 # ---------------------------------------------------------------------------
 
 def test_unified_adds_ast():
-    """After the GPU run, ``unified_comparison.csv`` has ``model=='ast'`` rows.
+    """``unified_comparison.csv`` gains ``model=='ast'`` rows once the AST run lands.
 
-    SKIPPED if no AST row is present yet (GPU run not yet executed). When AST rows ARE
-    present, also asserts that the 16 classical + 4 cnn/effnet rows (20 prior rows) are
-    still intact so the idempotent merge has not clobbered earlier work.
+    Skipped if no AST row is present yet. When AST rows are present, also asserts that
+    the 16 classical + 4 cnn/effnet rows (20 prior rows) are still intact so the
+    idempotent merge has not clobbered earlier results.
     """
     import pathlib  # noqa: E402
     import sys  # noqa: E402
@@ -151,31 +140,31 @@ def test_unified_adds_ast():
 
     csv_path = PROJECT_ROOT / "results" / "tables" / "unified_comparison.csv"
     if not csv_path.exists():
-        pytest.skip(f"unified_comparison.csv not found at {csv_path}; GPU run not yet done.")
+        pytest.skip(f"unified_comparison.csv not found at {csv_path}; AST run not yet done.")
 
     df = pd.read_csv(csv_path)
 
-    # If no AST rows yet, the GPU run hasn't been executed — skip gracefully.
+    # No AST rows yet means the AST run hasn't happened — skip gracefully.
     n_ast = int((df["model"] == "ast").sum())
     if n_ast == 0:
         pytest.skip(
-            "No model='ast' rows in unified_comparison.csv yet — GPU run not yet executed. "
-            "Re-run this test after scripts/run_ast.py completes on the GPU box."
+            "No model='ast' rows in unified_comparison.csv yet. "
+            "Re-run this test after scripts/run_ast.py completes."
         )
 
-    # At least 1 AST row exists: verify the prior 20 rows are still present.
+    # At least one AST row exists: verify the prior 20 rows are still present.
     n_prior = int((df["model"] != "ast").sum())
     assert n_prior >= 20, (
         f"Expected >= 20 non-AST rows (16 classical + 4 cnn/effnet) to be preserved; "
-        f"got {n_prior}. The idempotent merge may have clobbered prior rows."
+        f"got {n_prior}. The merge may have clobbered prior rows."
     )
 
-    # AST rows must have model='ast' and both modalities if the full run completed.
+    # Expect one AST row per modality once the full run completed.
     assert n_ast in (1, 2), (
         f"Expected 1 or 2 model='ast' rows (1 per modality); got {n_ast}."
     )
 
-    # Total row count must be 21 or 22 (20 prior + 1–2 AST).
+    # Total row count: 20 prior + 1–2 AST.
     total = len(df)
     assert 20 <= total <= 22, (
         f"Expected 20–22 total rows in unified_comparison.csv; got {total}."
