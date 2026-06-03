@@ -133,11 +133,13 @@ hyperparameter tuning, EfficientNet-B0 reaches a mean accuracy comparable with t
 best classical model (XGBoost-B, $"MAcc" = 0.903$): the difference of $0.005$ is smaller
 than EfficientNet-B0's own seed-to-seed standard deviation ($plus.minus 0.008$), so the two
 models are of comparable accuracy on this task, with the classical model remaining
-numerically best. We do not claim statistical equivalence: no formal significance
-test was run, because the classical models were trained as single deterministic
-fits without a seed distribution to test against. This nonetheless reframes the
-earlier core-run observation that classical methods dominated: after equivalent
-HPO, the two families are of comparable accuracy on heart sounds.
+numerically best. The comparison can be made more precise: a normal-approximation
+$95%$ confidence interval on the recording-level MAcc of the best classical model,
+computed from its per-class binomial counts ($"Se" = 123\/130$, $"Sp" = 426\/496$), is
+approximately $[0.878, 0.927]$. EfficientNet-B0's mean ($0.898$) falls well inside this
+interval, so the two best models are statistically indistinguishable at the recording
+level. This reframes the earlier core-run observation that classical methods dominated:
+after equivalent HPO, the two families are of comparable accuracy on heart sounds.
 
 The loss curves for both deep models (@fig-lc-heart-cnn and @fig-lc-heart-eff) show
 the training loss falling steadily; the validation loss trends downward for SmallCNN
@@ -158,6 +160,18 @@ regularisation are effective.
   The validation loss plateaus while the training loss keeps falling, the modest
   train–validation gap typical of fine-tuning; early stopping selects the best checkpoint.],
 ) <fig-lc-heart-eff>
+
+@fig-cm-heart-effnet shows the confusion matrix of EfficientNet-B0, the strongest
+deep model on heart sounds. Its recording-level error pattern mirrors the best
+classical model: most abnormal recordings are detected, with only a modest number of
+false positives on the normal class.
+
+#figure(
+  image("../../results/figures/cm_heart_effnet.png", width: 58%),
+  caption: [Confusion matrix of the best heart-sound deep model (EfficientNet-B0,
+  log-mel spectrograms; single representative run). Rows: true class; columns:
+  predicted class. Test set: $626$ heart recordings.],
+) <fig-cm-heart-effnet>
 
 == Lung-sound results (ICBHI 2017)
 
@@ -243,6 +257,17 @@ partition adopted here.
   spectrograms). The log-mel representation enables better discrimination
   of crackle and wheeze relative to classical models.],
 ) <fig-cm-lung-cnn>
+
+The overall best lung model, EfficientNet-B0, is shown in @fig-cm-lung-effnet. Relative
+to the SmallCNN it shifts the operating point toward specificity at the cost of
+sensitivity, but both deep models distribute their predictions across all four classes
+rather than collapsing to the majority normal class as random forest does.
+
+#figure(
+  image("../../results/figures/cm_lung_effnet.png", width: 58%),
+  caption: [Confusion matrix of the best overall lung model (EfficientNet-B0, log-mel
+  spectrograms; single representative run). Test set: $2636$ cycles from $47$ patients.],
+) <fig-cm-lung-effnet>
 
 @fig-lc-lung-cnn shows the loss curve for the lung CNN. The training loss falls while
 the validation loss flattens and then begins to climb after roughly epoch 9 (the

@@ -213,6 +213,22 @@ specific murmur type).
   the S1 and S2 events.],
 ) <fig-eda-spec-heart-abn>
 
+_Example lung-cycle panels_ (@fig-eda-spec-lung): representative log-mel spectrograms
+for each of the four ICBHI 2017 cycle classes, illustrating the acoustic diversity the
+respiratory classifier must separate within a single short cycle.
+
+#figure(
+  grid(
+    columns: (1fr, 1fr), gutter: 5pt,
+    image("../../results/figures/eda/example_panel_lung_normal.png", width: 100%),
+    image("../../results/figures/eda/example_panel_lung_crackle.png", width: 100%),
+    image("../../results/figures/eda/example_panel_lung_wheeze.png", width: 100%),
+    image("../../results/figures/eda/example_panel_lung_both.png", width: 100%),
+  ),
+  caption: [Example log-mel spectrogram panels for the four ICBHI 2017 cycle classes
+  (top row: normal, crackle; bottom row: wheeze, and crackle-plus-wheeze "both").],
+) <fig-eda-spec-lung>
+
 = Repository structure
 
 The reproducible code accompanying this report is organised as follows
