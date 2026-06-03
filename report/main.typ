@@ -102,10 +102,13 @@
 
   #set align(left)
   #pad(left: 1.5cm)[
-    #text(size: 12pt)[*Submitted by the Student:*] \
-    #text(size: 12pt)[Group БПАД244, 2nd year of study #h(1.5cm) Tsember Andrei Alekseevich] \
+    #text(size: 12pt)[*Fulfilled by:*] \
+    #v(0.3cm)
+    #text(size: 12pt)[Student of the Group БПАД244, 2nd year of study,] \
+    #text(size: 12pt)[Tsember Andrei Alekseevich] \
     #v(1.2cm)
-    #text(size: 12pt)[*Approved by the Project Supervisor:*] \
+    #text(size: 12pt)[*Assessed by the Project Supervisor:*] \
+    #v(0.3cm)
     #text(size: 12pt)[Tomashchuk Kornei Kirillovich] \
     #text(size: 12pt)[Lecturer] \
     #text(size: 12pt)[Faculty of Computer Science, HSE University]

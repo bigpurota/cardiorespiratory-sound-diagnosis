@@ -102,9 +102,10 @@ limitations and directions for future work.
 
 #heading(level: 3, numbering: none, outlined: false)[Project group and contribution]
 
-This research project was carried out within a project group whose sole member is
-the author. Accordingly, all stages of the work were performed by the author,
-Tsember Andrei Alekseevich (group БПАД244): problem formulation and the analytical
+This work is a _group (team) research project_ in the department's sense of a project
+group, the group in this instance consisting of a single member, the author.
+Accordingly, the contribution is undivided: all stages of the work were performed by
+the author, Tsember Andrei Alekseevich (group БПАД244): problem formulation and the analytical
 literature review; acquisition and exploratory analysis of the PhysioNet/CinC 2016
 (heart) and ICBHI 2017 (lung) datasets; preprocessing, segmentation and the
 construction of leakage-safe grouped splits; classical feature engineering

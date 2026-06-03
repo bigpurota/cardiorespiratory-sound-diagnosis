@@ -24,9 +24,10 @@ all methods approximately equally on this task.
 
 The cross-modal analysis, the project's principal novelty, combined ranking
 comparisons, direct transfer experiments and a joint multi-task probe. Classical
-method rankings transfer only partially: XGBoost dominates on heart but falls to
-third on lung, while SVM is competitive on both modalities (Spearman $rho = 0.60$,
-$p = 0.40$, $n = 4$ classical methods, feature set A). Deep cross-modal transfer is
+method rankings do not transfer reliably: XGBoost dominates on heart but falls to
+third on lung, while SVM is competitive on both modalities (the heart–lung rank
+correlation is weak and feature-set-dependent: Spearman $rho = 0.60$ on set A, $0.00$ on
+set B, $0.24$ pooled, none significant). Deep cross-modal transfer is
 asymmetric: lung-pretrained features transfer strongly to heart (near in-domain
 performance), but heart-pretrained features do not transfer to lung. Joint
 multi-task training preserves both modalities with a slight heart trade-off,
