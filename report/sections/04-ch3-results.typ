@@ -61,7 +61,10 @@ Deep-learning scores represent HPO-tuned mean±std over three seeds.
 #v(0.4em)
 #text(size: 10pt)[DL rows: HPO-tuned ($128$-trial bounded random search, val-only selection) mean±std over seeds ${1, 2, 42}$.
   Macro-F1 not computed for multi-seed DL (indicated by —); macro-F1 figures for single-seed
-  runs appear in Annex A.
+  runs appear in Annex A. The fine-tuned Audio Spectrogram Transformer (Chapter 4) reaches a
+  higher lung score still ($"ICBHI" = 0.594 plus.minus 0.023$) but is excluded from this table
+  because it was trained under a non-comparable budget (no HPO, AudioSet pretraining, few
+  epochs); EfficientNet-B0 is the best model in the controlled comparison.
 ]
 
 == Heart-sound results (PhysioNet/CinC 2016)
@@ -144,7 +147,10 @@ interval. We can go further than interval overlap with a directly paired test: r
 the retained in-domain EfficientNet-B0 checkpoints (the cross-modal reference models of
 Chapter 4, per-seed MAcc $0.878 \/ 0.885 \/ 0.898$) back through recording-level
 inference gives the deep model's per-recording predictions, and a McNemar test pairs
-them against XGBoost-B on the same $626$ recordings. The verdict tracks the seed. On the two seeds
+them against XGBoost-B on the same $626$ recordings. (Because the EfficientNet-B0
+checkpoints are too large to ship, these per-seed prediction vectors are committed to the
+repository as a fixed CSV, so the paired test is reproducible while the upstream inference
+is not re-run from scratch.) The verdict tracks the seed. On the two seeds
 where EfficientNet-B0 lands at $0.878$ and $0.885$ it is significantly behind XGBoost-B
 ($chi^2 = 15.6$, $p approx 10^(-4)$; and $chi^2 = 6.4$, $p = 0.011$), but on its
 strongest seed, where it reaches $0.898$, the two models are statistically
@@ -248,8 +254,10 @@ EfficientNet-B0 reached $"ICBHI" = 0.555 plus.minus 0.016$ ($"Se" = 0.509$, $"Sp
 Note that the multi-seed mean for CNN ($0.540$) is slightly below an earlier
 single-seed run ($0.551$ reported at the core-run stage); this honest regression
 reflects seed variance on the harder four-class task rather than a model change.
-The EfficientNet-B0 is the overall best lung model ($0.555$), marginally ahead of
-SmallCNN and the best classical model (SVM-B, $0.537$). The deep-vs-classical
+The EfficientNet-B0 is the best lung model in the main comparison ($0.555$), marginally
+ahead of SmallCNN and the best classical model (SVM-B, $0.537$); the supplementary AST of
+Chapter 4 scores higher still ($0.594 plus.minus 0.023$) but is trained under a
+non-comparable budget and is therefore reported separately. The deep-vs-classical
 difference on lung is small (roughly $1.5"–"2$ pp) and within the multi-seed standard
 deviation, placing classical and deep methods in the same performance tier on this
 task. Both deep models show better sensitivity on minority abnormal classes compared
@@ -273,15 +281,20 @@ partition adopted here.
   of crackle and wheeze relative to classical models.],
 ) <fig-cm-lung-cnn>
 
-The overall best lung model, EfficientNet-B0, is shown in @fig-cm-lung-effnet. Relative
+The best lung model in the main comparison, EfficientNet-B0, is shown in
+@fig-cm-lung-effnet. Relative
 to the SmallCNN it shifts the operating point toward specificity at the cost of
 sensitivity, but both deep models distribute their predictions across all four classes
-rather than collapsing to the majority normal class as random forest does.
+rather than collapsing to the majority normal class as random forest does. A reminder is
+in order here: the headline ICBHI score is a _binary_ normal-versus-abnormal measure
+(sensitivity pooled over the three abnormal classes), so genuine four-way discrimination
+— visible only in the per-class sensitivities of Annexes A and C, and weakest for the
+scarce "both" class — is substantially lower than these pooled figures suggest.
 
 #figure(
   image("../../results/figures/cm_lung_effnet.png", width: 58%),
-  caption: [Confusion matrix of the best overall lung model (EfficientNet-B0, log-mel
-  spectrograms; single representative run). Test set: $2636$ cycles from $47$ patients.],
+  caption: [Confusion matrix of the best lung model in the main comparison (EfficientNet-B0,
+  log-mel spectrograms; single representative run). Test set: $2636$ cycles from $47$ patients.],
 ) <fig-cm-lung-effnet>
 
 @fig-lc-lung-cnn shows the loss curve for the lung CNN. The training loss falls while
@@ -330,7 +343,11 @@ pipeline transfers to a third heart dataset and a more clinically meaningful tas
 only a configuration change, and it demonstrates that the classical-versus-deep verdict
 is task-dependent: classical methods match or beat deep learning on the coarse
 normal/abnormal screen, but deep learning is the stronger choice once the task requires
-resolving a specific acoustic sign such as a murmur. Because CirCor's split is
+resolving a specific acoustic sign such as a murmur. The advantage here is carried by the
+SmallCNN, which outscores the larger EfficientNet-B0 (the reverse of their CinC ordering);
+since the deep configurations were not given a CirCor-specific hyperparameter search, the
+claim is that _a_ deep model, not deep learning categorically, wins this task.
+Because CirCor's split is
 patient-level, this is also the study's cleanest single piece of evidence that the deep
 pipeline generalises beyond window-level memorisation.
 
@@ -362,8 +379,8 @@ each of the two primary modalities), with a further ten on the CirCor murmur
 extension; each deep configuration is additionally the outcome
 of a $128$-trial hyperparameter search and is reported as a mean over $3$ seeds, so
 the deep results alone rest on several hundred individual training runs. Beyond the
-data and model sizes, the experimental pipeline itself comprises $6 thin 135$ lines
-of Python across $37$ modules in `src/` and `scripts/` (approximately $216$ KB of
+data and model sizes, the experimental pipeline itself comprises $6 thin 619$ lines
+of Python across $41$ modules in `src/` and `scripts/` (approximately $236$ KB of
 source code), supported by a further $2 thin 093$ lines of automated tests.
 Full volumetric details appear in Annex B, and per-class cycle counts in Annex C.
 
@@ -392,7 +409,7 @@ Full volumetric details appear in Annex B, and per-class cycle counts in Annex C
   ),
 ) <tab-volumetrics>
 
-== Chapter summary
+=== Chapter summary
 
 On heart sounds, the best overall result is XGBoost with MFCC+Δ+ΔΔ + spectral
 statistics (feature set B), reaching $"MAcc" = 0.903$ ($"Se" = 0.946$, $"Sp" = 0.859$). After
@@ -409,5 +426,8 @@ $0.537$) and SmallCNN ($0.540 plus.minus 0.022$). Classical and deep models occu
 performance tier on this task; the four-class imbalanced structure limits all
 methods equally. The gap between heart and lung scores ($"MAcc" approx 0.90$ vs.
 $"ICBHI" approx 0.55$) reflects the fundamental difficulty difference: a binary task on
-longer recordings versus a four-class imbalanced task on short cycles. Chapter 4
+longer recordings versus a four-class imbalanced task on short cycles. The two numbers are
+not on a common scale, however — heart uses a binary MAcc and lung a pooled-abnormal ICBHI
+score — so the gap is partly metric-structural and should not be read as a pure difficulty
+ratio. Chapter 4
 analyses what these differences imply for cross-modal transfer of method rankings.

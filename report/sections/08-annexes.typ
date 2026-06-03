@@ -256,6 +256,7 @@ results/
   tables/volumetrics_{classical,cnn}.csv  dataset sizes, model params, times
   tables/mcnemar_classical.csv    paired McNemar tests (classical pairs)
   tables/mcnemar_vs_deep.csv      paired McNemar XGBoost vs EfficientNet (3 seeds)
+  tables/effnet_heart_preds.csv   frozen per-seed EfficientNet predictions (McNemar input)
   tables/ast_multiseed{,_raw}.csv AST mean±std and per-seed scores (3 seeds)
   tables/expanded_classifiers.csv nine-classifier panel + rank-transfer Spearman
   tables/arterial_synthetic.csv   synthetic arterial proof-of-concept scores

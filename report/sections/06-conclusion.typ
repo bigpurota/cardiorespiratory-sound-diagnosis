@@ -14,8 +14,9 @@ MFCC+Δ+ΔΔ + spectral-statistics feature set, reached $"MAcc" = 0.903$
 ($"Se" = 0.946$, $"Sp" = 0.859$). After HPO tuning ($128$-trial bounded random search,
 val-only selection), EfficientNet-B0 reaches $"MAcc" = 0.898 plus.minus 0.008$ (three seeds),
 comparable with the best classical model: the gap of $0.005$ falls
-within one standard deviation, so deep learning closes the
-classical advantage on heart sounds once the tuning effort is equalised. A paired
+within one standard deviation, so deep learning narrows the
+classical advantage to within seed noise on heart sounds once the tuning effort is
+equalised, though XGBoost remains numerically best. A paired
 McNemar test on recording-level predictions makes the point concrete: the two are
 statistically indistinguishable at the seed where EfficientNet-B0 reaches $0.898$
 ($p = 0.68$), while XGBoost is significantly ahead on the weaker seeds, so neither
@@ -39,9 +40,9 @@ favouring lung, that underlies the non-transfer. A paired McNemar test on the in
 predictions confirms the inversion is real rather than a rounding effect: XGBoost is
 significantly ahead of SVM on heart ($chi^2 = 17.5$, $p approx 1.5 times 10^(-5)$), yet on
 lung its raw-accuracy edge does not convert into the balanced-metric win, which SVM
-holds. Deep cross-modal transfer, by contrast, is
-benign and roughly symmetric once evaluated over three seeds: under fine-tuning both
-directions reach in-domain performance, and a transfer asymmetry suggested by a single
+holds. Deep cross-modal transfer, by contrast, shows
+no penalty detectable above seed noise once evaluated over three seeds: under fine-tuning
+both directions reach in-domain performance, and a transfer asymmetry suggested by a single
 seed did not survive multi-seed averaging, a cautionary result that underscores the
 value of seed-robust evaluation. Joint multi-task training holds both modalities near
 per-modality performance with only small, backbone-dependent trade-offs. It is thus
@@ -52,11 +53,15 @@ An extension to the CirCor DigiScope 2022 dataset, on a genuinely patient-level
 split, added a finer heart task, murmur detection, and reversed the
 classical-versus-deep ordering seen on CinC: the deep SmallCNN reached
 $"MAcc" = 0.810 plus.minus 0.007$, clearly ahead of the best classical model ($0.688$),
-showing that which method family wins is itself task-dependent.
-The arterial sub-study established that the pipeline generalises in principle to
-a third modality, demonstrated end-to-end on a synthetic arterial-band benchmark
-($"MAcc" approx 0.80$ on a deliberately hard, purely synthetic contrast with no clinical
-weight), but that empirical clinical work is blocked by the absence of any openly
+showing that which method family wins is itself task-dependent. The reversal is carried by
+the SmallCNN specifically (it outscores the larger EfficientNet-B0, which had no
+CirCor-specific tuning), so the claim is that _a_ deep model, not deep learning
+categorically, wins the finer task.
+The arterial sub-study established that the pipeline runs end-to-end on a third
+modality — an engineering check, not evidence of generalisation — demonstrated on a
+synthetic arterial-band benchmark
+($"MAcc" approx 0.80$ on a hand-tuned, purely synthetic contrast with no clinical
+weight), while empirical clinical work is blocked by the absence of any openly
 licensed, labelled dataset of arterial bruits. A pretrained Audio Spectrogram Transformer (AST) was
 fine-tuned on both modalities over three seeds: it gave the single best lung score in the
 study ($"ICBHI" = 0.594 plus.minus 0.023$) and a recall-leaning heart model
@@ -102,6 +107,16 @@ The following limitations bound every claim in this report.
   recordings to both sides. The ICBHI lung split and the CirCor heart-murmur split are
   both genuinely patient-independent, so the patient-level CirCor result complements
   the recording-level CinC evaluation.
+- _Single-split evaluation._ Every headline metric is computed on one held-out split per
+  dataset (a single seeded grouped split for heart, the one official split for lung); the
+  deep ±std values vary the seed on that fixed split, not the split itself. No outer
+  cross-validation was run, so the absolute numbers carry split-selection variance that is
+  not quantified, and the classical point estimates have no resampled confidence interval
+  beyond the binomial interval reported for the best heart model.
+- _No human baseline._ The screening framing implies a comparison against a non-specialist
+  listener, but no human-expert benchmark was collected. The report therefore makes no
+  claim of parity with, or superiority to, a clinician; the comparisons are strictly
+  between automated methods.
 
 #heading(level: 2, numbering: none, outlined: true)[Future work]
 

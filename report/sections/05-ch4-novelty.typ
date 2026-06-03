@@ -89,19 +89,21 @@ occupy the same performance tier on these tasks and dataset scales.
 
 === Summary of cross-modal findings (classical)
 
-The Spearman rank correlation @spearman1904 between the per-classifier ICBHI scores
-(lung) and the corresponding MAcc scores (heart), computed over the four classical
-classifier types, is weak and feature-set-dependent: $rho = 0.60$ on feature set A but
-$rho = 0.00$ on feature set B ($n = 4$ each); pooling both sets gives $rho = 0.24$
-($n = 8$). None of these is significant at conventional thresholds given the small
-sample sizes. Far from undermining the analysis, this inconsistency reinforces its
-central point: classifier rankings do _not_ transfer reliably between modalities.
-Concretely, XGBoost's dominance on heart does not carry over to lung (it falls to
-third, and even reverses its feature-set preference), whereas SVM is the one model
-that stays competitive on both. The practical implication is that a researcher who
-tuned a model exclusively on heart data and redeployed it on lung data would incur a
-non-trivial performance penalty, which is precisely the argument for per-modality
-model selection even within a shared pipeline.
+A Spearman rank correlation @spearman1904 between the per-classifier ICBHI scores
+(lung) and the corresponding MAcc scores (heart), computed over only the four classical
+classifier types, is statistically uninformative: $rho = 0.60$ on feature set A but
+$rho = 0.00$ on feature set B ($n = 4$ each), and pooling both sets gives $rho = 0.24$
+($n = 8$), none significant at conventional thresholds. At this sample size the test can
+reject neither "no correlation" nor "perfect correlation", so we report these coefficients
+only for completeness and do _not_ rest the non-transfer claim on them. The claim is
+carried instead by the qualitative rank inversion documented above and by the
+prediction-level McNemar test: XGBoost's dominance on heart (rank 1) does not carry over
+to lung (it falls to third, and even reverses its feature-set preference), whereas SVM is
+the one model competitive on both, and the paired test confirms that the very same
+XGBoost–SVM pair reorders between modalities under the balanced metric. The practical
+implication is that a researcher who tuned a model exclusively on heart data and
+redeployed it on lung data would incur a non-trivial performance penalty, which is
+precisely the argument for per-modality model selection even within a shared pipeline.
 
 === Robustness: a nine-classifier panel
 
@@ -113,10 +115,11 @@ were re-evaluated on both modalities (@tab-ninepanel). The five additions use fi
 defaults, like the untuned logistic-regression and random-forest baselines, so the
 panel stays internally consistent.
 
-The expansion reinforces the finding rather than dissolving it. The heart-versus-lung
-Spearman correlation across the nine classifiers stays weak and non-significant on both
-feature sets ($rho = 0.42$, $p = 0.26$ on set A; $rho = 0.13$, $p = 0.73$ on set B;
-pooled $rho = 0.32$, $n = 18$, $p = 0.19$), and the headline inversion grows sharper:
+The expansion supports the finding through the ranks themselves, not through the
+correlation coefficient, which stays underpowered even at $n = 9$ (heart-versus-lung
+Spearman $rho = 0.42$, $p = 0.26$ on set A; $rho = 0.13$, $p = 0.73$ on set B;
+pooled $rho = 0.32$, $n = 18$, $p = 0.19$, none significant). What is informative is the
+ordering, and the headline inversion grows sharper:
 XGBoost is rank 1 of 9 on heart but falls to rank 7 of 9 on lung, while the
 radial-basis SVM is the only classifier in the top two of both. More informative is a
 structure the four-model panel could not expose. The tree ensembles (XGBoost, AdaBoost,
@@ -127,6 +130,11 @@ an artefact of a small panel but a model-family-by-modality interaction: non-lin
 ensembles suit the binary heart task, linear models are relatively stronger on the
 four-class lung task, and only the kernel SVM is robust to both. This is a concrete,
 quantified reason to select the classifier per modality even inside one shared pipeline.
+The caveat is that seven of the nine classifiers (all but the tuned SVM and XGBoost) run
+at library defaults, so the precise mid-panel ranks could shift under per-model tuning;
+the claim is therefore a property of the pipeline as configured, not an
+architecture-intrinsic law, though the top/bottom split by model family is too large to
+be a pure tuning artefact.
 
 #figure(
   caption: [Nine-classifier panel under the shared protocol (feature set B). Heart score
@@ -174,16 +182,19 @@ per-setting scores with their seed standard deviations.
   multi-task model. SmallCNN values appear in @tab-joint.],
 ) <fig-cross-modal-heatmap>
 
-The central result is that, once seed variance is taken into account, deep
-cross-modal transfer is benign and roughly symmetric rather than asymmetric.
+The central result is that, once seed variance is taken into account, no cross-modal
+transfer penalty is _detectable_ at three seeds in either direction; the experiment
+cannot rule out small effects below the seed spread, but it does rule out the strong
+asymmetry a single seed had suggested.
 Lung→heart transfer reaches $"MAcc" = 0.887 plus.minus 0.004$ (EfficientNet-B0),
 indistinguishable from the in-domain heart reference ($0.887 plus.minus 0.010$); heart→lung
 transfer reaches $"ICBHI" = 0.561 plus.minus 0.009$, at or slightly above the in-domain lung
 reference ($0.556 plus.minus 0.003$). The SmallCNN behaves identically (lung→heart
 $0.854 plus.minus 0.004$ vs. in-domain $0.852 plus.minus 0.008$; heart→lung $0.531 plus.minus 0.013$ vs.
 in-domain $0.526 plus.minus 0.037$). In short, with full fine-tuning on the target the choice
-of source modality is largely washed out: neither direction incurs a meaningful
-penalty, and pre-training on the opposite modality is, if anything, marginally helpful.
+of source modality is largely washed out: neither direction incurs a penalty detectable
+above seed noise, and the apparent $0.005$ gains from opposite-modality pre-training are
+well within that noise and are not read as a benefit.
 
 This corrects an artefact of single-seed evaluation. A single representative run had
 suggested a strong asymmetry, with heart→lung transfer apparently falling well below
@@ -410,8 +421,8 @@ pipeline and, on lung sounds, gives the single best score in the study over thre
 ($"ICBHI" = 0.594 plus.minus 0.023$); training each seed to convergence at a larger epoch
 budget is left to future work.
 
-The arterial sub-study establishes that the pipeline generalises to bruits in
-principle, demonstrated end-to-end on a synthetic arterial-band benchmark
-($"MAcc" approx 0.80$ on a deliberately hard contrast), but that empirical clinical work
-is blocked by data unavailability, a gap that the community should address through a
-coordinated open data release.
+The arterial sub-study establishes only that the pipeline runs end-to-end on
+arterial-band audio — an engineering check, not evidence of generalisation — demonstrated
+on a synthetic benchmark ($"MAcc" approx 0.80$ on a hand-tuned contrast with no clinical
+weight), while empirical clinical work remains blocked by data unavailability, a gap that
+the community should address through a coordinated open data release.

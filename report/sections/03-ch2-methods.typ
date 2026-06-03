@@ -200,7 +200,9 @@ are logged for the report's volumetric table (Annex B).
 
 A single configuration module is imported first by every script; its import side
 effect seeds Python's `random`, NumPy and PyTorch generators with the value $42$
-and disables non-deterministic cuDNN behaviour. The software stack is pinned:
+and sets cuDNN to deterministic mode. Some CUDA kernels nonetheless remain
+non-deterministic across hardware, so the deep-model results are reproduced as
+distributions over seeds rather than as bit-identical values. The software stack is pinned:
 Python 3.11, librosa 0.11.0, scikit-learn 1.8.0, XGBoost 3.2.0, PyTorch 2.11.0
 with torchaudio 2.11.0, timm ($gt.eq 1.0$), imbalanced-learn 0.14.1, with the exact
 versions captured in a committed `requirements.txt`. The splits are
@@ -209,6 +211,18 @@ identical across runs. The full pinned environment is reproduced in Annex B.
 The classical pipelines run on CPU; the deep models (including the multi-seed,
 hyperparameter search and cross-modal runs) were trained on an NVIDIA A100 GPU,
 with each configuration kept small enough to remain CPU-feasible if required.
+
+Two reproducibility caveats are stated plainly. First, all reported test metrics come
+from a _single_ outer split per dataset (the seeded grouped split for heart, the official
+split for lung); the deep ±std values resample the seed on that fixed split, not the split
+itself, so no outer cross-validation is performed and split-selection variance is not
+quantified. Second, the Audio Spectrogram Transformer fine-tunes (Chapter 4) are bounded
+by a wall-clock budget rather than a fixed epoch count, so their epoch count — and hence
+the exact score — depends on host throughput; unlike the classical and epoch-pinned deep
+runs they are not bit-reproducible across hardware, and are reported as a seed mean ±
+standard deviation under that fixed time budget. Their producing script
+(`scripts/run_ast_multiseed.py`) is committed so the procedure, if not the exact number,
+can be re-run.
 
 === Chapter summary
 

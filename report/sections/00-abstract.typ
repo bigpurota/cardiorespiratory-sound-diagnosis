@@ -15,7 +15,8 @@ contrasted: classical pipelines (MFCC with delta and spectral features fed to fo
 standard classifiers) and deep learning on log-mel spectrograms (a compact CNN and an
 EfficientNet-B0, tuned by hyperparameter optimisation over $128$ trials and reported as
 mean±std across three seeds). On heart sounds the best classical model
-(XGBoost, extended features) reaches $"MAcc" = 0.903$ ($"Se" = 0.946$, $"Sp" = 0.859$); the
+(XGBoost, extended features) reaches $"MAcc" = 0.903$ ($"Se" = 0.946$, $"Sp" = 0.859$, on a
+recording-level split, so possibly optimistic); the
 tuned EfficientNet-B0 reaches $0.898 plus.minus 0.008$, comparable but not ahead of it.
 On lung sounds all methods occupy one tier; a fine-tuned Audio Spectrogram Transformer
 is the single best ($"ICBHI" = 0.594 plus.minus 0.023$, three seeds), above EfficientNet-B0
@@ -51,7 +52,8 @@ PhysioNet/CinC 2016 и дыхательные шумы из ICBHI 2017. Трет
 спектрограммах (компактная свёрточная сеть и трансферная модель EfficientNet-B0,
 настроенные оптимизацией гиперпараметров и усреднённые по трём прогонам с разной
 инициализацией). На тонах сердца лучший
-результат — $"MAcc" = 0.903$ (XGBoost, $"Se" = 0.946$, $"Sp" = 0.859$); EfficientNet-B0
+результат — $"MAcc" = 0.903$ (XGBoost, $"Se" = 0.946$, $"Sp" = 0.859$; разбиение по
+записям, возможно оптимистично); EfficientNet-B0
 достигает $0.898 plus.minus 0.008$ — сопоставимо, но классическая модель остаётся численно
 лучшей. На дыхательных шумах все методы находятся в одном диапазоне
 ($"ICBHI" approx 0.54"–"0.59$); лучший результат — у дообученного Audio
