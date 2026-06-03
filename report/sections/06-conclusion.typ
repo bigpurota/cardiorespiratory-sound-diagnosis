@@ -58,10 +58,10 @@ a third modality, demonstrated end-to-end on a synthetic arterial-band benchmark
 ($"MAcc" approx 0.80$ on a deliberately hard, purely synthetic contrast with no clinical
 weight), but that empirical clinical work is blocked by the absence of any openly
 licensed, labelled dataset of arterial bruits. A pretrained Audio Spectrogram Transformer (AST) was
-fine-tuned on both modalities: it gave the single best lung score in the study
-($"ICBHI" = 0.573$) and a high-recall heart model ($"MAcc" = 0.851$, $"Se" = 0.977$),
-though as a lightly tuned, single-seed model it does not displace the multi-seed
-EfficientNet-B0 and classical baselines on heart.
+fine-tuned on both modalities over three seeds: it gave the single best lung score in the
+study ($"ICBHI" = 0.594 plus.minus 0.023$) and a recall-leaning heart model
+($"MAcc" = 0.864 plus.minus 0.006$, $"Se" = 0.928$), though under its epoch-limited budget
+it does not displace the EfficientNet-B0 and classical baselines on heart.
 
 The work's positive outcomes are a leakage-safe, fully reproducible comparison
 across two modalities and an original cross-modal analysis; its negative outcomes
@@ -88,9 +88,9 @@ The following limitations bound every claim in this report.
   difficulty is set by hand, and it carries no clinical weight.
 - _Scope of deep models._ The deep-learning comparison covers a compact CNN, an
   EfficientNet-B0 transfer model and a fine-tuned Audio Spectrogram Transformer. The
-  AST was trained at a single seed for only a few epochs under the compute budget, so
-  its scores (best on lung, high-recall on heart) are a lower bound rather than a
-  multi-seed verified result.
+  AST was trained over three seeds but for only a few epochs per seed under the compute
+  budget, so its scores (best on lung, recall-leaning on heart) are a lower bound on its
+  ceiling, limited by the epoch budget rather than by seed variance.
 - _Binary heart tasks._ Both heart tasks are binary: normal versus abnormal on CinC
   and murmur present versus absent on CirCor. Neither grades or localises a specific
   pathology (for example individual murmur timing, shape or grade), which the richer
@@ -106,9 +106,9 @@ The following limitations bound every claim in this report.
 #heading(level: 2, numbering: none, outlined: true)[Future work]
 
 Several extensions follow naturally. The Audio Spectrogram Transformer, here fine-tuned
-only briefly at a single seed, should be trained to convergence and over multiple seeds
-to confirm whether its single-seed lead on lung sounds and its high-recall heart
-behaviour hold up against the EfficientNet-B0 baseline. Richer heart-sound labels
+for only a few epochs per seed, should be trained to convergence at a larger epoch budget
+to confirm whether its three-seed lead on lung sounds and its recall-leaning heart
+behaviour widen against the EfficientNet-B0 baseline. Richer heart-sound labels
 (for example the murmur metadata of the CirCor DigiScope database) would turn the
 binary task into graded murmur classification. The joint multi-task architecture
 studied here could be scaled with larger shared encoders to close the remaining

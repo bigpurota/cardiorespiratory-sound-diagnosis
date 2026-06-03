@@ -18,7 +18,7 @@ mean±std across three seeds). On heart sounds the best classical model
 (XGBoost, extended features) reaches $"MAcc" = 0.903$ ($"Se" = 0.946$, $"Sp" = 0.859$); the
 tuned EfficientNet-B0 reaches $0.898 plus.minus 0.008$, comparable but not ahead of it.
 On lung sounds all methods occupy one tier; a fine-tuned Audio Spectrogram Transformer
-is the single best ($"ICBHI" = 0.573$), narrowly above EfficientNet-B0
+is the single best ($"ICBHI" = 0.594 plus.minus 0.023$, three seeds), above EfficientNet-B0
 ($0.555 plus.minus 0.016$). A seed-robust cross-modal analysis finds that classical method
 rankings do not transfer between modalities, whereas deep encoders transfer benignly in
 both directions; a transfer asymmetry seen at a single seed did not survive multi-seed
@@ -54,8 +54,8 @@ PhysioNet/CinC 2016 и дыхательные шумы из ICBHI 2017. Трет
 результат — $"MAcc" = 0.903$ (XGBoost, $"Se" = 0.946$, $"Sp" = 0.859$); EfficientNet-B0
 достигает $0.898 plus.minus 0.008$ — сопоставимо, но классическая модель остаётся численно
 лучшей. На дыхательных шумах все методы находятся в одном диапазоне
-($"ICBHI" approx 0.54"–"0.57$); лучший единичный результат — у дообученного Audio
-Spectrogram Transformer ($0.573$), чуть выше EfficientNet-B0 ($0.555 plus.minus 0.016$).
+($"ICBHI" approx 0.54"–"0.59$); лучший результат — у дообученного Audio
+Spectrogram Transformer ($0.594 plus.minus 0.023$), выше EfficientNet-B0 ($0.555 plus.minus 0.016$).
 Межмодальный анализ по трём прогонам показывает: ранги классических методов между
 модальностями не переносятся, тогда как глубокие энкодеры переносятся доброкачественно
 в обе стороны (асимметрия одного прогона не пережила усреднение). На датасете

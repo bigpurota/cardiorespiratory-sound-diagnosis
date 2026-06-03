@@ -230,40 +230,41 @@ optimise for each at once.
 
 As a fourth deep model, a pretrained Audio Spectrogram Transformer (AST)
 @gong2021ast, originally trained on AudioSet, was fine-tuned on both modalities under
-the same pipeline. Two qualifications frame the result: the AST is heavyweight
-($86$ million parameters, against four million for EfficientNet-B0), and under the
-project's compute budget it was fine-tuned for only a few epochs (two on heart, ten on
-lung) at a single seed, so its scores are a lightly tuned figure rather than the
-model's ceiling.
+the same pipeline and, like the other deep models, evaluated as a mean ± standard
+deviation over three seeds ($1, 2, 42$). One qualification still frames the result: the
+AST is heavyweight ($86$ million parameters, against four million for EfficientNet-B0)
+and, under the project's compute budget, each seed was fine-tuned for only a few epochs
+(two on heart, eight to ten on lung), so its scores are an epoch-limited figure rather
+than the model's ceiling.
 
-On heart sounds the AST reaches $"MAcc" = 0.851$ at a markedly high-recall operating
-point ($"Se" = 0.977$, $"Sp" = 0.726$): it flags almost every abnormal recording at the
-cost of more false positives, a screening-friendly bias produced by class-weighted
-training. That this reflects genuine discrimination rather than over-fitting is
-confirmed by a high ROC-AUC ($0.953$) and by the test MAcc sitting below the validation
-score ($0.930$). Its balanced MAcc nonetheless trails the tuned classical XGBoost
-($0.903$) and EfficientNet-B0 ($0.898$), so the transformer does not displace the
-simpler heart models at this data scale and tuning budget (@fig-cm-heart-ast).
+On heart sounds the AST reaches $"MAcc" = 0.864 plus.minus 0.006$ at a recall-leaning
+operating point ($"Se" = 0.928$, $"Sp" = 0.800$): it favours recovering abnormal
+recordings at the cost of more false positives, a screening-friendly bias produced by
+class-weighted training. That this reflects genuine discrimination rather than
+over-fitting is confirmed by a high ROC-AUC ($0.950$ averaged over the three seeds). Its
+balanced MAcc nonetheless trails the tuned classical XGBoost ($0.903$) and the
+three-seed EfficientNet-B0 ($0.898$), so the transformer does not displace the simpler
+heart models at this data scale and tuning budget (@fig-cm-heart-ast).
 
-On lung sounds the picture differs: the AST reaches $"ICBHI" = 0.573$, the single best
-lung score in the study, ahead of the three-seed EfficientNet-B0 mean
-($0.555 plus.minus 0.016$) and every classical model. This agrees with the literature
-position (Chapter 1) that transformer backbones with large-scale audio pretraining lead
-on ICBHI, and it suggests the audio-pretrained AST has a real, if modest, edge on the
-harder four-class respiratory task. The caveat is that this is a single-seed number, not
-a multi-seed mean, so it should be read as a promising point estimate rather than a
-verified gain over EfficientNet-B0.
+On lung sounds the picture differs: the AST reaches $"ICBHI" = 0.594 plus.minus 0.023$,
+the single best lung score in the study, ahead of the three-seed EfficientNet-B0 mean
+($0.555 plus.minus 0.016$) and every classical model. The lead is consistent rather than
+a lucky seed: even the weakest AST seed ($0.576$) exceeds the EfficientNet-B0 mean. This
+agrees with the literature position (Chapter 1) that transformer backbones with
+large-scale audio pretraining lead on ICBHI, and it indicates the audio-pretrained AST
+has a real, if modest, edge on the harder four-class respiratory task.
 
 The AST thus both confirms that transformer audio models integrate into the shared
 pipeline without modification and, on lung sounds, edges ahead of the convolutional
-models; a multi-seed fine-tune at a larger epoch budget is the natural next step.
+models over three seeds; training each seed to convergence at a larger epoch budget is
+the natural next step.
 
 #figure(
   image("../../results/figures/cm_heart_ast.png", width: 58%),
-  caption: [Confusion matrix of the fine-tuned AST on heart sounds (recording level,
-  $626$ test recordings). The high-recall operating point ($"Se" = 0.977$) shows as
-  near-complete recovery of the abnormal class at the cost of more false positives on
-  the normal class.],
+  caption: [Confusion matrix of the fine-tuned AST on heart sounds for a representative
+  seed (seed $42$: $"MAcc" = 0.871$, $"Se" = 0.946$), at the recording level over $626$
+  test recordings. The recall-leaning operating point shows as near-complete recovery of
+  the abnormal class at the cost of more false positives on the normal class.],
 ) <fig-cm-heart-ast>
 
 == Arterial sounds: an analytical sub-study
@@ -405,8 +406,9 @@ model selection even within a shared pipeline and quantify the cost of a naive
 one-model-all-modalities deployment.
 
 The fine-tuned AST confirms that transformer audio models integrate cleanly into the
-pipeline and, on lung sounds, gives the single best score in the study
-($"ICBHI" = 0.573$); a multi-seed fine-tune at a larger epoch budget is left to future work.
+pipeline and, on lung sounds, gives the single best score in the study over three seeds
+($"ICBHI" = 0.594 plus.minus 0.023$); training each seed to convergence at a larger epoch
+budget is left to future work.
 
 The arterial sub-study establishes that the pipeline generalises to bruits in
 principle, demonstrated end-to-end on a synthetic arterial-band benchmark
