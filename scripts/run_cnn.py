@@ -1,25 +1,4 @@
-"""
-Run the deep-learning experiments per modality and write the result CSVs.
-
-CLI ``--modality {heart,lung,all} --model {cnn,effnet,all}`` that turns the spectrogram
-cache (``features/{modality}_spectrograms.npy``) and the training loop (``src.train_cnn``)
-into the four deep-learning rows of the report: a small CNN and an EfficientNet-B0 for each
-of heart and lung. Heart is headlined on MAcc, lung on the ICBHI Score.
-
-The small CNN runs before EfficientNet for each modality so its row is available as a
-fallback if the EffNet run fails. It writes ``results/tables/metrics_{modality}_cnn.csv``,
-idempotently merges the DL rows into ``results/tables/unified_comparison.csv`` (leaving the
-classical rows untouched), and rebuilds ``results/tables/volumetrics_cnn.csv``.
-
-If an EfficientNet run raises, fails to beat chance, or overruns the wall-clock cap, the
-small-CNN row is written into the ``effnet_b0`` slot with ``fallback_from="cnn"`` provenance
-(a genuine EffNet row carries ``fallback_from=""``) so the matrix stays complete instead of
-crashing. The same script runs on CPU and GPU; device auto-detection lives in
-``src.train_cnn.train_one_model``.
-
-    uv run python scripts/run_cnn.py --modality heart --model all
-    uv run python scripts/run_cnn.py --modality all --model all --wall-cap-min 12
-"""
+"""Run the deep-learning experiments per modality and write"""
 import os
 
 os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -81,8 +60,7 @@ _CHANCE_THRESHOLD = {"heart": 0.5, "lung": 0.5}
 
 
 def _load_cache(modality):
-    """Load the spectrogram cache for ``modality``, building it via
-    ``scripts/build_spectrograms.build`` if absent so unattended runs are self-sufficient."""
+    """Load the spectrogram cache for ``modality``, building it via"""
     path = os.path.join(FEATURES_DIR, f"{modality}_spectrograms.npy")
     if not os.path.exists(path):
         print(
@@ -101,7 +79,7 @@ def _load_cache(modality):
 
 
 def _write_metrics_csv(modality, rows):
-    """Write the per-modality DL metrics CSV (2 rows) with the full metric suite."""
+    """Write the per-modality DL metrics CSV (2 rows) with the"""
     cols = METRICS_COLUMNS[modality]
     df = pd.DataFrame(rows)
     for c in cols:
@@ -115,11 +93,7 @@ def _write_metrics_csv(modality, rows):
 
 
 def _rebuild_unified(modality, rows):
-    """Idempotently merge this modality's DL rows into unified_comparison.csv.
-
-    The drop-mask targets only the DL models for this modality, so the classical rows
-    survive and re-runs do not duplicate rows.
-    """
+    """Idempotently merge this modality's DL rows into"""
     new = pd.DataFrame([{c: r.get(c, "") for c in UNIFIED_COLUMNS} for r in rows])
 
     if os.path.exists(UNIFIED_CSV):
@@ -145,7 +119,7 @@ def _rebuild_unified(modality, rows):
 
 
 def _rebuild_volumetrics(modality, rows, cache_path):
-    """Merge this modality's per-run DL volumetrics into volumetrics_cnn.csv (+params)."""
+    """Merge this modality's per-run DL volumetrics into"""
     data_volume_mb = os.path.getsize(cache_path) / 1e6
     new_rows = []
     for r in rows:
@@ -172,11 +146,7 @@ def _rebuild_volumetrics(modality, rows, cache_path):
 
 
 def _stable_figure_names(modality, model_name, row):
-    """Rename the per-experiment PNGs to the canonical flat names and rewrite row paths.
-
-    ``src.train_cnn`` writes the figures under an experiment subdir; this moves them to
-    ``results/figures/{learning_curve,cm}_{modality}_{cnn|effnet}.png``.
-    """
+    """Rename the per-experiment PNGs to the canonical flat names"""
     fig_stem = "effnet" if model_name == "effnet_b0" else "cnn"
     os.makedirs(FIGURES_DIR, exist_ok=True)
 
@@ -196,12 +166,7 @@ def _stable_figure_names(modality, model_name, row):
 
 
 def _copy_figures_for_fallback(modality, row):
-    """Copy the small-CNN figures to the effnet canonical names for the fallback row.
-
-    Unlike ``_stable_figure_names`` (which moves files), this copies the published
-    ``{kind}_{modality}_cnn.png`` figures to ``..._effnet.png`` so the genuine CNN figures
-    survive while the substituted effnet figures still exist.
-    """
+    """Copy the small-CNN figures to the effnet canonical names"""
     import shutil
 
     os.makedirs(FIGURES_DIR, exist_ok=True)
@@ -220,11 +185,7 @@ def _copy_figures_for_fallback(modality, row):
 
 
 def _run_experiment(cache, modality, model, wall_cap_s):
-    """Train and evaluate one DL experiment via src.train_cnn; normalise figure names.
-
-    Returns the row dict (with ``fallback_from=""`` for a genuine run). Raises on hard
-    failure — the caller decides whether to substitute the CNN row.
-    """
+    """Train and evaluate one DL experiment via src.train_cnn;"""
     row = train_run_modality(
         cache, modality, model=model, wall_cap_s=wall_cap_s
     )
@@ -234,7 +195,7 @@ def _run_experiment(cache, modality, model, wall_cap_s):
 
 
 def _is_nonconverged(modality, row):
-    """True when an EffNet run did not beat chance (fallback trigger)."""
+    """True when an EffNet run did not beat chance (fallback"""
     bvs = row.get("best_val_score", None)
     if bvs is None:
         return False
@@ -242,11 +203,7 @@ def _is_nonconverged(modality, row):
 
 
 def run_modality(modality, models, wall_cap_s):
-    """Run the selected DL experiments for ``modality`` and write all three CSVs + figures.
-
-    The small CNN runs before EfficientNet so its row is available as the fallback before
-    the higher-risk EffNet run is attempted.
-    """
+    """Run the selected DL experiments for ``modality`` and write"""
     os.makedirs(TABLES_DIR, exist_ok=True)
     os.makedirs(FIGURES_DIR, exist_ok=True)
     cache, cache_path = _load_cache(modality)

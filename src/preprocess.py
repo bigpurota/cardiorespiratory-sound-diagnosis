@@ -1,9 +1,4 @@
-"""
-Pure audio preprocessing primitives.
-
-resample -> zero-phase Butterworth bandpass -> peak-normalize, all as pure
-ndarray -> ndarray functions (nothing is written to disk here).
-"""
+"""Pure audio preprocessing primitives."""
 from src import config
 
 import numpy as np
@@ -14,10 +9,7 @@ __all__ = ["resample", "load_resampled", "bandpass_sos", "peak_normalize"]
 
 
 def resample(y, orig_sr, target_sr=4000):
-    """Resample a 1-D signal from ``orig_sr`` to ``target_sr`` (float32).
-
-    Returns the input unchanged (as float32) when the rates already match.
-    """
+    """Resample a 1-D signal from ``orig_sr`` to ``target_sr``"""
     y = np.asarray(y, dtype="float32")
     if orig_sr == target_sr:
         return y
@@ -26,18 +18,13 @@ def resample(y, orig_sr, target_sr=4000):
 
 
 def load_resampled(path, target_sr=4000):
-    """Load an audio file at its native rate and resample to ``target_sr``."""
+    """Load an audio file at its native rate and resample to"""
     y, sr = librosa.load(path, sr=None)
     return resample(y, orig_sr=sr, target_sr=target_sr)
 
 
 def bandpass_sos(y, fmin, fmax, fs=4000, order=4):
-    """Zero-phase Butterworth bandpass via second-order sections (float32).
-
-    Applies ``sosfiltfilt`` (zero phase, preserves waveform timing). Inputs shorter
-    than its internal pad length would raise ``ValueError``, so we fall back to the
-    causal one-pass ``sosfilt`` to keep very short segments finite and same-length.
-    """
+    """Zero-phase Butterworth bandpass via second-order sections"""
     y = np.asarray(y, dtype="float32")
     sos = butter(order, [fmin, fmax], btype="band", fs=fs, output="sos")
 
@@ -50,11 +37,7 @@ def bandpass_sos(y, fmin, fmax, fs=4000, order=4):
 
 
 def peak_normalize(y, eps=1e-9):
-    """Per-clip peak normalization to [-1, 1] (float32).
-
-    Divides by the maximum absolute value (per-clip only — no global scaler fitting).
-    Near-silent clips (peak below ``eps``) are returned unchanged to avoid blow-up.
-    """
+    """Per-clip peak normalization to [-1, 1] (float32)."""
     y = np.asarray(y, dtype="float32")
     m = float(np.max(np.abs(y))) if y.size else 0.0
     if m < eps:

@@ -1,17 +1,4 @@
-"""Tests for the AST (Audio Spectrogram Transformer) model path.
-
-Skip-on-missing: imports happen inside test bodies so collection never errors on a
-machine without ``transformers`` — those tests skip instead.
-
-Covers:
-  - ``test_build_ast_forward_shape`` — ``build_ast(n_classes)`` returns a model whose
-    forward maps ``(B, 1, 64, 128)`` → ``(B, n_classes)`` via ``_to_ast_input``.
-    Skipped if ``transformers`` or ``src.ast_model`` is absent (no HF checkpoint).
-  - ``test_ast_input_adapter_shape`` — ``_to_ast_input`` on a synthetic ``(64, 128)``
-    tensor returns the expected 2-D shape. Does not require ``transformers``.
-  - ``test_unified_adds_ast`` — once AST rows are present, ``unified_comparison.csv``
-    contains ``model=='ast'`` rows and preserves the prior classical + cnn/effnet rows.
-"""
+"""Tests for the AST (Audio Spectrogram Transformer) model"""
 import importlib
 import pathlib
 import sys
@@ -24,7 +11,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
 
 def _import(module_name):
-    """Import ``module_name``, skipping (not erroring) if it is absent."""
+    """Import ``module_name``, skipping (not erroring) if it is"""
     try:
         return importlib.import_module(module_name)
     except Exception as exc:
@@ -40,13 +27,7 @@ def _require_transformers():
 
 
 def test_ast_input_adapter_shape():
-    """``_to_ast_input((64,128))`` returns a 2-D ``(max_length, num_mel_bins)`` tensor.
-
-    AST's ``input_values`` contract is ``(batch, max_length, num_mel_bins)``, so the
-    per-clip adapter must emit ``(max_length, num_mel_bins) = (1024, 128)``, not a
-    flattened 1-D vector (which triggers a "Dimension out of range" error in the AST
-    patch embedding). This test does not require ``transformers``.
-    """
+    """``_to_ast_input((64,128))`` returns a 2-D ``(max_length,"""
     ast_mod = _import("src.ast_model")
     if not hasattr(ast_mod, "_to_ast_input"):
         pytest.skip("src.ast_model._to_ast_input not implemented yet")
@@ -72,12 +53,7 @@ def test_ast_input_adapter_shape():
 
 
 def test_build_ast_forward_shape():
-    """``build_ast(n_classes).forward((B,1,64,128))`` → ``(B,n_classes)``.
-
-    Skipped if ``transformers`` is not installed or ``src.ast_model`` is absent. This
-    downloads the AST checkpoint on first run, so it only runs where transformers and
-    network access are available.
-    """
+    """``build_ast(n_classes).forward((B,1,64,128))`` →"""
     _require_transformers()
     ast_mod = _import("src.ast_model")
     if not hasattr(ast_mod, "build_ast"):
@@ -108,12 +84,7 @@ def test_build_ast_forward_shape():
 
 
 def test_unified_adds_ast():
-    """``unified_comparison.csv`` gains ``model=='ast'`` rows once the AST run lands.
-
-    Skipped if no AST row is present yet. When AST rows are present, also asserts that
-    the 16 classical + 4 cnn/effnet rows (20 prior rows) are still intact so the
-    idempotent merge has not clobbered earlier results.
-    """
+    """``unified_comparison.csv`` gains ``model=='ast'`` rows"""
     import pathlib
     import sys
 

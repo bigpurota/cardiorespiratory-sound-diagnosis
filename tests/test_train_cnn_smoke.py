@@ -1,17 +1,4 @@
-"""Smoke tests for the CNN training entry point (src/train_cnn.py).
-
-A tiny (<=2-epoch) training run is driven on the synthetic_spectrogram_cache
-fixture so the deep-learning loop runs end-to-end in seconds with no PhysioNet or
-ICBHI WAV files. Coverage:
-  - test_metric_suite: the run reports the right primary metric (MAcc for heart,
-    ICBHI_Score for lung, via src/metrics.py) plus Se, Sp, macro_f1, accuracy.
-  - test_learning_curve_png: the run writes a learning-curve PNG.
-  - test_early_stop: epochs_ran <= max_epochs and patience is honored.
-  - test_non_degenerate_cm: save_cm on the test predictions does not raise (the model
-    uses >=2 predicted columns).
-
-Imports happen inside the test bodies and skip when src/train_cnn.py is unavailable.
-"""
+"""Smoke tests for the CNN training entry point"""
 import importlib
 import os
 import pathlib
@@ -33,7 +20,7 @@ def _import(module_name):
 
 
 def _smoke_entry(train_cnn):
-    """Return the tiny-run smoke entry point on src.train_cnn, or skip if absent."""
+    """Return the tiny-run smoke entry point on src.train_cnn, or"""
     entry = (
         getattr(train_cnn, "run_modality", None)
         or getattr(train_cnn, "smoke_run", None)
@@ -49,12 +36,7 @@ def _smoke_entry(train_cnn):
 
 
 def _run(entry, payload, modality, tmp_path, **over):
-    """Drive a tiny (<=2 epoch) run on a fixture payload; keep kwargs permissive.
-
-    The entry signature is not fixed here, so we pass the synthetic cache payload, a
-    small epoch budget, and a tmp output dir, and tolerate either a (model, dict)
-    tuple or a bare metrics dict return.
-    """
+    """Drive a tiny (<=2 epoch) run on a fixture payload; keep"""
     kwargs = dict(
         cache=payload,
         modality=modality,
@@ -79,11 +61,7 @@ def _run(entry, payload, modality, tmp_path, **over):
 
 
 def test_metric_suite(synthetic_spectrogram_cache, tmp_path):
-    """A tiny heart + lung run carries the correct primary metric + full metric suite.
-
-    heart -> primary_metric_name == "MAcc"; lung -> "ICBHI_Score". Both also expose
-    Se, Sp, macro_f1, accuracy (computed via the reused src/metrics.py, not re-derived).
-    """
+    """A tiny heart + lung run carries the correct primary metric"""
     train_cnn = _import("src.train_cnn")
     entry = _smoke_entry(train_cnn)
 
@@ -102,7 +80,7 @@ def test_metric_suite(synthetic_spectrogram_cache, tmp_path):
 
 
 def test_learning_curve_png(synthetic_spectrogram_cache, tmp_path):
-    """A tiny training run writes a learning-curve PNG to the output dir."""
+    """A tiny training run writes a learning-curve PNG to the"""
     train_cnn = _import("src.train_cnn")
     entry = _smoke_entry(train_cnn)
 
@@ -120,12 +98,7 @@ def test_learning_curve_png(synthetic_spectrogram_cache, tmp_path):
 
 
 def test_early_stop(synthetic_spectrogram_cache, tmp_path):
-    """A plateauing run with patience=1 stops at/before max_epochs (early-stop honored).
-
-    With ``max_epochs`` set generously and ``patience=1`` on a small fixture that quickly
-    plateaus, ``epochs_ran`` must be <= max_epochs (and usually strictly less once the
-    val metric stops improving), showing early stopping is wired up.
-    """
+    """A plateauing run with patience=1 stops at/before"""
     train_cnn = _import("src.train_cnn")
     entry = _smoke_entry(train_cnn)
 
@@ -143,12 +116,7 @@ def test_early_stop(synthetic_spectrogram_cache, tmp_path):
 
 
 def test_non_degenerate_cm(synthetic_spectrogram_cache, tmp_path):
-    """``save_cm`` on the tiny run's TEST predictions does not raise (>=2 CM columns).
-
-    The smoke model trained with weighted CE on the class-separable fixture should not
-    collapse to a single predicted class; ``src.metrics.save_cm`` (which calls
-    ``assert_not_degenerate`` first) must succeed for the run's TEST predictions.
-    """
+    """``save_cm`` on the tiny run's TEST predictions does not"""
     train_cnn = _import("src.train_cnn")
     entry = _smoke_entry(train_cnn)
     metrics = _import("src.metrics")

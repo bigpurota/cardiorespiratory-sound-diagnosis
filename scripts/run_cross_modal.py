@@ -1,23 +1,4 @@
-"""
-Cross-modal transfer and joint multi-task experiments between heart and lung sounds.
-
-Runs five cells and writes the cross-modal summary artefacts:
-  - in-domain baselines (2):   heart→heart, lung→lung (via run_modality)
-  - cross-domain transfer (2): heart→lung, lung→heart (via transfer_modality)
-  - joint multi-task (1 model → 2 rows): train_joint → evaluate_joint
-
-This script treats unified_comparison.csv as read-only. Outputs:
-  results/tables/cross_modal_summary.csv   — one row per cell, idempotent
-  results/tables/cross_modal_spearman.csv  — Spearman rho from unified_comparison.csv
-  results/figures/cross_modal_heatmap.png  — source×target transfer-matrix heatmap
-
-Device is auto-detected so the same script runs on CPU and GPU.
-
-Usage:
-    uv run python scripts/run_cross_modal.py --arch cnn --wall-cap-min 1 --seed 42
-    OMP_NUM_THREADS=8 .venv/bin/python scripts/run_cross_modal.py --arch both \\
-        --wall-cap-min 45 --seed 42
-"""
+"""Cross-modal transfer and joint multi-task experiments"""
 import os
 
 os.environ.setdefault("OMP_NUM_THREADS", "8")
@@ -71,7 +52,7 @@ SUMMARY_COLUMNS = [
 
 
 def _load_cache(modality):
-    """Load the spectrogram cache for ``modality``, building it if absent."""
+    """Load the spectrogram cache for ``modality``, building it"""
     path = os.path.join(FEATURES_DIR, f"{modality}_spectrograms.npy")
     if not os.path.exists(path):
         print(
@@ -88,11 +69,7 @@ def _load_cache(modality):
 
 
 def _write_summary(rows):
-    """Write/merge cross_modal_summary.csv idempotently.
-
-    Drops rows matching the (setting, source_modality, target_modality, model) keys
-    produced by this run, then appends the new rows — re-runs cannot duplicate rows.
-    """
+    """Write/merge cross_modal_summary.csv idempotently."""
     os.makedirs(TABLES_DIR, exist_ok=True)
     new_df = pd.DataFrame(
         [{c: r.get(c, "") for c in SUMMARY_COLUMNS} for r in rows]
@@ -136,7 +113,7 @@ def _write_spearman(rho, pvalue, n, labels, heart_scores, lung_scores):
 
 
 def _render_heatmap(rows):
-    """Render a source×target primary-metric heatmap and save to HEATMAP_PNG."""
+    """Render a source×target primary-metric heatmap and save to"""
     os.makedirs(FIGURES_DIR, exist_ok=True)
 
     sources = ["heart", "lung", "heart+lung"]
@@ -188,7 +165,7 @@ def _render_heatmap(rows):
 
 
 def _run_in_domain(cache, modality, arch, wall_cap_s, seed, out_dir):
-    """Run a single in-domain experiment and shape its row to the summary schema."""
+    """Run a single in-domain experiment and shape its row to the"""
     row = _run_modality_single(
         cache, modality, model=arch,
         wall_cap_s=wall_cap_s, seed=seed, out_dir=out_dir,

@@ -1,8 +1,3 @@
-// 01-introduction.typ — Introduction (Annex 5 §5). Annex 7 §1.2: starts a new
-// page; the heading "Introduction" is itself unnumbered (it precedes the numbered
-// chapters), but its body covers relevance, significance, novelty and objectives.
-// Annex 5 §2.3 (distribution of work) is satisfied trivially: this is an individual
-// research project (single-member project group), stated at the end of the introduction.
 
 #import "../helpers.typ": *
 
@@ -105,7 +100,6 @@ Chapter 4 presents the cross-modal analysis and the arterial sub-study. The
 Conclusion summarises the findings against each objective and states the
 limitations and directions for future work.
 
-// ---- Annex 5 §2.3: project-group composition (single member) -----------------
 #heading(level: 3, numbering: none, outlined: false)[Project group and contribution]
 
 This research project was carried out within a project group whose sole member is

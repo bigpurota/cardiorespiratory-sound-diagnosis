@@ -1,29 +1,4 @@
-"""
-Bounded random hyperparameter search, selecting strictly on the validation metric.
-
-Runs a random search over the declared search space for each (modality, model) combination
-— SmallCNN and EfficientNet-B0 on both heart and lung. Winners are chosen strictly by
-``best_val_score`` (the val-carve metric), never the test set.
-
-Search space:
-  learning_rate   : log-uniform [3e-4, 3e-3] (cnn) / [3e-5, 3e-4] (effnet)
-  batch_size      : choice {16, 32, 64}
-  weight_decay    : log-uniform [1e-6, 1e-3] ∪ {0.0}
-  aug_strength    : choice {0.5, 1.0, 1.5}
-  label_smoothing : choice {0.0, 0.05, 0.1}
-  imbalance       : choice {"class_weight", "weighted_sampler"}
-  patience        : choice {5, 7, 10}
-  max_epochs      : fixed 30
-  (cnn only) cnn_widths : choice {(16,32,64,128), (32,64,128,256)}
-  (cnn only) p          : choice {0.3, 0.5}
-
-Output:
-  results/tables/hpo_results.csv       — all trial rows
-  results/tables/hpo_best_configs.json — winner per (modality, model)
-
-Usage:
-    OMP_NUM_THREADS=8 .venv/bin/python scripts/run_hpo.py --n-trials 32 --wall-cap-min 60
-"""
+"""Bounded random hyperparameter search, selecting strictly"""
 import os
 
 os.environ.setdefault("OMP_NUM_THREADS", "8")
@@ -72,11 +47,7 @@ WEIGHT_DECAY_LOG_BOUNDS = (1e-6, 1e-3)
 
 
 def _sample_config(model_key, rng):
-    """Sample one hyperparameter config for ``model_key`` from the search space.
-
-    Uses the passed seeded ``np.random.Generator`` so the config sequence is reproducible.
-    This is the only source of sampled configs.
-    """
+    """Sample one hyperparameter config for ``model_key`` from"""
     config = {}
     config["batch_size"] = int(rng.choice(SEARCH_SPACE["batch_size"]))
     config["aug_strength"] = float(rng.choice(SEARCH_SPACE["aug_strength"]))
@@ -105,12 +76,7 @@ def _sample_config(model_key, rng):
 
 
 def _run_one_trial(modality, model, trial_idx, hparam_config, wall_cap_min, gpu_id, python_exe, search_seed=42):
-    """Run a single HPO trial in a subprocess; return (row_dict or None, elapsed_s).
-
-    Each trial calls run_modality with the sampled hyperparameters and a fixed search seed
-    so trials differ only by hyperparameters, not RNG noise, keeping the val_score
-    comparison fair and reproducible.
-    """
+    """Run a single HPO trial in a subprocess; return (row_dict"""
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     env["OMP_NUM_THREADS"] = "8"
@@ -216,7 +182,7 @@ def main():
         trial_rows = []
 
         def _run_trial_wrapper(trial_idx):
-            """Thread-pool worker — returns (trial_idx, row_or_None, elapsed, gpu_id, hparams)."""
+            """Thread-pool worker — returns (trial_idx, row_or_None,"""
             hp = all_hparams[trial_idx]
             gpu_id = trial_idx % NUM_GPUS
             print(f"  trial {trial_idx+1}/{n_trials}: "

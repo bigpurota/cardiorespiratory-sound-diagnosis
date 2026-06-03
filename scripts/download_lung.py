@@ -1,8 +1,4 @@
-"""
-Download the ICBHI 2017 respiratory sound database via the Kaggle API into
-data/raw/icbhi2017/. Requires ~/.kaggle/kaggle.json (chmod 600). Expects
-920 WAV files plus 920 annotation TXT files.
-"""
+"""Download the ICBHI 2017 respiratory sound database via the"""
 import pathlib
 import subprocess
 import zipfile
@@ -18,7 +14,7 @@ KAGGLE_SLUG_FALLBACK = "nimalanparameshwaran/icbhi-2017-challenge-respiratory-so
 
 
 def check_credentials():
-    """Abort with setup instructions if the Kaggle token is missing or insecure."""
+    """Abort with setup instructions if the Kaggle token is"""
     kaggle_json = pathlib.Path.home() / ".kaggle" / "kaggle.json"
 
     if not kaggle_json.exists():
@@ -50,7 +46,7 @@ def check_credentials():
 
 
 def download():
-    """Download the ICBHI dataset via the kaggle CLI; try a fallback slug on failure."""
+    """Download the ICBHI dataset via the kaggle CLI; try a"""
     existing_wavs = list(DEST.rglob("*.wav"))
     if len(existing_wavs) >= 920:
         print(f"[INFO] {len(existing_wavs)} WAV files already present — skipping download.")
@@ -97,7 +93,7 @@ def download():
 
 
 def extract():
-    """Unzip every .zip under DEST and remove the archive afterwards."""
+    """Unzip every .zip under DEST and remove the archive"""
     for zip_path in list(DEST.rglob("*.zip")):
         print(f"[INFO] Extracting {zip_path} ...")
         with zipfile.ZipFile(zip_path) as zf:
@@ -107,7 +103,7 @@ def extract():
 
 
 def verify():
-    """Check that exactly 920 WAVs and 920 matching annotation TXTs are present."""
+    """Check that exactly 920 WAVs and 920 matching annotation"""
     wav_files = list(DEST.rglob("*.wav"))
     wav_count = len(wav_files)
     print(f"[INFO] WAV files found: {wav_count} (expected 920)")
@@ -129,7 +125,7 @@ def verify():
 
 
 def discover_split_file():
-    """Locate and log any non-annotation TXT files (e.g. split/metadata files)."""
+    """Locate and log any non-annotation TXT files (e.g."""
     wav_files = list(DEST.rglob("*.wav"))
     wav_stems = {p.stem for p in wav_files}
     all_txt = list(DEST.rglob("*.txt"))

@@ -1,23 +1,4 @@
-"""
-Cross-modal transfer and joint multi-task models for the heart/lung sound study.
-
-Reuses the encoders, metrics, and patient-leakage checks from elsewhere in ``src``:
-
-  - ``build_shared_encoder`` wraps the SmallCNN / EfficientNet-B0 backbone as a headless
-    feature extractor.
-  - ``transfer_modality`` pretrains an encoder on the source modality, swaps in a fresh
-    target-sized head (handling the heart 2-class vs lung 4-class mismatch), fine-tunes on
-    the target, and evaluates.
-  - ``JointMultiTaskModel`` is one shared encoder with separate heart (2-class) and lung
-    (4-class) heads; ``train_joint`` trains it on interleaved heart+lung batches and
-    ``evaluate_joint`` scores it on both test sets.
-  - ``spearman_method_rankings`` reads the classical rows of unified_comparison.csv and
-    correlates the heart MAcc vs lung ICBHI rankings.
-
-All splits are patient-level leakage-safe: ``assert_no_patient_leakage`` runs inside
-``build_loaders`` and again explicitly at the top of each public entry point. No global
-scaler, no SMOTE.
-"""
+"""Cross-modal transfer and joint multi-task models for the"""
 import os
 
 os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -75,26 +56,7 @@ FIGURES_DIR = os.path.join(RESULTS_DIR, "figures")
 
 
 def build_shared_encoder(arch="cnn", for_effnet=False):
-    """Return a (encoder_module, feature_dim) pair for the shared cross-modal backbone.
-
-    Parameters
-    ----------
-    arch : str
-        "cnn"    — wraps SmallCNN.features + AdaptiveAvgPool2d(1) + Flatten into an
-                   nn.Sequential; feature_dim = 128 (widths[-1] of the default SmallCNN).
-        "effnet" — creates a headless EfficientNet-B0 via
-                   ``timm.create_model("efficientnet_b0", pretrained=True, in_chans=3,
-                   num_classes=0)``; feature_dim = m.num_features (1280 for B0).
-    for_effnet : bool
-        Passed through only to allow the caller to track the expected input shape.
-        Encoders themselves are shape-agnostic after build_loaders adapts spectrogram
-        inputs to (B,1,64,128) for the CNN or (B,3,224,224) for EffNet.
-
-    Returns
-    -------
-    encoder : nn.Module
-    feature_dim : int
-    """
+    """Return a (encoder_module, feature_dim) pair for the shared"""
     if arch in ("effnet", "effnet_b0", "efficientnet"):
         import timm
         m = timm.create_model(
@@ -114,12 +76,7 @@ def build_shared_encoder(arch="cnn", for_effnet=False):
 
 
 class _EncoderWithHead(nn.Module):
-    """Shared encoder plus a single linear head, sized 2 for heart or 4 for lung.
-
-    Used during the transfer_modality pretrain and fine-tune stages. Swapping the head
-    while keeping the pretrained encoder is how the heart 2-class vs lung 4-class
-    label-space mismatch is handled.
-    """
+    """Shared encoder plus a single linear head, sized 2 for"""
 
     def __init__(self, encoder, feature_dim, n_classes, p_dropout=0.3):
         super().__init__()
@@ -134,7 +91,7 @@ class _EncoderWithHead(nn.Module):
 
 
 def _seed_all(seed=42):
-    """Set the Python, NumPy, and PyTorch RNG seeds for determinism."""
+    """Set the Python, NumPy, and PyTorch RNG seeds for"""
     _random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -156,14 +113,7 @@ def transfer_modality(
     seed=42,
     out_dir=None,
 ):
-    """Pretrain on the source modality, swap the head for the target class count, fine-tune,
-    and evaluate.
-
-    After pretraining, the source head is discarded and replaced with a fresh
-    Linear(feature_dim, target_n_classes) while the pretrained encoder weights carry over
-    unchanged; the encoder and new head are then fine-tuned on the target modality. Returns
-    a row dict with the usual metric and volumetric fields.
-    """
+    """Pretrain on the source modality, swap the head for the"""
     _seed_all(seed)
 
     for_effnet = arch in ("effnet", "effnet_b0", "efficientnet")
@@ -304,12 +254,7 @@ def transfer_modality(
 
 
 class JointMultiTaskModel(nn.Module):
-    """Shared spectrogram encoder with a 2-class heart head and a 4-class lung head.
-
-    The encoder is a SmallCNN backbone or a headless EfficientNet-B0. ``forward(x,
-    modality)`` runs the encoder then dispatches to the head for ``modality`` ("heart" or
-    "lung").
-    """
+    """Shared spectrogram encoder with a 2-class heart head and a"""
 
     def __init__(self, arch="cnn", for_effnet=False):
         super().__init__()
@@ -342,13 +287,7 @@ def train_joint(
     seed=42,
     out_dir=None,
 ):
-    """Train the JointMultiTaskModel on pooled heart+lung batches.
-
-    Builds leakage-safe loaders for both modalities, interleaves their train batches (the
-    shorter loader cycles to match the longer one), and applies per-batch CrossEntropyLoss
-    with the modality's train-only class weights. Early-stops on the average of val heart
-    MAcc and val lung ICBHI. Returns ``(model, {best_val_score, train_time_s, epochs_ran})``.
-    """
+    """Train the JointMultiTaskModel on pooled heart+lung batches."""
     _seed_all(seed)
 
     for_effnet = arch in ("effnet", "effnet_b0", "efficientnet")
@@ -490,10 +429,7 @@ def evaluate_joint(
     out_dir=None,
     model_name="cnn",
 ):
-    """Evaluate the JointMultiTaskModel on the heart and lung test loaders.
-
-    Returns two row dicts: heart at recording-level MAcc and lung at cycle-level ICBHI score.
-    """
+    """Evaluate the JointMultiTaskModel on the heart and lung"""
     out_dir = out_dir or FIGURES_DIR
     os.makedirs(out_dir, exist_ok=True)
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -563,7 +499,7 @@ def evaluate_joint(
 
 
 class _ModalityAdapter(nn.Module):
-    """Wrap JointMultiTaskModel to fix modality for _predict_test compatibility."""
+    """Wrap JointMultiTaskModel to fix modality for _predict_test"""
 
     def __init__(self, joint_model, modality):
         super().__init__()
@@ -575,13 +511,7 @@ class _ModalityAdapter(nn.Module):
 
 
 def spearman_method_rankings(unified_csv_path):
-    """Compute the Spearman rank correlation between heart and lung classifier rankings.
-
-    Reads unified_comparison.csv, selects the per-classifier classical rows at
-    feature_set == "A_mfcc_delta" (heart MAcc and lung ICBHI for {logreg, svm, rf, xgb}),
-    aligns them by model name, and runs ``scipy.stats.spearmanr`` over the two score vectors.
-    Returns ``(rho, pvalue, n, method_labels, heart_scores, lung_scores)``.
-    """
+    """Compute the Spearman rank correlation between heart and"""
     import pandas as pd
     from scipy.stats import spearmanr
 

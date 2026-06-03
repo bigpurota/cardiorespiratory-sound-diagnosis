@@ -1,12 +1,4 @@
-"""
-Generate the descriptive EDA figures.
-
-Delegates to src.eda.main and writes figures to results/figures/eda/ using the
-headless matplotlib Agg backend. Reads only the manifest/cycle tables; it does not
-modify splits, the manifest, or params.
-
-    uv run python scripts/run_eda.py
-"""
+"""Generate the descriptive EDA figures."""
 import sys
 from pathlib import Path
 

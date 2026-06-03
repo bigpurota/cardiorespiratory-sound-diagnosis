@@ -1,11 +1,4 @@
-"""
-Build the recording-level manifest and the per-cycle ICBHI label table.
-
-Calls src.ingest.build_manifest() to write data/processed/manifest.csv (one row
-per .wav) and data/processed/lung_cycles.csv (one row per respiratory cycle).
-
-    uv run python scripts/build_manifest.py
-"""
+"""Build the recording-level manifest and the per-cycle ICBHI"""
 import sys
 
 from src.ingest import build_manifest

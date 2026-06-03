@@ -1,15 +1,4 @@
-"""
-Fetch and validate the official ICBHI 2017 train/test split.
-
-Performs a read-only HTTPS fetch of official_split.txt from a public mirror and
-validates it before trusting the contents. Returns ``(rows, source_url)`` on a
-reachable, valid mirror, or ``(None, None)`` so the caller (src.split.make_lung_splits)
-falls back to a seeded GroupShuffleSplit.
-
-The raymin0223 mirror returns 920 rows of ``stem<TAB>{train|test}``; 2 patients
-(156, 218) overlap and are repaired downstream. The canonical source is Harvard
-Dataverse DOI 10.7910/DVN/HT6PKI.
-"""
+"""Fetch and validate the official ICBHI 2017 train/test split."""
 import pathlib
 import sys
 import urllib.request
@@ -28,15 +17,13 @@ VALID_FLAGS = {"train", "test"}
 
 
 def _on_disk_wav_stems():
-    """Return the set of WAV file stems present under ICBHI2017_DIR."""
+    """Return the set of WAV file stems present under"""
     icbhi_dir = pathlib.Path(config.ICBHI2017_DIR)
     return {p.stem for p in icbhi_dir.rglob("*.wav")}
 
 
 def _validate(rows):
-    """Accept a fetched split only if it has 920 rows, valid flags, and stems that
-    are all present on disk. Any failure returns False and the caller falls back.
-    """
+    """Accept a fetched split only if it has 920 rows, valid"""
     if rows is None or len(rows) != EXPECTED_ROWS:
         print(
             f"[WARN] fetched split has {0 if rows is None else len(rows)} rows "
@@ -77,12 +64,7 @@ def _validate(rows):
 
 
 def fetch_official_split(timeout=15):
-    """Fetch and validate the official ICBHI split; return (rows, url) or (None, None).
-
-    ``rows`` is ``[[stem, "train"|"test"], ...]``. Returns ``(None, None)`` when every
-    mirror is unreachable or the fetched file fails validation, so the caller falls
-    back to a seeded patient-level GroupShuffleSplit.
-    """
+    """Fetch and validate the official ICBHI split; return (rows,"""
     for url in MIRRORS:
         try:
             txt = urllib.request.urlopen(url, timeout=timeout).read().decode()

@@ -1,14 +1,4 @@
-"""
-Cache classical feature matrices for one modality.
-
-Loads the patient-level split, joins it onto the manifest (heart) or lung_cycles
-(lung), runs the preprocess + feature-extraction chain, and saves an aligned dict
-payload to features/{modality}_classical.npy so experiments never re-extract. No
-StandardScaler is fit here — scaling is done train-fold-only inside the pipeline.
-
-    uv run python scripts/build_features.py --modality heart
-    uv run python scripts/build_features.py --modality lung
-"""
+"""Cache classical feature matrices for one modality."""
 import argparse
 import os
 import pathlib
@@ -33,7 +23,7 @@ FEATURES_DIR = os.path.join(config.PROJECT_ROOT, "features")
 
 
 def _load_inputs(modality):
-    """Return (df, splits_df) for the modality, with patient_id as str."""
+    """Return (df, splits_df) for the modality, with patient_id"""
     if modality == "heart":
         df = pd.read_csv(MANIFEST_CSV)
         df = df[df.modality == "heart"].copy()
@@ -49,7 +39,7 @@ def _load_inputs(modality):
 
 
 def build(modality):
-    """Build and cache the feature matrix for ``modality``; print volumetrics."""
+    """Build and cache the feature matrix for ``modality``; print"""
     df, splits = _load_inputs(modality)
 
     train_ids = splits.loc[splits.split == "train", "patient_id"]

@@ -1,14 +1,3 @@
-// 04-ch3-results.typ — Chapter 3: Experimental results (heart + lung).
-// All numbers are taken directly from:
-//   results/tables/unified_comparison.csv   (all 20 rows)
-//   results/tables/metrics_heart_classical.csv
-//   results/tables/metrics_lung_classical.csv
-//   results/tables/metrics_heart_cnn.csv
-//   results/tables/metrics_lung_cnn.csv
-//   results/tables/volumetrics_classical.csv
-//   results/tables/volumetrics_cnn.csv
-// Classical results are FINAL. DL rows updated to HPO+multi-seed mean±std (FINAL).
-// DL-RESULTS-DROPIN slot filled 2026-06-02.
 
 #import "../helpers.typ": *
 
@@ -31,7 +20,6 @@ final. Rows are grouped first by modality, then by feature set, then by
 model. Within each modality the best primary-metric score is shown in bold.
 Deep-learning scores represent HPO-tuned mean±std over three seeds.
 
-// Full 20-row comparison table built from unified_comparison.csv
 #figure(
   caption: [Unified model comparison across both modalities.
   Heart metric: $"MAcc" = ("Se"+"Sp") \/ 2$ (CinC 2016 official). Lung metric: $"ICBHI Score" = ("Se"+"Sp") \/ 2$
@@ -45,7 +33,6 @@ Deep-learning scores represent HPO-tuned mean±std over three seeds.
       [*Modality*], [*Feature set*], [*Model*], [*Metric*],
       [*Score*], [*Se*], [*Sp*], [*macro-F1*],
     ),
-    // ---- Heart classical ----
     [Heart], [A (MFCC+Δ)],      [LogReg],   [MAcc],  [0.794], [0.869], [0.720], [0.706],
     [Heart], [A (MFCC+Δ)],      [SVM],      [MAcc],  [0.859], [0.915], [0.802], [0.783],
     [Heart], [A (MFCC+Δ)],      [RF],       [MAcc],  [0.817], [0.692], [0.942], [0.827],
@@ -55,10 +42,8 @@ Deep-learning scores represent HPO-tuned mean±std over three seeds.
     [Heart], [B (MFCC+Δ+spec)], [RF],       [MAcc],  [0.831], [0.723], [0.940], [0.837],
     [*Heart*], [*B (MFCC+Δ+spec)*], [*XGBoost*], [*MAcc*],
     [*0.903*], [*0.946*], [*0.859*], [*0.839*],
-    // ---- Heart DL ----
     [Heart], [log-mel 64×128], [SmallCNN],       [MAcc], [0.871 ± 0.009], [0.910], [0.831], [—],
     [Heart], [log-mel 64×128], [EfficientNet-B0], [MAcc], [0.898 ± 0.008], [0.936], [0.860], [—],
-    // ---- Lung classical ----
     [Lung], [A (MFCC+Δ)],      [LogReg],  [ICBHI], [0.507], [0.656], [0.358], [0.273],
     [Lung], [A (MFCC+Δ)],      [SVM],     [ICBHI], [0.536], [0.618], [0.454], [0.319],
     [Lung], [A (MFCC+Δ)],      [RF],      [ICBHI], [0.476], [0.101], [0.851], [0.226],
@@ -67,7 +52,6 @@ Deep-learning scores represent HPO-tuned mean±std over three seeds.
     [Lung], [B (MFCC+Δ+spec)], [SVM],     [ICBHI], [0.537], [0.615], [0.458], [0.320],
     [Lung], [B (MFCC+Δ+spec)], [RF],      [ICBHI], [0.472], [0.098], [0.847], [0.243],
     [Lung], [B (MFCC+Δ+spec)], [XGBoost], [ICBHI], [0.500], [0.369], [0.631], [0.294],
-    // ---- Lung DL ----
     [Lung], [log-mel 64×128], [SmallCNN],       [ICBHI], [0.540 ± 0.022], [0.755], [0.325], [—],
     [*Lung*], [*log-mel 64×128*], [*EfficientNet-B0*], [*ICBHI*],
     [*0.555 ± 0.016*], [*0.509*], [*0.601*], [*—*],
@@ -281,9 +265,9 @@ protocol ($4$ classical algorithms $times 2$ feature sets $+ 2$ deep models, on
 each of the two modalities); each deep configuration is additionally the outcome
 of a $128$-trial hyperparameter search and is reported as a mean over $3$ seeds, so
 the deep results alone rest on several hundred individual training runs. Beyond the
-data and model sizes, the experimental pipeline itself comprises $5 thin 977$ lines
-of Python across $31$ modules in `src/` and `scripts/` (approximately $214$ KB of
-source code), supported by a further $2 thin 443$ lines of automated tests.
+data and model sizes, the experimental pipeline itself comprises $5 thin 182$ lines
+of Python across $31$ modules in `src/` and `scripts/` (approximately $177$ KB of
+source code), supported by a further $2 thin 093$ lines of automated tests.
 Full details including per-class cycle counts appear in Annex B.
 
 #figure(

@@ -1,9 +1,3 @@
-// 03-ch2-methods.typ — Chapter 2: Methods. FULLY DRAFTED — every statement is
-// derived from the actual code (config.py, src/preprocess.py, src/segment.py,
-// src/split.py, src/features.py, src/spectrograms.py, src/cnn.py,
-// src/train_cnn.py, src/metrics.py) and the params/{heart,lung}.yaml files.
-// Numbers here are pipeline parameters (factual), not experimental outcomes, so
-// they are stated directly. Only headline experimental results carry [TODO].
 
 #import "../helpers.typ": *
 

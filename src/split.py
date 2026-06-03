@@ -1,17 +1,4 @@
-"""
-Leakage-safe patient-level train/test splits.
-
-Avoiding patient leakage is the main correctness requirement here: every downstream
-experiment imports ``assert_no_patient_leakage`` and logs disjointness at startup.
-
-Heart: seeded ``GroupShuffleSplit(test_size=0.20, random_state=42)`` computed within
-databases A-E (patient_id = DB-prefixed recording stem); the private test set is untouched.
-
-Lung: fetch the official ICBHI split, validate it, then force the two patients (156, 218)
-that the official file places on both sides onto the train side, assert disjointness, and
-log provenance. If the fetch or validation fails, fall back to a seeded patient-level
-``GroupShuffleSplit`` 60/40.
-"""
+"""Leakage-safe patient-level train/test splits."""
 import os
 import sys
 
@@ -30,11 +17,7 @@ HEART_DBS = {"a", "b", "c", "d", "e"}
 
 
 def assert_no_patient_leakage(train_ids, test_ids):
-    """Raise AssertionError on any patient overlap; log counts on disjoint sets.
-
-    Called at the start of every experiment script. On disjoint sets it prints the
-    ``[leakage-check OK] ...`` line and returns ``None``.
-    """
+    """Raise AssertionError on any patient overlap; log counts on"""
     train, test = set(map(str, train_ids)), set(map(str, test_ids))
     overlap = train & test
     assert not overlap, (
@@ -52,11 +35,7 @@ def make_heart_splits(
     test_size=0.20,
     seed=42,
 ):
-    """Build the seeded GroupShuffleSplit heart split within databases A-E.
-
-    Writes a de-duplicated patient-level CSV (patient_id, db_source, split) and asserts zero
-    patient leakage on the saved split. Deterministic at seed=42.
-    """
+    """Build the seeded GroupShuffleSplit heart split within"""
     import pandas as pd
     from sklearn.model_selection import GroupShuffleSplit
 
@@ -89,14 +68,7 @@ def make_lung_splits(
     test_size=0.40,
     seed=42,
 ):
-    """Build the lung split: official ICBHI (validated) + 156/218 fix, else fallback.
-
-    Official path: adopt the official recording assignments, derive patient_id from the
-    recording stem, then force every recording of patients 156 and 218 onto the train side.
-    Fallback path: seeded patient-level ``GroupShuffleSplit(test_size=0.40, random_state=42)``.
-    Either way, assert disjointness and write the CSV (patient_id, split) plus a provenance
-    line recording which path was taken.
-    """
+    """Build the lung split: official ICBHI (validated) + 156/218"""
     import pandas as pd
 
     from scripts.fetch_icbhi_split import fetch_official_split

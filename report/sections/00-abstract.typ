@@ -1,9 +1,4 @@
-// 00-abstract.typ — Abstract (EN) + Аннотация (RU). Annex 5 §3–4: ≤2000 chars
-// each, 5–10 keywords each, bilingual (English body ⇒ Russian abstract required).
-// Annex 7 §1.2: the Abstract is NOT numbered and starts on a new page.
-// All numbers final (HPO+multi-seed DL + cross-modal). Updated 2026-06-02.
 
-// Unnumbered headings: use `heading(... numbering: none)` equivalent via [#heading].
 #heading(numbering: none, outlined: true)[Annotation]
 
 This work presents a reproducible comparative study of machine-learning methods

@@ -1,11 +1,4 @@
-"""Tests for the preprocessing and segmentation helpers.
-
-Covers src.preprocess.resample (2000 Hz -> 4000 Hz doubles the sample count),
-src.preprocess.bandpass_sos (finite, same-length float32 output, stable on short
-inputs), and src.segment.segment_fixed (every window is 12000 samples at
-win_s=3.0, fs=4000). Imports are done inside the test bodies and skip when a
-module is unavailable.
-"""
+"""Tests for the preprocessing and segmentation helpers."""
 import importlib
 import pathlib
 import sys
@@ -30,10 +23,7 @@ def _import(module_name):
 
 
 def _get_resampler(preprocess):
-    """Return a callable that resamples (y, orig_sr, target_sr) -> ndarray.
-
-    Prefer an explicit `resample`; skip if it is unavailable.
-    """
+    """Return a callable that resamples (y, orig_sr, target_sr)"""
     if hasattr(preprocess, "resample"):
         return lambda y, orig, target: preprocess.resample(
             y, orig_sr=orig, target_sr=target
@@ -42,7 +32,7 @@ def _get_resampler(preprocess):
 
 
 def test_resample_shape(synthetic_signal):
-    """Resampling the 2000 Hz synthetic array to 4000 Hz gives exactly 2x samples."""
+    """Resampling the 2000 Hz synthetic array to 4000 Hz gives"""
     preprocess = _import("src.preprocess")
     resample = _get_resampler(preprocess)
 
@@ -58,7 +48,7 @@ def test_resample_shape(synthetic_signal):
 
 
 def test_bandpass_finite(synthetic_signal):
-    """bandpass_sos returns a finite, same-length float32 array for long and short inputs."""
+    """bandpass_sos returns a finite, same-length float32 array"""
     preprocess = _import("src.preprocess")
     if not hasattr(preprocess, "bandpass_sos"):
         pytest.skip("src.preprocess.bandpass_sos not implemented yet")
@@ -78,7 +68,7 @@ def test_bandpass_finite(synthetic_signal):
 
 
 def test_segment_shape_consistency(synthetic_signal):
-    """segment_fixed emits windows that ALL have shape (12000,) for win_s=3.0 @ fs=4000."""
+    """segment_fixed emits windows that ALL have shape (12000,)"""
     segment = _import("src.segment")
     if not hasattr(segment, "segment_fixed"):
         pytest.skip("src.segment.segment_fixed not implemented yet")

@@ -1,10 +1,4 @@
-"""Tests for the evaluation metrics in src/metrics.py.
-
-Covers heart MAcc = (Se+Sp)/2 at recording level, the ICBHI 4-class score
-(pooled-abnormal Se, normal Sp, normal_label=3), per-patient majority voting,
-and the degenerate-confusion-matrix guard. Imports happen inside each test body
-and skip when src.metrics is not available.
-"""
+"""Tests for the evaluation metrics in src/metrics.py."""
 import importlib
 import pathlib
 import sys
@@ -29,7 +23,7 @@ def _import(module_name):
 
 
 def test_macc_formula():
-    """heart_macc returns MAcc == (Se+Sp)/2; this 2×2 gives Se=0.75, Sp=0.75, MAcc=0.75."""
+    """heart_macc returns MAcc == (Se+Sp)/2; this 2×2 gives"""
     metrics = _import("src.metrics")
     if not hasattr(metrics, "heart_macc"):
         pytest.skip("src.metrics.heart_macc not implemented yet")
@@ -45,7 +39,7 @@ def test_macc_formula():
 
 
 def test_icbhi_formula():
-    """icbhi_score = (Se+Sp)/2 with pooled-abnormal Se / normal Sp → 0.833/0.667/0.75."""
+    """icbhi_score = (Se+Sp)/2 with pooled-abnormal Se / normal"""
     metrics = _import("src.metrics")
     if not hasattr(metrics, "icbhi_score"):
         pytest.skip("src.metrics.icbhi_score not implemented yet")
@@ -63,7 +57,7 @@ def test_icbhi_formula():
 
 
 def test_majority_vote():
-    """majority_vote reduces several windows per patient to the per-patient majority class."""
+    """majority_vote reduces several windows per patient to the"""
     metrics = _import("src.metrics")
     if not hasattr(metrics, "majority_vote"):
         pytest.skip("src.metrics.majority_vote not implemented yet")
@@ -88,7 +82,7 @@ def test_majority_vote():
 
 
 def test_degenerate_check():
-    """assert_not_degenerate raises when all preds are one class; passes with ≥2 columns used."""
+    """assert_not_degenerate raises when all preds are one class;"""
     metrics = _import("src.metrics")
     if not hasattr(metrics, "assert_not_degenerate"):
         pytest.skip("src.metrics.assert_not_degenerate not implemented yet")

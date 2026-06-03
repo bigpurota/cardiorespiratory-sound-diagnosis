@@ -1,8 +1,4 @@
-"""Import and version checks for the project's pinned dependencies.
-
-Verifies that all required packages are importable and that pinned versions match
-the project's pyproject.toml specification.
-"""
+"""Import and version checks for the project's pinned"""
 import importlib
 import pytest
 

@@ -1,11 +1,4 @@
-"""Tests for the patient-level split builder (src/split.py).
-
-Covers the reusable assert_no_patient_leakage guard, train/test disjointness of
-results/splits/heart_splits.csv and lung_splits.csv, their schemas (patient_id +
-a train/test flag; heart also carries db_source), and the lung split provenance
-record (overlap patients 156 and 218 repaired when the official path is taken).
-The helper and artifact tests skip when their module or files are absent.
-"""
+"""Tests for the patient-level split builder (src/split.py)."""
 import pathlib
 import sys
 
@@ -49,7 +42,7 @@ def _split_column(df):
 
 
 def test_leakage_helper():
-    """assert_no_patient_leakage raises on overlap and passes cleanly on disjoint sets."""
+    """assert_no_patient_leakage raises on overlap and passes"""
     split_mod = _import_split()
     assert hasattr(split_mod, "assert_no_patient_leakage"), (
         "src.split must export an importable assert_no_patient_leakage helper"
@@ -63,7 +56,7 @@ def test_leakage_helper():
 
 
 def test_splits_disjoint():
-    """Both heart and lung splits must have train/test patient sets that are disjoint."""
+    """Both heart and lung splits must have train/test patient"""
     for path in (HEART_SPLITS, LUNG_SPLITS):
         df = _read_split(path)
         flag = _split_column(df)
@@ -76,7 +69,7 @@ def test_splits_disjoint():
 
 
 def test_split_schema():
-    """Each split CSV encodes patient_id + a train/test flag; heart also carries db_source."""
+    """Each split CSV encodes patient_id + a train/test flag;"""
     heart = _read_split(HEART_SPLITS)
     assert "patient_id" in heart.columns, "heart split missing patient_id column"
     _split_column(heart)
@@ -90,13 +83,7 @@ def test_split_schema():
 
 
 def test_lung_split_provenance():
-    """A provenance record states the path taken; if official, 156/218 are repaired.
-
-    The lung split build path is one of {official-with-repair, reconstructed}.
-    The provenance record (results/splits/lung_split_provenance.txt) must state which
-    path was taken. When the official path is taken, the known overlap patients 156
-    and 218 must each land on exactly ONE side (repair applied).
-    """
+    """A provenance record states the path taken; if official,"""
     if not LUNG_PROVENANCE.exists():
         pytest.skip(
             "lung_split_provenance.txt not written yet — run the split step first"

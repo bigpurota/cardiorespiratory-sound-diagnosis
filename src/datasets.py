@@ -1,11 +1,4 @@
-"""
-Spectrogram Dataset and DataLoaders for the CNN training driver.
-
-Reads the augmentation-free spectrogram cache and builds train/val/test loaders.
-Augmentation (SpecAugment + light noise) is applied to the train dataset only, so
-evaluation is never contaminated. Validation is carved from train with a patient-grouped
-split and re-checked for patient leakage. Class weights come from train labels only.
-"""
+"""Spectrogram Dataset and DataLoaders for the CNN training"""
 import warnings
 
 from src import config
@@ -36,11 +29,7 @@ _NOISE_SIGMA = 0.05
 
 
 def _to_effnet_image(spec):
-    """Adapt a ``(64,128)`` dB image to EfficientNet-B0's ``(3,224,224)`` input.
-
-    Per-image min-max scale to [0,1] (uses only this clip's stats, so leakage-free),
-    tile 1->3 channels, bilinearly resize to 224x224, then ImageNet mean/std normalise.
-    """
+    """Adapt a ``(64,128)`` dB image to EfficientNet-B0's"""
     s = (spec - spec.min()) / (spec.max() - spec.min() + 1e-8)
     img = s.unsqueeze(0).repeat(3, 1, 1)
     img = F.interpolate(
@@ -50,13 +39,7 @@ def _to_effnet_image(spec):
 
 
 class SpectrogramDataset(Dataset):
-    """Wrap an ``(N,64,128)`` log-mel cache; augmentation applies to the train set only.
-
-    With ``augment=True`` (train only), ``__getitem__`` applies FrequencyMasking,
-    TimeMasking and additive Gaussian noise; val/test datasets must pass ``augment=False``.
-    ``for_effnet=True`` returns ``(3,224,224)`` for EfficientNet-B0; otherwise ``(1,64,128)``
-    for the small CNN.
-    """
+    """Wrap an ``(N,64,128)`` log-mel cache; augmentation applies"""
 
     def __init__(self, X, y, augment=False, for_effnet=False):
         self.X = np.asarray(X, dtype="float32")
@@ -84,15 +67,7 @@ class SpectrogramDataset(Dataset):
 
 
 def carve_val(X_train, y_train, pid_train, test_size=0.2, seed=42, n_classes=None):
-    """Carve a patient-grouped validation set out of the train rows.
-
-    Returns ``(tr_idx, va_idx)`` index arrays into the train arrays. GroupShuffleSplit on
-    patient id ensures no patient spans train+val; the partition is re-checked for leakage.
-
-    For the 4-class lung modality, if any class is absent from val, retry once with
-    ``test_size=0.15``; if a class is still missing, warn that early stopping may need to
-    fall back to val loss.
-    """
+    """Carve a patient-grouped validation set out of the train"""
     pid_train = np.asarray(pid_train)
     y_train = np.asarray(y_train)
 
@@ -124,11 +99,7 @@ def carve_val(X_train, y_train, pid_train, test_size=0.2, seed=42, n_classes=Non
 
 
 def train_class_weights(y_train, n_classes):
-    """Inverse-frequency class weights from the train labels only.
-
-    Matches the classical ``class_weight="balanced"`` so weighted CrossEntropy is consistent
-    across models. Returns a length-``n_classes`` float32 tensor.
-    """
+    """Inverse-frequency class weights from the train labels only."""
     classes = np.arange(n_classes)
     w = compute_class_weight("balanced", classes=classes, y=np.asarray(y_train))
     return torch.tensor(w, dtype=torch.float32)
@@ -143,24 +114,7 @@ def build_loaders(
     aug_strength=1.0,
     sampler_mode="class_weight",
 ):
-    """Build seeded, leakage-safe train/val/test DataLoaders from a spectrogram cache.
-
-    Splits ``cache`` by its ``split`` tag into train/test, carves a patient-grouped val out
-    of train, re-checks patient leakage on both (train,test) and (train,val), and wraps three
-    datasets (train augmented; val/test not) in DataLoaders. The shuffled train loader uses a
-    seeded ``torch.Generator`` and ``num_workers=0`` for determinism on macOS.
-
-    Optional knobs (defaults reproduce the baseline behaviour):
-      - ``aug_strength`` scales the train SpecAugment mask params and noise sigma (train only).
-      - ``sampler_mode``: ``"class_weight"`` (default) returns class weights for a weighted
-        CrossEntropyLoss; ``"weighted_sampler"`` builds a seeded WeightedRandomSampler from
-        train class frequencies. The two imbalance strategies must not be combined: with
-        ``"weighted_sampler"`` the caller should use unweighted CE. ``class_weights`` is
-        returned in both modes. Train labels only; no SMOTE, no global scaler.
-
-    Returns a dict with the three loaders, ``class_weights``, ``test_recording_id`` (for the
-    heart majority vote), ``n_classes``, and the raw split sizes.
-    """
+    """Build seeded, leakage-safe train/val/test DataLoaders from"""
     from torch.utils.data import WeightedRandomSampler
 
     X = np.asarray(cache["X"], dtype="float32")

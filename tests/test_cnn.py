@@ -1,17 +1,4 @@
-"""Model and parameter-count contracts for ``src/cnn.py``.
-
-Covers:
-  - ``SmallCNN(n_classes)``: 4-conv-block CNN accepting ``(B, 1, 64, 128)`` and emitting
-    ``(B, n_classes)`` (dropout >= 0.3 head).
-  - ``build_efficientnet_b0(n_classes)``: timm EfficientNet-B0 transfer model with
-    exactly 4,010,110 parameters.
-  - ``count_params(model)``: total parameter count.
-  - The effnet image adapter (``_to_effnet_image`` / ``for_effnet`` routing) lifts a
-    ``(1, 64, 128)`` dB image to the ``(3, 224, 224)`` ImageNet-normalized input.
-
-Imports happen inside the test bodies (skip-on-missing) so collection never errors
-when the module is absent.
-"""
+"""Model and parameter-count contracts for ``src/cnn.py``."""
 import importlib
 import pathlib
 import sys
@@ -26,7 +13,7 @@ EFFNET_B0_PARAMS = 4_010_110
 
 
 def _import(module_name):
-    """Import `module_name`, skipping (not erroring) if it is absent."""
+    """Import `module_name`, skipping (not erroring) if it is"""
     try:
         return importlib.import_module(module_name)
     except Exception as exc:
@@ -34,11 +21,7 @@ def _import(module_name):
 
 
 def test_param_counts():
-    """``count_params(SmallCNN(2)) > 0`` and ``count_params(build_efficientnet_b0(2)) == 4_010_110``.
-
-    The EfficientNet-B0 total parameter count is a fixed invariant (4,010,110) that
-    pins the exact backbone (timm ``efficientnet_b0``, in_chans=3, num_classes=2).
-    """
+    """``count_params(SmallCNN(2)) > 0`` and"""
     cnn = _import("src.cnn")
     for fn in ("count_params", "SmallCNN", "build_efficientnet_b0"):
         if not hasattr(cnn, fn):
@@ -65,12 +48,7 @@ def test_param_counts():
 
 
 def test_forward_shape():
-    """SmallCNN maps (B,1,64,128) -> (B,2); the effnet path maps the same batch -> (B,n_classes).
-
-    The EfficientNet path adapts the single-channel (1,64,128) dB image to a
-    (3,224,224) ImageNet input (1->3 channel repeat + bilinear resize) before the
-    backbone, but the externally observed mapping is still (B,1,64,128) -> (B,n_classes).
-    """
+    """SmallCNN maps (B,1,64,128) -> (B,2); the effnet path maps"""
     cnn = _import("src.cnn")
     if not hasattr(cnn, "SmallCNN"):
         pytest.skip("src.cnn.SmallCNN not implemented yet")

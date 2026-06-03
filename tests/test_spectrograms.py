@@ -1,11 +1,4 @@
-"""Tests for the log-mel spectrogram helpers in src/spectrograms.py.
-
-make_mel builds a torchaudio MelSpectrogram → AmplitudeToDB stack and
-window_to_logmel turns a 12000-sample window into a (64, 128) float32 dB tensor
-(hop=94 → 1 + 12000//94 = 128 frames). n_fft=512 also avoids the empty
-mel-filterbank warning that the heart 20–400 Hz band raises at a smaller FFT.
-Imports happen inside the test bodies and skip when the module is unavailable.
-"""
+"""Tests for the log-mel spectrogram helpers in"""
 import importlib
 import pathlib
 import sys
@@ -29,11 +22,7 @@ def _import(module_name):
 
 
 def test_shape_dtype():
-    """``window_to_logmel(window, make_mel(20,400))`` returns shape (64,128) dtype float32.
-
-    A 12000-sample window through the heart-band mel (n_fft=512, hop=94, n_mels=64)
-    yields exactly 64 mel bins × 128 frames as a float32 array.
-    """
+    """``window_to_logmel(window, make_mel(20,400))`` returns"""
     spectrograms = _import("src.spectrograms")
     for fn in ("make_mel", "window_to_logmel"):
         if not hasattr(spectrograms, fn):
@@ -53,13 +42,7 @@ def test_shape_dtype():
 
 
 def test_no_filterbank_warning():
-    """Building the heart 20–400 Hz mel (n_fft=512) emits NO empty-filterbank warning.
-
-    The heart band (20–400 Hz) with a small n_fft=256 triggers torchaudio's
-    "mel filterbank has all zero values" UserWarning (some mel bins span no FFT bin).
-    make_mel uses n_fft=512 so no such warning is emitted. We construct the mel and
-    run one window through it inside a warnings-recording context.
-    """
+    """Building the heart 20–400 Hz mel (n_fft=512) emits NO"""
     spectrograms = _import("src.spectrograms")
     for fn in ("make_mel", "window_to_logmel"):
         if not hasattr(spectrograms, fn):

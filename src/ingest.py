@@ -1,14 +1,4 @@
-"""
-Build the recording-level manifest for both modalities.
-
-One row per ``.wav`` with columns:
-
-    filepath, patient_id, label, modality, duration_s, db_source, segment_id
-
-Per-respiratory-cycle lung labels go to a separate ``lung_cycles.csv`` so the
-manifest stays one row per recording. Durations come from
-``soundfile.info().duration`` (header-only, no full decode).
-"""
+"""Build the recording-level manifest for both modalities."""
 from src import config
 
 import csv
@@ -42,13 +32,7 @@ ICBHI_AUDIO_SUBPATH = pathlib.Path(
 
 
 def heart_records(cinc_root, sr_target=4000):
-    """Build recording-level heart rows from the CinC 2016 REFERENCE.csv files.
-
-    Reads each ``training-{a..e}/REFERENCE.csv`` (``record,label`` with
-    label -1 = normal, 1 = abnormal), checks the matching ``{stem}.wav`` exists,
-    reads its duration, and emits one dict row per recording. Unsure (label 0)
-    records are excluded. Asserts the expected label distribution as a sanity check.
-    """
+    """Build recording-level heart rows from the CinC 2016"""
     cinc_root = pathlib.Path(cinc_root)
     rows = []
     n_normal = n_abnormal = n_unsure = 0
@@ -95,16 +79,7 @@ def heart_records(cinc_root, sr_target=4000):
 
 
 def lung_records(audio_dir):
-    """Build lung manifest rows plus per-cycle rows from the ICBHI annotations.
-
-    Emits one manifest row per ``.wav`` (patient_id = leading numeric field of the
-    filename) and a separate list of cycle rows — one per annotation line
-    ``start<TAB>end<TAB>crackle<TAB>wheeze`` — carrying the 4-class label.
-
-    Returns
-    -------
-    (manifest_rows, cycle_rows) : tuple[list[dict], list[dict]]
-    """
+    """Build lung manifest rows plus per-cycle rows from the"""
     audio_dir = pathlib.Path(audio_dir)
     manifest_rows = []
     cycle_rows = []
@@ -152,12 +127,7 @@ def lung_records(audio_dir):
 
 
 def build_manifest(cinc_root=None, icbhi_audio_dir=None, out_dir=None):
-    """Assemble manifest.csv (heart + lung) + lung_cycles.csv.
-
-    Writes ``data/processed/manifest.csv`` with the exact column order and
-    ``data/processed/lung_cycles.csv`` with the per-cycle columns. Returns the two
-    output paths.
-    """
+    """Assemble manifest.csv (heart + lung) + lung_cycles.csv."""
     cinc_root = pathlib.Path(cinc_root or config.CINC2016_DIR)
     if icbhi_audio_dir is None:
         icbhi_audio_dir = pathlib.Path(config.ICBHI2017_DIR) / ICBHI_AUDIO_SUBPATH

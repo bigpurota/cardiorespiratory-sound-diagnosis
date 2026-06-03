@@ -1,9 +1,4 @@
-"""Manifest checks for the ingest step (src/ingest.py).
-
-Covers the schema and label distributions of data/processed/manifest.csv and
-data/processed/lung_cycles.csv. Every test skips when the artifacts are not
-present, so collection works on a fresh checkout.
-"""
+"""Manifest checks for the ingest step (src/ingest.py)."""
 import pathlib
 import sys
 
@@ -37,7 +32,7 @@ LUNG_CLASS_COUNTS = {
 
 
 def _read_csv(path):
-    """Read a CSV with pandas, skipping the test if the file is absent."""
+    """Read a CSV with pandas, skipping the test if the file is"""
     if not path.exists():
         pytest.skip(f"{path.name} not built yet — run the ingest step first")
     import pandas as pd
@@ -45,7 +40,7 @@ def _read_csv(path):
 
 
 def test_columns():
-    """manifest.csv header must equal the expected columns, in order."""
+    """manifest.csv header must equal the expected columns, in"""
     df = _read_csv(MANIFEST_PATH)
     assert list(df.columns) == EXPECTED_COLUMNS, (
         f"manifest columns must be exactly {EXPECTED_COLUMNS} (order-sensitive); "
@@ -54,7 +49,7 @@ def test_columns():
 
 
 def test_files_exist():
-    """Every `filepath` in the manifest must point to an existing file (total join)."""
+    """Every `filepath` in the manifest must point to an existing"""
     df = _read_csv(MANIFEST_PATH)
     missing = []
     for raw in df["filepath"].astype(str):
@@ -69,7 +64,7 @@ def test_files_exist():
 
 
 def test_heart_label_dist():
-    """Heart rows: 2495 normal(-1) / 631 abnormal(1); zero unsure(0) rows."""
+    """Heart rows: 2495 normal(-1) / 631 abnormal(1); zero"""
     df = _read_csv(MANIFEST_PATH)
     heart = df[df["modality"] == "heart"]
     counts = heart["label"].value_counts().to_dict()
@@ -90,7 +85,7 @@ def test_heart_label_dist():
 
 
 def test_lung_label_dist():
-    """Lung cycles: 4-class distribution normal:3642 crackle:1864 wheeze:886 both:506."""
+    """Lung cycles: 4-class distribution normal:3642 crackle:1864"""
     df = _read_csv(LUNG_CYCLES_PATH)
     counts = df["label"].astype(str).str.lower().value_counts().to_dict()
     for cls, expected in LUNG_CLASS_COUNTS.items():

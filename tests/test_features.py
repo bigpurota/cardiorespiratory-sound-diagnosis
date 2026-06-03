@@ -1,16 +1,4 @@
-"""Feature-extraction contracts for the pure functions in ``src.features``.
-
-Two functions:
-  - src.features.window_feature_vector(w, sr=4000, include_spectral=False)
-      MFCC(n_mfcc=40) + Δ + ΔΔ summarised as mean+std → 240-d (Set A);
-      include_spectral=True adds 5 spectral stats × (mean,std) = 10 → 250-d (Set B).
-  - src.features.lung_cycle_vector(yb, start_s, end_s, sr=4000, pad_s=3.0, ...)
-      slices [start_s, end_s], pads/trims to 3.0 s (12000 samples) BEFORE MFCC so
-      a 0.2-s cycle (which raw would yield only 2 frames and crash delta) succeeds.
-
-The import happens inside each test body (skip-on-missing) so a missing module never
-errors at collection time.
-"""
+"""Feature-extraction contracts for the pure functions in"""
 import importlib
 import pathlib
 import sys
@@ -29,7 +17,7 @@ HEART_WINDOW = 12000
 
 
 def _import(module_name):
-    """Import `module_name`, skipping (not erroring) if it is absent."""
+    """Import `module_name`, skipping (not erroring) if it is"""
     try:
         return importlib.import_module(module_name)
     except Exception as exc:
@@ -37,10 +25,7 @@ def _import(module_name):
 
 
 def _synthetic_window(n=HEART_WINDOW, seed=42):
-    """Deterministic 3-s heart-window-like array (sine + low noise), float32.
-
-    Stands in for a real 3-s window when exercising the pure feature-extraction math.
-    """
+    """Deterministic 3-s heart-window-like array (sine + low"""
     rng = np.random.default_rng(seed)
     t = np.arange(n, dtype=np.float64) / FS
     tone = np.sin(2.0 * np.pi * 100.0 * t)
@@ -49,7 +34,7 @@ def _synthetic_window(n=HEART_WINDOW, seed=42):
 
 
 def test_heart_vector_dims():
-    """A 12000-sample heart window yields a 240-d (Set A) / 250-d (Set B) float32 vector."""
+    """A 12000-sample heart window yields a 240-d (Set A) / 250-d"""
     features = _import("src.features")
     if not hasattr(features, "window_feature_vector"):
         pytest.skip("src.features.window_feature_vector not implemented yet")
@@ -69,12 +54,7 @@ def test_heart_vector_dims():
 
 
 def test_lung_short_cycle_pad():
-    """A 0.2-s lung cycle is padded to 3.0 s BEFORE MFCC → delta succeeds, finite vector.
-
-    Raw, a 0.2-s cycle yields only 2 MFCC frames and ``librosa.feature.delta``
-    (default width=9) raises ParameterError. Padding before extraction must make this
-    succeed.
-    """
+    """A 0.2-s lung cycle is padded to 3.0 s BEFORE MFCC → delta"""
     features = _import("src.features")
     if not hasattr(features, "lung_cycle_vector"):
         pytest.skip("src.features.lung_cycle_vector not implemented yet")
@@ -94,7 +74,7 @@ def test_lung_short_cycle_pad():
 
 
 def test_vectors_nan_free():
-    """Heart and lung feature vectors are entirely finite (no NaN / Inf)."""
+    """Heart and lung feature vectors are entirely finite (no NaN"""
     features = _import("src.features")
     if not (hasattr(features, "window_feature_vector") and hasattr(features, "lung_cycle_vector")):
         pytest.skip("src.features feature functions not implemented yet")

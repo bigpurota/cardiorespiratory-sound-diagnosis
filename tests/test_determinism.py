@@ -1,5 +1,4 @@
-"""Determinism checks for the seeded NumPy and PyTorch RNGs: two seeded runs must
-produce identical output, confirming the SEED=42 wiring in config is deterministic."""
+"""Determinism checks for the seeded NumPy and PyTorch RNGs:"""
 import hashlib
 import importlib
 
@@ -32,7 +31,7 @@ def test_numpy_seed():
 
 
 def test_torch_seed():
-    """Two consecutive seeded PyTorch runs produce identical output."""
+    """Two consecutive seeded PyTorch runs produce identical"""
     config = pytest.importorskip("src.config")
 
     import torch

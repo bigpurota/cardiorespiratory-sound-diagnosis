@@ -1,9 +1,4 @@
-"""Contracts for the cross-modal transfer and joint multi-task model.
-
-Static checks confirm src/cross_modal.py reuses the shared building blocks (no
-re-implemented models/metrics, leakage guards present); unit checks verify the
-encoder feature dim and the joint model's per-modality output shapes; a smoke
-test runs transfer_modality on a synthetic 2-class -> 4-class cache."""
+"""Contracts for the cross-modal transfer and joint"""
 import importlib
 import pathlib
 import sys
@@ -23,7 +18,7 @@ def _import(module_name):
 
 
 def test_static_imports_reuse():
-    """src/cross_modal.py must import the required building blocks (no re-implementation)."""
+    """src/cross_modal.py must import the required building"""
     src = (PROJECT_ROOT / "src" / "cross_modal.py").read_text(encoding="utf-8")
 
     assert "from src.cnn import" in src, "cross_modal.py must import from src.cnn"
@@ -37,7 +32,7 @@ def test_static_imports_reuse():
 
 
 def test_static_no_reimplemented_metrics():
-    """cross_modal.py must NOT re-implement metrics (no def heart_macc / def icbhi_score / etc)."""
+    """cross_modal.py must NOT re-implement metrics (no def"""
     src = (PROJECT_ROOT / "src" / "cross_modal.py").read_text(encoding="utf-8")
 
     forbidden = ["def heart_macc", "def icbhi_score", "def majority_vote"]
@@ -48,7 +43,7 @@ def test_static_no_reimplemented_metrics():
 
 
 def test_static_no_training_loop():
-    """cross_modal.py must NOT re-implement a training loop (for epoch in range/max_epochs)."""
+    """cross_modal.py must NOT re-implement a training loop (for"""
     import re
     src = (PROJECT_ROOT / "src" / "cross_modal.py").read_text(encoding="utf-8")
     assert "class SmallCNN" not in src, (
@@ -60,7 +55,7 @@ def test_static_no_training_loop():
 
 
 def test_static_head_swap_present():
-    """cross_modal.py must contain the head-swap logic and a 2-class/4-class comment."""
+    """cross_modal.py must contain the head-swap logic and a"""
     import re
     src = (PROJECT_ROOT / "src" / "cross_modal.py").read_text(encoding="utf-8")
 
@@ -78,7 +73,7 @@ def test_static_head_swap_present():
 
 
 def test_static_leakage_guards():
-    """assert_no_patient_leakage must be called at least twice in cross_modal.py."""
+    """assert_no_patient_leakage must be called at least twice in"""
     src = (PROJECT_ROOT / "src" / "cross_modal.py").read_text(encoding="utf-8")
     count = src.count("assert_no_patient_leakage(")
     assert count >= 2, (
@@ -88,7 +83,7 @@ def test_static_leakage_guards():
 
 
 def test_static_no_smote_no_global_scaler():
-    """cross_modal.py must not APPLY SMOTE or fit_transform (usage, not comments)."""
+    """cross_modal.py must not APPLY SMOTE or fit_transform"""
     import re
     src = (PROJECT_ROOT / "src" / "cross_modal.py").read_text(encoding="utf-8")
     assert not re.search(r"\bSMOTE\s*\(", src), (
@@ -98,7 +93,7 @@ def test_static_no_smote_no_global_scaler():
 
 
 def test_static_spearman_wired():
-    """cross_modal.py must define spearman_method_rankings and reference A_mfcc_delta."""
+    """cross_modal.py must define spearman_method_rankings and"""
     src = (PROJECT_ROOT / "src" / "cross_modal.py").read_text(encoding="utf-8")
     assert "def spearman_method_rankings" in src, (
         "cross_modal.py must define spearman_method_rankings"
@@ -127,7 +122,7 @@ def test_static_all_exports():
 
 
 def test_build_shared_encoder_cnn():
-    """build_shared_encoder('cnn') returns (encoder, 128) and the forward shape is correct."""
+    """build_shared_encoder('cnn') returns (encoder, 128) and the"""
     cm = _import("src.cross_modal")
     import torch
 
@@ -144,7 +139,7 @@ def test_build_shared_encoder_cnn():
 
 
 def test_joint_model_shapes():
-    """JointMultiTaskModel.forward emits (B,2) for 'heart' and (B,4) for 'lung'."""
+    """JointMultiTaskModel.forward emits (B,2) for 'heart' and"""
     cm = _import("src.cross_modal")
     import torch
 
@@ -162,7 +157,7 @@ def test_joint_model_shapes():
 
 
 def test_joint_model_invalid_modality():
-    """JointMultiTaskModel.forward raises AssertionError on invalid modality."""
+    """JointMultiTaskModel.forward raises AssertionError on"""
     cm = _import("src.cross_modal")
     import torch
 
@@ -174,12 +169,7 @@ def test_joint_model_invalid_modality():
 
 
 def _make_tiny_cache(n_classes, n_per_class=4, groups_per_class=2, prefix="p", heart_like=True):
-    """Build a minimal spectrogram cache with n_classes present and patient-level splits.
-
-    Uses groups_per_class=4 groups per class so that after the train/test alternation
-    (even groups→train, odd→test) EACH class has groups on BOTH sides, and the train split
-    contains all n_classes labels (required by sklearn's compute_class_weight).
-    """
+    """Build a minimal spectrogram cache with n_classes present"""
     import numpy as np
     rng = np.random.default_rng(99)
     H, W = 64, 128
@@ -208,7 +198,7 @@ def _make_tiny_cache(n_classes, n_per_class=4, groups_per_class=2, prefix="p", h
 
 
 def test_transfer_modality_smoke(tmp_path):
-    """transfer_modality(heart→lung) returns finite primary_metric and non-negative Se/Sp."""
+    """transfer_modality(heart→lung) returns finite"""
     cm = _import("src.cross_modal")
 
     heart_cache = _make_tiny_cache(n_classes=2, n_per_class=4, groups_per_class=2,
@@ -239,7 +229,7 @@ def test_transfer_modality_smoke(tmp_path):
 
 
 def test_transfer_modality_reverse_smoke(tmp_path):
-    """transfer_modality(lung→heart) returns finite MAcc primary_metric."""
+    """transfer_modality(lung→heart) returns finite MAcc"""
     cm = _import("src.cross_modal")
 
     heart_cache = _make_tiny_cache(n_classes=2, n_per_class=4, groups_per_class=2,
@@ -268,7 +258,7 @@ def test_transfer_modality_reverse_smoke(tmp_path):
 
 
 def test_spearman_method_rankings(tmp_path):
-    """spearman_method_rankings reads unified_comparison.csv and returns a valid rho."""
+    """spearman_method_rankings reads unified_comparison.csv and"""
     import math
     cm = _import("src.cross_modal")
     unified = PROJECT_ROOT / "results" / "tables" / "unified_comparison.csv"

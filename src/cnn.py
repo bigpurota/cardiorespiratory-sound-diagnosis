@@ -1,11 +1,4 @@
-"""
-Deep-learning model factory.
-
-Model definitions and builders only — no training logic (that lives in
-``src/train_cnn.py``). Provides the from-scratch ``SmallCNN`` baseline, the
-EfficientNet-B0 transfer model, and ``count_params``. The EfficientNet image
-adapter is re-exported from ``src.datasets``.
-"""
+"""Deep-learning model factory."""
 from src import config
 
 import torch.nn as nn
@@ -17,13 +10,7 @@ __all__ = ["SmallCNN", "build_efficientnet_b0", "count_params", "_to_effnet_imag
 
 
 class SmallCNN(nn.Module):
-    """From-scratch 4-conv-block CNN: ``(B, 1, 64, 128)`` -> ``(B, n_classes)``.
-
-    Four Conv2d(3, padding=1)-BatchNorm2d-ReLU-MaxPool2d(2) blocks grow the channels
-    as given by ``widths``, AdaptiveAvgPool2d(1) collapses the spatial dims, and the
-    head applies Dropout(``p``) before a final Linear(widths[-1], n_classes).
-    ``forward`` returns raw logits. ``widths`` and ``p`` are the tunable knobs.
-    """
+    """From-scratch 4-conv-block CNN: ``(B, 1, 64, 128)`` ->"""
 
     def __init__(self, n_classes, p=0.3, widths=(16, 32, 64, 128)):
         super().__init__()
@@ -57,14 +44,7 @@ class SmallCNN(nn.Module):
 
 
 def build_efficientnet_b0(n_classes, freeze_backbone=False):
-    """Build the timm EfficientNet-B0 transfer model.
-
-    ImageNet weights are fetched on first call and cached. The ``(3, 224, 224)``
-    normalised input is produced upstream by ``src.datasets._to_effnet_image``;
-    this returns the bare backbone. With ``freeze_backbone=True`` every parameter
-    is frozen and only the classifier head is re-enabled — a head-only fallback for
-    CPU runs.
-    """
+    """Build the timm EfficientNet-B0 transfer model."""
     m = timm.create_model(
         "efficientnet_b0", pretrained=True, in_chans=3, num_classes=n_classes
     )

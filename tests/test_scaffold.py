@@ -1,10 +1,4 @@
-"""Project-scaffold tests: directory layout and params YAML files.
-
-Checks that the required project directories exist and that params/heart.yaml and
-params/lung.yaml are valid YAML containing the expected preprocessing keys. The
-directory test fails when dirs are missing; the YAML test skips when the files
-are absent.
-"""
+"""Project-scaffold tests: directory layout and params YAML"""
 import pathlib
 
 import pytest
@@ -14,10 +8,7 @@ _REQUIRED_DIRS = ["src", "data", "params", "results", "report"]
 
 
 def test_dir_structure():
-    """Required project directories exist.
-
-    This test fails (rather than skips) when directories are absent.
-    """
+    """Required project directories exist."""
     missing = []
     for d in _REQUIRED_DIRS:
         if not pathlib.Path(d).is_dir():
@@ -30,7 +21,7 @@ def test_dir_structure():
 
 
 def test_yaml_params():
-    """params/heart.yaml and params/lung.yaml are valid YAML with the required keys."""
+    """params/heart.yaml and params/lung.yaml are valid YAML with"""
     try:
         import yaml
     except ImportError:

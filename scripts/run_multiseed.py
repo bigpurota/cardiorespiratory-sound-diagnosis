@@ -1,25 +1,4 @@
-"""
-Multi-seed run of the deep-learning configs for mean±std reporting.
-
-Runs all 4 DL configs (heart and lung, each with cnn and effnet_b0) across seeds {42, 1, 2}
-as 12 subprocess jobs distributed over up to 4 GPUs via CUDA_VISIBLE_DEVICES. Each job calls
-run_modality with the HPO-chosen config (from hpo_best_configs.json, falling back to defaults
-with a warning if absent) and a per-seed RNG; results are aggregated into mean±std per row.
-
-After aggregation it idempotently replaces the 4 DL rows in unified_comparison.csv with the
-multi-seed mean, leaving the classical rows intact.
-
-Output:
-  results/tables/metrics_multiseed.csv     — mean±std per DL row
-  results/tables/metrics_multiseed_raw.csv — raw per-seed rows for provenance
-  results/tables/unified_comparison.csv    — 4 DL rows updated to multi-seed mean
-  results/tables/volumetrics_cnn.csv       — refreshed (params + mean train_time_s)
-  results/figures/learning_curve_{heart,lung}_{cnn,effnet}.png (from the seed=42 run)
-  results/figures/cm_{heart,lung}_{cnn,effnet}.png             (from the seed=42 run)
-
-Usage:
-    OMP_NUM_THREADS=8 .venv/bin/python scripts/run_multiseed.py --wall-cap-min 120
-"""
+"""Multi-seed run of the deep-learning configs for mean±std"""
 import os
 
 os.environ.setdefault("OMP_NUM_THREADS", "8")
@@ -70,11 +49,7 @@ VOLUMETRICS_COLUMNS = [
 
 
 def _load_hpo_best_configs():
-    """Load HPO-chosen configs from hpo_best_configs.json; warn and return {} if absent.
-
-    Returns a dict keyed ``'{modality}_{model_key}'`` (e.g. ``'heart_cnn'``). Callers fall
-    back to default hyperparameters when a key is missing.
-    """
+    """Load HPO-chosen configs from hpo_best_configs.json; warn"""
     if not HPO_JSON.exists():
         print(f"[multiseed] WARNING: {HPO_JSON} not found — using default hyperparams.")
         return {}
@@ -85,11 +60,7 @@ def _load_hpo_best_configs():
 
 
 def _run_one_seed(modality, model, seed, wall_cap_min, gpu_id, python_exe, hparams=None):
-    """Run a single-seed experiment in a subprocess; return (row_dict or None, elapsed_s).
-
-    Passes the HPO-chosen ``hparams`` into run_modality so each seed re-runs the chosen
-    config; falls back to defaults when ``hparams`` is None.
-    """
+    """Run a single-seed experiment in a subprocess; return"""
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     env["OMP_NUM_THREADS"] = "8"
@@ -161,11 +132,7 @@ print("__ROW__" + json.dumps(out))
 
 
 def _stable_figure_names(modality, model_name, row):
-    """Move per-experiment PNGs to the canonical flat figure names.
-
-    Canonical names: results/figures/learning_curve_{modality}_{cnn|effnet}.png
-                     results/figures/cm_{modality}_{cnn|effnet}.png
-    """
+    """Move per-experiment PNGs to the canonical flat figure names."""
     fig_stem = "effnet" if model_name == "effnet_b0" else "cnn"
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -185,11 +152,7 @@ def _stable_figure_names(modality, model_name, row):
 
 
 def _rebuild_unified(modality, model_name, row):
-    """Idempotently merge one DL row into unified_comparison.csv.
-
-    Drops this modality's matching DL row, then appends the new one; the classical rows
-    survive intact.
-    """
+    """Idempotently merge one DL row into unified_comparison.csv."""
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
     new = pd.DataFrame([{c: row.get(c, "") for c in UNIFIED_COLUMNS}])
 
@@ -215,7 +178,7 @@ def _rebuild_unified(modality, model_name, row):
 
 
 def _rebuild_volumetrics(modality, model_name, row):
-    """Merge one DL volumetrics row into volumetrics_cnn.csv (params + mean train_time_s)."""
+    """Merge one DL volumetrics row into volumetrics_cnn.csv"""
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = FEATURES_DIR / f"{modality}_spectrograms.npy"
     data_volume_mb = (os.path.getsize(cache_path) / 1e6) if cache_path.exists() else 0.0

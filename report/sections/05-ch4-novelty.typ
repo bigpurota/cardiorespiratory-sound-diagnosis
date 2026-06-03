@@ -1,5 +1,3 @@
-// 05-ch4-novelty.typ — Chapter 4: Cross-modal analysis (novelty) + arterial
-// sub-study. All numbers final (HPO+multi-seed DL, cross-modal transfer, joint).
 
 #import "../helpers.typ": *
 

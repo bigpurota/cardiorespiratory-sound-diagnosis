@@ -1,18 +1,4 @@
-"""Leakage-safe Dataset/DataLoader and class-weight contracts for ``src/datasets.py``.
-
-Covers:
-  - ``SpectrogramDataset(X, y, augment=...)``: SpecAugment + Gaussian-noise masking lives
-    on the TRAIN dataset only; val/test Datasets must be built with ``augment=False``
-    (augmentation is applied strictly after the patient-level split).
-  - A patient-grouped validation carve keeps train/val/test patients disjoint
-    (``assert_no_patient_leakage``, reused from the split helpers).
-  - Class weights are computed from the TRAIN-fold labels only (``train_class_weights`` /
-    sklearn ``compute_class_weight('balanced', y=y_train)``), never the full label set.
-
-``test_augment_train_only`` also greps the source to assert the literal ``augment=False``
-contract for the val/test loaders. All imports happen inside the test bodies
-(skip-on-missing) so collection never errors when the module is absent.
-"""
+"""Leakage-safe Dataset/DataLoader and class-weight contracts"""
 import importlib
 import pathlib
 import sys
@@ -27,7 +13,7 @@ DATASETS_SRC = PROJECT_ROOT / "src" / "datasets.py"
 
 
 def _import(module_name):
-    """Import `module_name`, skipping (not erroring) if it is absent."""
+    """Import `module_name`, skipping (not erroring) if it is"""
     try:
         return importlib.import_module(module_name)
     except Exception as exc:
@@ -41,13 +27,7 @@ def _train_mask(payload):
 
 
 def test_augment_train_only(synthetic_spectrogram_cache):
-    """Train Dataset augments; val/test Datasets are built with ``augment=False``.
-
-    SpecAugment/noise must run on the TRAIN dataset only; applying it to val/test would
-    contaminate evaluation. We assert (a) the constructed val/test Datasets carry
-    ``augment=False`` at runtime, and (b) via a source-grep that the val/test loaders
-    are wired with ``augment=False``.
-    """
+    """Train Dataset augments; val/test Datasets are built with"""
     datasets = _import("src.datasets")
     if not hasattr(datasets, "SpectrogramDataset"):
         pytest.skip("src.datasets.SpectrogramDataset not implemented yet")
@@ -79,12 +59,7 @@ def test_augment_train_only(synthetic_spectrogram_cache):
 
 
 def test_no_patient_leakage_val(synthetic_spectrogram_cache):
-    """The patient-grouped val carve keeps train/val and train/test patients disjoint.
-
-    ``make_loaders`` (or the split helper it uses) carves a patient-level validation set
-    out of the train split via GroupShuffleSplit; ``assert_no_patient_leakage`` must pass
-    for both (train, val) and (train, test) — no patient_id appears in two folds.
-    """
+    """The patient-grouped val carve keeps train/val and"""
     datasets = _import("src.datasets")
     splitter = (
         getattr(datasets, "make_loaders", None)
@@ -128,7 +103,7 @@ def test_no_patient_leakage_val(synthetic_spectrogram_cache):
 
 
 def _extract_val_pids(carve, train_pid):
-    """Best-effort extraction of (train_pids, val_pids) from a flexible carve return."""
+    """Best-effort extraction of (train_pids, val_pids) from a"""
     import numpy as np
     if isinstance(carve, dict):
         if "train_pid" in carve and "val_pid" in carve:
@@ -148,12 +123,7 @@ def _extract_val_pids(carve, train_pid):
 
 
 def test_class_weights_train_only(synthetic_spectrogram_cache):
-    """``train_class_weights`` consumes ONLY train-fold labels (never the full set).
-
-    Weights computed on ``y[split=='train']`` must differ from weights computed on ALL
-    rows when the test distribution differs, proving the helper looks at train labels
-    only (consistent with the classical ``class_weight='balanced'``).
-    """
+    """``train_class_weights`` consumes ONLY train-fold labels"""
     datasets = _import("src.datasets")
     weight_fn = getattr(datasets, "train_class_weights", None)
     if weight_fn is None:
@@ -174,10 +144,7 @@ def test_class_weights_train_only(synthetic_spectrogram_cache):
 
 
 def test_build_loaders_aug_strength(synthetic_spectrogram_cache):
-    """build_loaders with aug_strength != 1.0 scales SpecAugment params on the TRAIN dataset.
-
-    Val/test datasets must remain augment=False regardless of aug_strength.
-    """
+    """build_loaders with aug_strength != 1.0 scales SpecAugment"""
     datasets = _import("src.datasets")
     if not hasattr(datasets, "build_loaders"):
         pytest.skip("src.datasets.build_loaders not implemented yet")
@@ -206,9 +173,7 @@ def test_build_loaders_aug_strength(synthetic_spectrogram_cache):
 
 
 def test_build_loaders_weighted_sampler(synthetic_spectrogram_cache):
-    """build_loaders with sampler_mode='weighted_sampler' returns a valid loader that is
-    leakage-free (train/val/test patients remain disjoint).
-    """
+    """build_loaders with sampler_mode='weighted_sampler' returns"""
     datasets = _import("src.datasets")
     if not hasattr(datasets, "build_loaders"):
         pytest.skip("src.datasets.build_loaders not implemented yet")

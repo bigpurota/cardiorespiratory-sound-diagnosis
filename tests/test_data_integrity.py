@@ -1,13 +1,4 @@
-"""Dataset integrity checks for the downloaded raw audio.
-
-Tests that:
-  - CinC 2016 (PhysioNet) has exactly 3,126 WAV files across training-a through -e
-    and that each sub-database REFERENCE.csv has the correct row count.
-  - ICBHI 2017 has exactly 920 WAV files and 920 matching annotation TXT files.
-
-Each test skips with an explanatory message when the data directories are absent
-(i.e., before the download scripts have been run).
-"""
+"""Dataset integrity checks for the downloaded raw audio."""
 import csv
 import pathlib
 import sys
@@ -40,7 +31,7 @@ def test_cinc2016_count():
 
 
 def test_cinc2016_references():
-    """Each sub-database has a REFERENCE.csv with the expected row count."""
+    """Each sub-database has a REFERENCE.csv with the expected"""
     if not CINC_ROOT.exists():
         pytest.skip(
             "CinC 2016 not downloaded yet — run scripts/download_heart.py first"
@@ -72,7 +63,7 @@ def test_icbhi_wav_count():
 
 
 def test_icbhi_annotation_count():
-    """Each WAV file in ICBHI 2017 has a matching annotation TXT file."""
+    """Each WAV file in ICBHI 2017 has a matching annotation TXT"""
     if not ICBHI_ROOT.exists():
         pytest.skip(
             "ICBHI 2017 not downloaded yet — run scripts/download_lung.py first"

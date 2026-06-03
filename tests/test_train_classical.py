@@ -1,18 +1,4 @@
-"""Tests for the classical training/orchestration module (src/train_classical.py).
-
-Three kinds of test:
-  - source inspection (test_no_global_scaler): the module has no bare
-    ``fit_transform(`` and wires the StandardScaler as the first step of an sklearn
-    Pipeline, so it fits on the train fold only.
-  - unit (test_pipelines_fit / test_tuning_groups_disjoint): the four pipelines fit
-    and the tuner uses a grouped CV whose folds are patient-disjoint, exercised on
-    the synthetic_feature_matrix fixture.
-  - schema (test_metrics_csv_schema / test_unified_schema / test_volumetrics_schema):
-    the result CSVs have the expected columns and row counts.
-
-Imports and file reads happen inside the test bodies and skip when their target is
-absent.
-"""
+"""Tests for the classical training/orchestration module"""
 import importlib
 import pathlib
 import sys
@@ -54,13 +40,7 @@ def _read_csv(path):
 
 
 def test_no_global_scaler():
-    """src/train_classical.py must scale INSIDE an sklearn Pipeline — never globally.
-
-    The classic normalisation-leakage bug is ``StandardScaler().fit_transform(X)``
-    on the full (train+test) matrix before splitting. This source check fails if any
-    bare ``fit_transform(`` appears in the module, and also asserts that the scaler is
-    wired as the first step of a ``Pipeline``.
-    """
+    """src/train_classical.py must scale INSIDE an sklearn"""
     if not TRAIN_SRC.exists():
         pytest.skip("src/train_classical.py not implemented yet")
 
@@ -82,8 +62,7 @@ def test_no_global_scaler():
 
 
 def test_pipelines_fit(synthetic_feature_matrix):
-    """build_pipeline(model, n_classes=2) returns a Pipeline whose first step is a
-    StandardScaler, and fit→predict runs for logreg / svm / rf / xgb."""
+    """build_pipeline(model, n_classes=2) returns a Pipeline"""
     train = _import("src.train_classical")
     if not hasattr(train, "build_pipeline"):
         pytest.skip("src.train_classical.build_pipeline not implemented yet")
@@ -106,9 +85,7 @@ def test_pipelines_fit(synthetic_feature_matrix):
 
 
 def test_tuning_groups_disjoint(synthetic_feature_matrix):
-    """The tuning helper wraps a pipeline in GridSearchCV with a grouped CV, and when
-    fit with ``groups=train_groups`` each fold's train/validation patients are disjoint
-    (no patient leaks across the inner-CV split)."""
+    """The tuning helper wraps a pipeline in GridSearchCV with a"""
     train = _import("src.train_classical")
     tuner = getattr(train, "build_search", None) or getattr(train, "tune_pipeline", None)
     if tuner is None:
@@ -140,7 +117,7 @@ def test_tuning_groups_disjoint(synthetic_feature_matrix):
 
 
 def test_metrics_csv_schema():
-    """metrics_{heart,lung}_classical.csv each have 8 rows (feature_set×model) and the metric columns."""
+    """metrics_{heart,lung}_classical.csv each have 8 rows"""
     required_cols = {"feature_set", "model", "Se", "Sp", "macro_f1", "accuracy"}
     for name in ("metrics_heart_classical.csv", "metrics_lung_classical.csv"):
         df = _read_csv(TABLES_DIR / name)
@@ -157,7 +134,7 @@ def test_metrics_csv_schema():
 
 
 def test_unified_schema():
-    """unified_comparison.csv has the exact columns and 16 classical rows."""
+    """unified_comparison.csv has the exact columns and 16"""
     df = _read_csv(TABLES_DIR / "unified_comparison.csv")
 
     for col in UNIFIED_COLUMNS:
@@ -171,8 +148,7 @@ def test_unified_schema():
 
 
 def test_volumetrics_schema():
-    """volumetrics_classical.csv has train_time_s, segment-level AND recording/patient
-    counts, and a data_volume_mb column."""
+    """volumetrics_classical.csv has train_time_s, segment-level"""
     df = _read_csv(TABLES_DIR / "volumetrics_classical.csv")
     cols = set(df.columns)
 

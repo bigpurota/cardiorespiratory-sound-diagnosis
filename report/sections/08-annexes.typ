@@ -1,9 +1,4 @@
-// 08-annexes.typ — Annexes (Annex 5 §10; Annex 7 §1.2 — annexes lettered
-// alphabetically: Annex A, B, C, D). Each annex is numbered and listed in the
-// Table of Contents. Numbers derived from volumetrics_*.csv and metrics_*.csv.
 
-// Switch heading numbering to alphabetic for the annexes (Annex 7 §1.2: annexes
-// lettered A, B, C, ...). The numbering prefix supplies the letter.
 #set heading(numbering: (..n) => {
   let nums = n.pos()
   if nums.len() == 1 {
@@ -13,8 +8,6 @@
   }
 })
 #counter(heading).update(0)
-// Switch figure/table numbering to <Letter>.<n> for the annexes (keyed global
-// state shared with main.typ's figure-numbering rule; no helpers import here).
 #state("annex-mode", false).update(true)
 
 = Full metric tables

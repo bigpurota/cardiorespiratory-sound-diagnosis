@@ -1,8 +1,3 @@
-// 06-conclusion.typ — Conclusion (Annex 5 §8). Annex 7 §1.2: Conclusion has no
-// per-chapter team-role note (Annex 5 §2.3 excludes Conclusion). DRAFTED prose
-// structured as findings-per-objective, with [TODO] only where a final number is
-// required, plus the MANDATORY Limitations section and future work. The
-// overclaiming test is applied: no clinical-validation or deployment claims.
 
 #heading(numbering: none, outlined: true)[Conclusion]
 

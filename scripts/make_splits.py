@@ -1,13 +1,4 @@
-"""
-Build both patient-level train/test splits.
-
-make_heart_splits() uses a seeded GroupShuffleSplit within databases A–E;
-make_lung_splits() uses the official ICBHI split (with the 156/218 overlap repaired)
-or falls back to a seeded split if the fetch fails. Each call verifies there is no
-patient leakage. Outputs are written to results/splits/.
-
-    uv run python scripts/make_splits.py
-"""
+"""Build both patient-level train/test splits."""
 import pathlib
 import sys
 

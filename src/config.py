@@ -1,7 +1,4 @@
-"""
-Shared configuration for the cardiorespiratory sound ML pipeline.
-Import this module FIRST in every script to guarantee reproducibility.
-"""
+"""Shared configuration for the cardiorespiratory sound ML"""
 import random
 import os
 import numpy as np

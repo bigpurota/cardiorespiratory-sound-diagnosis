@@ -1,7 +1,4 @@
-"""
-Download the PhysioNet/CinC 2016 heart-sound training set (databases A-E) into
-data/raw/cinc2016/. Expects 3,126 WAV files across training-a..training-e.
-"""
+"""Download the PhysioNet/CinC 2016 heart-sound training set"""
 import pathlib
 import subprocess
 import zipfile

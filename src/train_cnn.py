@@ -1,11 +1,4 @@
-"""
-Deep-learning training and evaluation for the heart/lung sound study.
-
-Trains a small CNN or EfficientNet-B0 on log-mel spectrograms and evaluates heart at
-the recording level (majority vote -> MAcc) and lung at the cycle level (ICBHI score).
-The fit -> predict -> evaluate -> row-dict flow mirrors ``train_classical.py`` so the
-deep-learning rows line up with the classical rows; all metrics come from ``src.metrics``.
-"""
+"""Deep-learning training and evaluation for the heart/lung"""
 import os
 
 os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -63,17 +56,7 @@ def _val_icbhi(y_true, y_pred):
 
 
 def _recalibrate_batchnorm(model, train_loader, device, n_passes=3, max_batches=None):
-    """Recompute BatchNorm running mean/var as an exact average over the train loader.
-
-    With small batches or few epochs the eval-mode running stats lag the per-batch stats
-    the weights were trained under, which can collapse the eval forward to a near-constant
-    output. Resetting the running stats and accumulating them over a few no-grad train-mode
-    passes (the standard "precise BN" technique) fixes that. No gradients are taken and no
-    weights change. A no-op when the model has no BatchNorm layers.
-
-    ``max_batches`` bounds the batches per pass so the recalibration cannot dominate the
-    wall-clock budget on large datasets; a few hundred batches give an accurate estimate.
-    """
+    """Recompute BatchNorm running mean/var as an exact average"""
     bns = [m for m in model.modules() if isinstance(m, nn.modules.batchnorm._BatchNorm)]
     if not bns:
         return
@@ -116,16 +99,7 @@ def train_one_model(
     device=None,
     weight_decay=0.0,
 ):
-    """Train ``model`` with early stop and a wall-clock cap, restore the best epoch by val
-    metric, and write a learning-curve PNG.
-
-    ``device`` auto-detects CUDA then CPU. Adam optimises only the ``requires_grad`` params
-    (so the EfficientNet head-only freeze path trains just the classifier). Each epoch the
-    val primary metric ``val_metric_fn(true, pred)`` is computed (MAcc for heart, ICBHI for
-    lung); the best ``state_dict`` is kept, the loop early-stops after ``patience``
-    non-improving epochs and hard-breaks once ``wall_cap_s`` is exceeded. Returns
-    ``(model, {"best_val_score", "train_time_s", "epochs_ran"})``.
-    """
+    """Train ``model`` with early stop and a wall-clock cap,"""
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     opt = torch.optim.Adam(
@@ -210,11 +184,7 @@ def train_one_model(
 
 
 def _predict_test(model, test_loader, device):
-    """Run test inference; return (y_true, y_pred, abnormal_score) numpy arrays.
-
-    ``abnormal_score`` is softmax column 1 (P(abnormal)), used for the heart
-    recording-level AUC.
-    """
+    """Run test inference; return (y_true, y_pred,"""
     model.eval()
     y_true, y_pred, score1 = [], [], []
     with torch.no_grad():
@@ -245,14 +215,7 @@ def evaluate(
     volumetrics,
     device=None,
 ):
-    """Evaluate ``model`` on the test set and return the metric + volumetric row dict.
-
-    Heart: per-window predictions are reduced to recording level via ``majority_vote``, the
-    per-recording abnormal score is the mean softmax column 1, and ``heart_macc`` yields the
-    MAcc suite plus AUC. Lung: cycle-level ``icbhi_score`` and ``per_class_se``. Both write a
-    confusion-matrix figure. The returned dict also carries the raw ``test_true``/
-    ``test_pred`` arrays.
-    """
+    """Evaluate ``model`` on the test set and return the metric +"""
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     os.makedirs(figures_dir, exist_ok=True)
 
@@ -365,26 +328,7 @@ def run_modality(
     p=0.3,
     **_ignored,
 ):
-    """Train and evaluate one experiment (modality x model); return its row dict.
-
-    Builds leakage-safe loaders (``build_loaders`` re-asserts train/test and train/val
-    disjointness), constructs the model (``cnn`` -> ``SmallCNN``, ``effnet_b0`` ->
-    ``build_efficientnet_b0``), trains with weighted CE (train-only class weights) and the
-    modality-appropriate val monitor (MAcc for heart, ICBHI for lung), then evaluates on the
-    test set. ``lr`` defaults to 1e-3 for the small CNN and 1e-4 for EfficientNet. Writes a
-    learning-curve PNG and checkpoint under ``out_dir``; no CSV.
-
-    ``seed`` controls the val-carve split, DataLoader shuffle, and weight init; all global
-    RNGs are set here. The remaining tuning knobs default to the values used for the reported
-    runs:
-      - ``weight_decay``: L2 regularisation for Adam.
-      - ``label_smoothing``: CrossEntropyLoss label smoothing.
-      - ``aug_strength``: SpecAugment mask param and noise scaling for the train set only.
-      - ``sampler_mode``: ``"class_weight"`` (weighted CE) or ``"weighted_sampler"``
-        (WeightedRandomSampler with unweighted CE); the two are never combined.
-      - ``cnn_widths``: SmallCNN channel widths (None -> (16, 32, 64, 128)).
-      - ``p``: SmallCNN dropout probability.
-    """
+    """Train and evaluate one experiment (modality x model);"""
     import random as _random
     _random.seed(seed)
     np.random.seed(seed)

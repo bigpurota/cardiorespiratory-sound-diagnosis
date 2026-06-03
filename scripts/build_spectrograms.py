@@ -1,20 +1,4 @@
-"""
-Cache log-mel spectrograms for one modality (input to the CNN models).
-
-Closely parallels scripts/build_features.py — same split join, startup leakage
-check, payload format and volumetric print — but replaces classical feature
-extraction with the mel transform. The audio path (load_resampled → bandpass_sos
-→ peak_normalize) is identical to src/features.extract_features so the deep-learning
-rows stay comparable with the classical ones.
-
-Output is features/{modality}_spectrograms.npy holding X (N×64×128 float32) plus
-labels, patient_id, split and recording_id. No augmentation happens here; spec-augment
-and noise live only in the train DataLoader. Labels come from the manifest/cycles CSV
-via HEART_LABEL_MAP / LUNG_LABEL_MAP, never from filenames.
-
-    uv run python scripts/build_spectrograms.py --modality heart
-    uv run python scripts/build_spectrograms.py --modality lung
-"""
+"""Cache log-mel spectrograms for one modality (input to the"""
 import argparse
 import os
 import pathlib
@@ -44,11 +28,7 @@ WINDOW_SAMPLES = 12000
 
 
 def _load_inputs(modality):
-    """Return (df, splits_df) for the modality, with patient_id as str.
-
-    Same logic as scripts/build_features.py: heart reads the manifest filtered to
-    ``modality == "heart"``, lung reads lung_cycles.csv, and both join the split CSV.
-    """
+    """Return (df, splits_df) for the modality, with patient_id"""
     if modality == "heart":
         df = pd.read_csv(MANIFEST_CSV)
         df = df[df.modality == "heart"].copy()
@@ -64,12 +44,7 @@ def _load_inputs(modality):
 
 
 def _extract_spectrograms(modality, df, splits, params):
-    """Run the audio path + mel transform into aligned (X, labels, pid, split, rec_id).
-
-    Follows src/features.extract_features but emits a (64,128) log-mel per window/cycle
-    instead of a feature vector. The mel filterbank is built once per modality (fmin/fmax
-    from the params bandpass) and reused for every row.
-    """
+    """Run the audio path + mel transform into aligned (X,"""
     fmin = int(params.get("bandpass_low_hz"))
     fmax = int(params.get("bandpass_high_hz"))
     order = int(params.get("bandpass_order", 4))
@@ -145,7 +120,7 @@ def _extract_spectrograms(modality, df, splits, params):
 
 
 def build(modality):
-    """Build and cache the spectrogram tensor for ``modality``; print volumetrics."""
+    """Build and cache the spectrogram tensor for ``modality``;"""
     df, splits = _load_inputs(modality)
 
     train_ids = splits.loc[splits.split == "train", "patient_id"]

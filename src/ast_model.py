@@ -1,11 +1,4 @@
-"""
-Audio Spectrogram Transformer wrapper.
-
-Wraps a pretrained AudioSet AST checkpoint so it exposes the same
-``forward(x) -> logits`` contract as ``SmallCNN`` / EfficientNet-B0, letting the
-shared training and evaluation loop drive it unchanged. ``count_params`` is
-re-exported from ``src.cnn``.
-"""
+"""Audio Spectrogram Transformer wrapper."""
 from src import config
 
 import torch
@@ -23,22 +16,7 @@ _AST_MAX_LENGTH = 1024
 
 
 def _to_ast_input(spec, num_mel_bins=_AST_NUM_MEL_BINS, max_length=_AST_MAX_LENGTH):
-    """Adapt a ``(64, 128)`` dB log-mel tensor to AST's ``input_values``.
-
-    All steps are per-clip and leakage-free: min-max scale using only this clip's
-    stats, bilinearly resize the frequency axis to ``num_mel_bins``, then pad or
-    trim the time axis to ``max_length``.
-
-    Parameters
-    ----------
-    spec : torch.Tensor, shape (64, 128) or (1, 64, 128)
-        Log-mel dB spectrogram from the project's cache.
-
-    Returns
-    -------
-    torch.Tensor, shape ``(max_length, num_mel_bins)``
-        ``input_values`` tensor for ``ASTForAudioClassification.forward``.
-    """
+    """Adapt a ``(64, 128)`` dB log-mel tensor to AST's"""
     if spec.dim() == 3:
         spec = spec.squeeze(0)
 
@@ -60,11 +38,7 @@ def _to_ast_input(spec, num_mel_bins=_AST_NUM_MEL_BINS, max_length=_AST_MAX_LENG
 
 
 class ASTWrapper(nn.Module):
-    """Wrap ``ASTForAudioClassification`` to accept ``(B, 1, 64, 128)`` batches.
-
-    Adapts each sample via ``_to_ast_input`` and returns ``(B, n_classes)`` logits,
-    matching the ``SmallCNN`` / EfficientNet forward contract.
-    """
+    """Wrap ``ASTForAudioClassification`` to accept ``(B, 1, 64,"""
 
     def __init__(self, hf_model, num_mel_bins=_AST_NUM_MEL_BINS, max_length=_AST_MAX_LENGTH):
         super().__init__()
@@ -73,7 +47,7 @@ class ASTWrapper(nn.Module):
         self.max_length = max_length
 
     def forward(self, x):
-        """``(B, 1, 64, 128)`` -> raw logits ``(B, n_classes)`` (no softmax)."""
+        """``(B, 1, 64, 128)`` -> raw logits ``(B, n_classes)`` (no"""
         adapted = torch.stack(
             [_to_ast_input(x[i], self.num_mel_bins, self.max_length) for i in range(x.shape[0])]
         )
@@ -82,23 +56,7 @@ class ASTWrapper(nn.Module):
 
 
 def build_ast(n_classes, checkpoint=_DEFAULT_CHECKPOINT):
-    """Build a fine-tunable ``ASTWrapper`` from the AudioSet AST checkpoint.
-
-    ``transformers`` is imported lazily so this module stays importable without it.
-    Loads ``checkpoint`` with ``ignore_mismatched_sizes=True`` so the AudioSet
-    527-class head is replaced by a fresh ``n_classes`` head.
-
-    Parameters
-    ----------
-    n_classes : int
-        Number of output classes (2 for heart, 4 for lung).
-    checkpoint : str
-        HuggingFace Hub model ID.
-
-    Returns
-    -------
-    ASTWrapper
-    """
+    """Build a fine-tunable ``ASTWrapper`` from the AudioSet AST"""
     try:
         from transformers import AutoModelForAudioClassification, ASTConfig
     except ImportError as e:

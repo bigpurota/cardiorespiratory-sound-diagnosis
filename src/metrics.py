@@ -1,11 +1,4 @@
-"""
-Evaluation metrics shared by every experiment so definitions stay identical across models.
-
-Provides recording-level majority voting, the CinC 2016 heart MAcc, the official ICBHI
-4-class Score, a degenerate-classifier guard, a confusion-matrix figure helper, and a few
-small per-class/F1/accuracy helpers. The matplotlib Agg backend is set before importing
-pyplot so figures render with no display.
-"""
+"""Evaluation metrics shared by every experiment so"""
 from src import config
 
 import numpy as np
@@ -36,22 +29,13 @@ __all__ = [
 
 
 def majority_vote(window_preds, patient_ids):
-    """Reduce per-window predictions to one per recording via per-patient majority class.
-
-    Returns a pandas Series indexed by patient_id. Ties resolve deterministically to the
-    smaller class index (``value_counts().idxmax()``).
-    """
+    """Reduce per-window predictions to one per recording via"""
     df = pd.DataFrame({"pid": np.asarray(patient_ids), "pred": np.asarray(window_preds)})
     return df.groupby("pid")["pred"].agg(lambda s: s.value_counts().idxmax())
 
 
 def heart_macc(y_true_rec, y_pred_rec, y_score_rec=None):
-    """Recording-level heart metric dict (MAcc, Se, Sp, macro_f1, accuracy[, auc_roc]).
-
-    Labels: normal=0, abnormal=1 (map the manifest -1/1 convention before calling).
-    Se = recall(abnormal), Sp = recall(normal), MAcc = (Se+Sp)/2 (the official CinC 2016
-    metric). Passing ``y_score_rec`` (mean abnormal-class probability per recording) adds AUC.
-    """
+    """Recording-level heart metric dict (MAcc, Se, Sp, macro_f1,"""
     y_true_rec = np.asarray(y_true_rec)
     y_pred_rec = np.asarray(y_pred_rec)
     tn, fp, fn, tp = confusion_matrix(y_true_rec, y_pred_rec, labels=[0, 1]).ravel()
@@ -73,13 +57,7 @@ def heart_macc(y_true_rec, y_pred_rec, y_score_rec=None):
 
 
 def icbhi_score(y_true, y_pred, normal_label=3):
-    """Official ICBHI 4-class Score: (Se+Sp)/2 with pooled-abnormal Se and normal Sp.
-
-    Se = fraction of true-abnormal cycles (``label != normal_label``) predicted as any
-    abnormal class; Sp = fraction of true-normal cycles predicted normal. Se therefore
-    credits a true-crackle predicted as wheeze, since both are abnormal: the metric measures
-    normal-vs-abnormal discrimination rather than 4-way accuracy. Report per-class Se too.
-    """
+    """Official ICBHI 4-class Score: (Se+Sp)/2 with"""
     y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
     is_ab_t = y_true != normal_label
     is_ab_p = y_pred != normal_label
@@ -100,16 +78,12 @@ def macro_f1(y_true, y_pred):
 
 
 def accuracy(y_true, y_pred):
-    """Plain accuracy (secondary; never the headline metric on imbalanced data)."""
+    """Plain accuracy (secondary; never the headline metric on"""
     return float((np.asarray(y_true) == np.asarray(y_pred)).mean())
 
 
 def assert_not_degenerate(y_true, y_pred, labels):
-    """Raise AssertionError when predictions occupy fewer than 2 confusion columns.
-
-    A model that always predicts one class (e.g. always-normal on imbalanced lung) uses a
-    single predicted-class column. Returns the number of columns used otherwise.
-    """
+    """Raise AssertionError when predictions occupy fewer than 2"""
     cm = confusion_matrix(y_true, y_pred, labels=labels)
     cols_used = int((cm.sum(axis=0) > 0).sum())
     assert cols_used >= 2, (
@@ -119,7 +93,7 @@ def assert_not_degenerate(y_true, y_pred, labels):
 
 
 def save_cm(y_true, y_pred, labels, title, out_png):
-    """Render and save a confusion-matrix PNG (Agg backend); guards degeneracy first."""
+    """Render and save a confusion-matrix PNG (Agg backend);"""
     cols_used = assert_not_degenerate(y_true, y_pred, labels)
     cm = confusion_matrix(y_true, y_pred, labels=labels)
     fig, ax = plt.subplots(figsize=(4, 4))

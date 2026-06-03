@@ -1,9 +1,3 @@
-// 02-ch1-litreview.typ — Chapter 1: Analytical literature review (Annex 5 §6).
-// Fully drafted with original prose. Citations reference real sources in
-// report/refs.bib. All external claims are cited [n]. Original synthesis
-// throughout — no verbatim copying from any source. Dataset-fact sentences and
-// canonical definitions are deliberately re-structured to minimise similarity
-// against the source papers (originality pass 2026-06-02).
 
 #import "../helpers.typ": *
 

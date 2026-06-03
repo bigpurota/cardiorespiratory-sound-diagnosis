@@ -1,13 +1,4 @@
-"""
-Classical training and evaluation for the heart/lung sound study.
-
-Runs the comparative classical study of 4 models (logreg, svm, rf, xgb) x 2 feature sets
-per modality. Each model is an sklearn ``Pipeline([("scaler", StandardScaler()), ("clf",
-clf)])`` so scaling fits on the train fold only — there is no global fit-then-transform.
-SVM and XGBoost are tuned over a small grid via patient-grouped GridSearchCV; heart is
-scored at the recording level (majority vote -> MAcc) and lung at the cycle level (ICBHI
-score). CSV writing lives in ``scripts/run_classical.py``, not here.
-"""
+"""Classical training and evaluation for the heart/lung sound"""
 import os
 
 os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -74,14 +65,7 @@ HEART_LABELS = [0, 1]
 
 
 def build_pipeline(model_name, n_classes, y_train=None, seed=SEED):
-    """Return a ``Pipeline([("scaler", StandardScaler()), ("clf", clf)])`` for ``model_name``.
-
-    The StandardScaler is the first step so it fits on the train fold only; there is no
-    global ``fit_transform`` on the full matrix. logreg/svm/rf use
-    ``class_weight="balanced"``; XGBoost binary heart uses
-    ``scale_pos_weight=n_neg/n_pos`` (needs ``y_train``); XGBoost 4-class lung carries no
-    class weight here — the caller passes ``clf__sample_weight`` to ``pipe.fit`` instead.
-    """
+    """Return a ``Pipeline([("scaler", StandardScaler()), ("clf","""
     name = model_name.lower()
     if name == "logreg":
         clf = LogisticRegression(class_weight="balanced", max_iter=1000, random_state=seed)
@@ -128,24 +112,14 @@ def build_pipeline(model_name, n_classes, y_train=None, seed=SEED):
 
 
 def _grouped_cv(n_classes, n_splits=3):
-    """Return a patient-grouped CV: StratifiedGroupKFold, with GroupKFold for binary.
-
-    StratifiedGroupKFold keeps the 4 lung classes balanced and patients disjoint per fold;
-    plain GroupKFold is the binary-heart fallback.
-    """
+    """Return a patient-grouped CV: StratifiedGroupKFold, with"""
     if n_classes <= 2:
         return GroupKFold(n_splits=n_splits)
     return StratifiedGroupKFold(n_splits=n_splits)
 
 
 def build_search(model_name, n_classes, y_train=None, seed=SEED):
-    """Wrap the svm/xgb pipeline in a ``GridSearchCV`` over a tiny patient-grouped grid.
-
-    ``cv`` is GroupKFold/StratifiedGroupKFold(3) so the caller's
-    ``search.fit(X, y, groups=train_patient_ids)`` keeps inner-CV folds patient-disjoint
-    (groups go to ``.fit``, NOT the constructor). ``scoring="balanced_accuracy"`` matches
-    the imbalanced objective. logreg/rf have no grid and must not be passed here.
-    """
+    """Wrap the svm/xgb pipeline in a ``GridSearchCV`` over a"""
     name = model_name.lower()
     if name == "svm":
         grid = SVM_GRID
@@ -171,11 +145,7 @@ tune_pipeline = build_search
 
 
 def _subsample_groups(X, y, groups, cap, seed=SEED):
-    """Patient-grouped, seeded train-only sub-sample capping the row count at ``cap``.
-
-    Whole patients are kept or dropped together so the sub-sample stays patient-grouped for
-    the inner CV. Used for SVM tuning only; the final SVM refits on the full train set.
-    """
+    """Patient-grouped, seeded train-only sub-sample capping the"""
     n = X.shape[0]
     if n <= cap:
         return X, y, groups
@@ -197,12 +167,7 @@ def _subsample_groups(X, y, groups, cap, seed=SEED):
 
 
 def _fit_tuned(model_name, n_classes, X_train, y_train, train_groups, seed=SEED):
-    """Tune svm/xgb via grouped GridSearchCV (groups passed to .fit); return the best estimator.
-
-    SVM tuning runs on a patient-grouped seeded sub-sample and the chosen (C, gamma) is
-    refit on the full train set; XGB tunes on the full train set. Falls back to
-    GroupKFold(3) if StratifiedGroupKFold raises on a missing class.
-    """
+    """Tune svm/xgb via grouped GridSearchCV (groups passed to"""
     name = model_name.lower()
 
     if name == "svm":
@@ -235,11 +200,7 @@ def _fit_tuned(model_name, n_classes, X_train, y_train, train_groups, seed=SEED)
 
 
 def _fit_fixed(model_name, n_classes, X_train, y_train, seed=SEED):
-    """Fit a model with fixed defaults (no grid), applying xgb 4-class sample weights.
-
-    Only logreg and rf reach this path in ``run_experiments`` (svm/xgb are tuned), but it
-    stays general so any model can be fit without tuning.
-    """
+    """Fit a model with fixed defaults (no grid), applying xgb"""
     pipe = build_pipeline(model_name, n_classes, y_train=y_train, seed=seed)
     if model_name.lower() == "xgb" and n_classes > 2:
         sw = compute_sample_weight(class_weight="balanced", y=y_train)
@@ -250,12 +211,7 @@ def _fit_fixed(model_name, n_classes, X_train, y_train, seed=SEED):
 
 
 def _abnormal_proba(estimator, X, classes):
-    """Per-row abnormal-class probability for the heart AUC, mean-aggregatable per recording.
-
-    Returns P(class==1) when predict_proba is available, else a min-max scaled
-    decision_function, else the hard prediction. ``classes`` is the estimator's class
-    ordering.
-    """
+    """Per-row abnormal-class probability for the heart AUC,"""
     if hasattr(estimator, "predict_proba"):
         proba = estimator.predict_proba(X)
         classes = np.asarray(classes)
@@ -270,15 +226,7 @@ def _abnormal_proba(estimator, X, classes):
 
 
 def run_experiments(modality, cache_dict, figures_dir=FIGURES_DIR):
-    """Run the 8 (feature_set x model) experiments for ``modality``; return row dicts.
-
-    Splits the cache by its ``split`` tag, re-asserts ``assert_no_patient_leakage``, and for
-    each feature_set in {A, B} x model in {logreg, svm, rf, xgb}: times the fit (GridSearchCV
-    time included for svm/xgb), predicts on test, scores heart at the recording level
-    (majority vote -> MAcc) and lung at the cycle level (ICBHI score), and writes a confusion
-    matrix under ``figures_dir``. Returns a list of metric + volumetric row dicts; does not
-    write CSVs.
-    """
+    """Run the 8 (feature_set x model) experiments for"""
     os.makedirs(figures_dir, exist_ok=True)
 
     n_classes = 2 if modality == "heart" else 4

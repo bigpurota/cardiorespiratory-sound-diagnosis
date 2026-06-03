@@ -1,10 +1,4 @@
-"""Schema tests for the deep-learning merge into unified_comparison.csv.
-
-scripts/run_cnn.py appends 4 deep-learning rows (cnn/effnet_b0 × heart/lung) to
-results/tables/unified_comparison.csv. These tests check that the merge keeps the
-12-column header in order and leaves the 16 classical rows in place, for 20 rows
-total. They skip while the CSV is absent or still holds only the classical rows.
-"""
+"""Schema tests for the deep-learning merge into"""
 import pathlib
 import sys
 
@@ -48,11 +42,7 @@ def _skip_if_not_dl_updated(df):
 
 
 def test_unified_schema():
-    """unified_comparison.csv columns == UNIFIED_COLUMNS in EXACT order after the DL merge.
-
-    The DL append (scripts/run_cnn.py) rewrites the CSV in the same 12-column order
-    as scripts/run_classical.py — never adding or reordering columns.
-    """
+    """unified_comparison.csv columns == UNIFIED_COLUMNS in EXACT"""
     df = _read_csv(UNIFIED_CSV)
     _skip_if_not_dl_updated(df)
 
@@ -63,12 +53,7 @@ def test_unified_schema():
 
 
 def test_matrix_complete():
-    """After the DL merge: cnn+effnet_b0 rows exist for BOTH modalities; classical rows survive.
-
-    The four DL combinations are (cnn,heart), (cnn,lung), (effnet_b0,heart),
-    (effnet_b0,lung). All four must be present, AND the 16 classical rows (model in
-    {logreg,svm,rf,xgb}) must remain → 20 long-format rows total.
-    """
+    """After the DL merge: cnn+effnet_b0 rows exist for BOTH"""
     df = _read_csv(UNIFIED_CSV)
     _skip_if_not_dl_updated(df)
 

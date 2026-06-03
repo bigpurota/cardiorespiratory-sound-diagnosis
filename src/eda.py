@@ -1,15 +1,4 @@
-"""
-Exploratory data analysis figures.
-
-Reads the manifest (``data/processed/manifest.csv``) and the lung cycle table
-(``data/processed/lung_cycles.csv``) and renders the descriptive figures used in the
-report: class distributions, duration histograms, heart per-database (A-E) counts, lung
-per-class cycle counts, the ICBHI native sampling-rate distribution, and example
-waveform + log-mel panels per class.
-
-This module is read-only: it never modifies splits, the manifest, params, or any cache.
-The matplotlib Agg backend is selected before importing pyplot so the script runs headless.
-"""
+"""Exploratory data analysis figures."""
 from src import config
 
 import os
@@ -87,7 +76,7 @@ def _save(fig, name):
 
 
 def load_tables():
-    """Load the manifest and lung-cycle tables (source of truth for EDA)."""
+    """Load the manifest and lung-cycle tables (source of truth"""
     manifest = pd.read_csv(os.path.join(config.DATA_PROCESSED, "manifest.csv"))
     cycles = pd.read_csv(os.path.join(config.DATA_PROCESSED, "lung_cycles.csv"))
     return manifest, cycles
@@ -110,7 +99,7 @@ def plot_class_dist_heart(manifest):
 
 
 def plot_class_dist_lung(cycles):
-    """Lung cycle 4-class distribution (normal/crackle/wheeze/both)."""
+    """Lung cycle 4-class distribution"""
     fig, ax = plt.subplots(figsize=(6, 4))
     sns.countplot(data=cycles, x="label", order=LUNG_CLASS_ORDER, color=ACCENT, ax=ax)
     for p in ax.patches:
@@ -161,7 +150,7 @@ def plot_heart_per_db(manifest):
 
 
 def plot_lung_per_class(cycles):
-    """Lung per-class cycle counts (alias of class distribution, explicit name)."""
+    """Lung per-class cycle counts (alias of class distribution,"""
     counts = cycles["label"].value_counts().reindex(LUNG_CLASS_ORDER).fillna(0)
     fig, ax = plt.subplots(figsize=(6, 4))
     sns.barplot(x=counts.index, y=counts.values, color=ACCENT, ax=ax)
@@ -174,7 +163,7 @@ def plot_lung_per_class(cycles):
 
 
 def plot_icbhi_native_sr(manifest):
-    """Distribution of ICBHI native sampling rates (header-only via sf.info)."""
+    """Distribution of ICBHI native sampling rates (header-only"""
     lung = manifest[manifest["modality"] == "lung"]
     rates = []
     for path in lung["filepath"]:
@@ -196,7 +185,7 @@ def plot_icbhi_native_sr(manifest):
 
 
 def _waveform_logmel_panel(path, sr, title, out_name):
-    """Render a (waveform, log-mel) 2-panel figure for one representative file."""
+    """Render a (waveform, log-mel) 2-panel figure for one"""
     y = load_resampled(path, target_sr=sr)
     mel = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=64)
     logmel = librosa.power_to_db(mel, ref=np.max)
@@ -217,7 +206,7 @@ def _waveform_logmel_panel(path, sr, title, out_name):
 
 
 def plot_example_panels(manifest, cycles):
-    """One example waveform+log-mel panel per class for each modality."""
+    """One example waveform+log-mel panel per class for each"""
     outputs = []
 
     heart = manifest[manifest["modality"] == "heart"]

@@ -1,19 +1,4 @@
-"""
-Fine-tune a pretrained Audio Spectrogram Transformer (AST) on heart and lung sounds.
-
-Fine-tunes ``MIT/ast-finetuned-audioset-10-10-0.4593`` on both modalities using the
-log-mel spectrogram caches (``features/{modality}_spectrograms.npy``), reusing the same
-leakage-safe loaders and metrics as the CNN/EfficientNet experiments so the AST rows are
-directly comparable in ``unified_comparison.csv``. Heart is headlined on MAcc, lung on
-the ICBHI Score.
-
-Any per-modality failure (download failure, OOM, non-convergence) is caught and written
-as a limitation row in ``metrics_ast.csv`` with a NaN primary metric; it is not merged
-into ``unified_comparison.csv``, so the unified table never carries a fabricated number.
-
-    uv run python scripts/run_ast.py --modality heart
-    uv run python scripts/run_ast.py --modality all --wall-cap-min 45
-"""
+"""Fine-tune a pretrained Audio Spectrogram Transformer (AST)"""
 import os
 
 os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -82,7 +67,7 @@ _DEFAULT_LR = 1e-5
 
 
 def _load_cache(modality):
-    """Load the spectrogram cache for ``modality``, building it if absent."""
+    """Load the spectrogram cache for ``modality``, building it"""
     path = os.path.join(FEATURES_DIR, f"{modality}_spectrograms.npy")
     if not os.path.exists(path):
         print(
@@ -100,7 +85,7 @@ def _load_cache(modality):
 
 
 def _write_metrics_csv(modality, rows):
-    """Write ``results/tables/metrics_ast.csv`` (creates or appends per modality)."""
+    """Write ``results/tables/metrics_ast.csv`` (creates or"""
     os.makedirs(TABLES_DIR, exist_ok=True)
     cols = METRICS_COLUMNS[modality]
     df_new = pd.DataFrame(rows)
@@ -130,11 +115,7 @@ def _write_metrics_csv(modality, rows):
 
 
 def _rebuild_unified(modality, rows):
-    """Idempotently merge AST rows into unified_comparison.csv.
-
-    The drop-mask targets only ``model=='ast'`` for the current modality, so the
-    classical and CNN/EffNet rows survive untouched and re-runs are idempotent.
-    """
+    """Idempotently merge AST rows into unified_comparison.csv."""
     new = pd.DataFrame([{c: r.get(c, "") for c in UNIFIED_COLUMNS} for r in rows])
 
     if os.path.exists(UNIFIED_CSV):
@@ -160,7 +141,7 @@ def _rebuild_unified(modality, rows):
 
 
 def _rebuild_volumetrics(modality, rows, cache_path):
-    """Merge this modality's AST volumetrics into volumetrics_cnn.csv."""
+    """Merge this modality's AST volumetrics into"""
     data_volume_mb = os.path.getsize(cache_path) / 1e6
     new_rows = []
     for r in rows:
@@ -188,7 +169,7 @@ def _rebuild_volumetrics(modality, rows, cache_path):
 
 
 def _stable_figure_names(modality, row):
-    """Rename per-experiment PNGs to the canonical ``..._ast.png`` flat names."""
+    """Rename per-experiment PNGs to the canonical"""
     os.makedirs(FIGURES_DIR, exist_ok=True)
 
     src_curve = row.get("learning_curve_png") or row.get("curve_png")
@@ -215,12 +196,7 @@ def _is_nonconverged(modality, row):
 
 
 def _run_ast_modality(cache, modality, lr, wall_cap_s, batch_size=32, seed=42):
-    """Fine-tune AST on ``modality`` and return the metric row dict.
-
-    The AST input adaptation happens inside ``ASTWrapper.forward``, so the DataLoader
-    returns the same ``(B, 1, 64, 128)`` batches as the small-CNN path and the wrapper
-    handles the freq/time reshaping internally.
-    """
+    """Fine-tune AST on ``modality`` and return the metric row"""
     import random as _random
     _random.seed(seed)
     np.random.seed(seed)
@@ -308,12 +284,7 @@ def _run_ast_modality(cache, modality, lr, wall_cap_s, batch_size=32, seed=42):
 
 
 def run_modality(modality, lr, wall_cap_s):
-    """Run the AST fine-tune for ``modality`` and write all CSVs + figures.
-
-    On any failure (download, OOM, non-convergence) it records a limitation row in
-    ``metrics_ast.csv`` with a NaN primary metric instead of crashing; that row is not
-    merged into ``unified_comparison.csv``.
-    """
+    """Run the AST fine-tune for ``modality`` and write all CSVs"""
     os.makedirs(TABLES_DIR, exist_ok=True)
     os.makedirs(FIGURES_DIR, exist_ok=True)
     cache, cache_path = _load_cache(modality)
