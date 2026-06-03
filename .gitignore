@@ -29,8 +29,7 @@ data/raw/
 # MS Office lock files (created when a .docx is open in Word)
 ~$*
 
-# Internal AI/agent + planning scaffolding — not part of the academic deliverable.
-# (Kept locally; excluded from the public repo to keep it clean.)
+# Local project notes and scratch planning — not part of the academic deliverable.
 CLAUDE.md
 AGENTS.md
 .planning/
