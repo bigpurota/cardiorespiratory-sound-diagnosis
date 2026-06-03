@@ -184,6 +184,25 @@ classes, with "both" (crackle + wheeze) being the rarest at $7.3%$.
   caption: [Cycle-level class distribution in ICBHI 2017 (6 898 annotated cycles).],
 ) <fig-eda-class-lung>
 
+_Lung cycle counts per class_ (@fig-eda-counts-lung): the absolute per-class cycle counts
+underlying the distribution above, confirming the "both" class as the scarce minority that
+bounds four-class performance.
+
+#figure(
+  image("../../results/figures/eda/lung_per_class_counts.png", width: 70%),
+  caption: [Absolute respiratory-cycle counts per ICBHI 2017 class (normal, crackle,
+  wheeze, both).],
+) <fig-eda-counts-lung>
+
+_Lung cycle duration_ (@fig-eda-dur-lung): annotated respiratory cycles vary in length;
+all are zero-padded or trimmed to a fixed $3.0$-second window before feature extraction.
+
+#figure(
+  image("../../results/figures/eda/duration_hist_lung.png", width: 70%),
+  caption: [Distribution of annotated respiratory-cycle durations in ICBHI 2017. Cycles
+  are padded or trimmed to $3.0$ s before feature extraction.],
+) <fig-eda-dur-lung>
+
 _Native sampling-rate histogram_ (@fig-eda-sr): the four ICBHI recording devices
 contribute at $4000$ Hz, $10 thin 000$ Hz, $22 thin 050$ Hz and $44 thin 100$ Hz. Resampling to $4000$ Hz
 in preprocessing eliminates device-specific spectral artefacts.
@@ -228,6 +247,85 @@ respiratory classifier must separate within a single short cycle.
   caption: [Example log-mel spectrogram panels for the four ICBHI 2017 cycle classes
   (top row: normal, crackle; bottom row: wheeze, and crackle-plus-wheeze "both").],
 ) <fig-eda-spec-lung>
+
+= Supplementary confusion matrices and training curves
+
+For completeness and transparency this annex collects the confusion matrices of every
+classical configuration — the main text (Chapter 3) shows only the best model per
+modality — together with the remaining deep-model training diagnostics. The two best
+classical models per modality (heart XGBoost-B and SVM-B; lung SVM-B) are repeated here so
+that each gallery is self-contained. Heart matrices are at the recording level ($626$ test
+recordings); lung matrices are at the cycle level over the four ICBHI classes ($2636$ test
+cycles).
+
+#figure(
+  grid(columns: (1fr, 1fr), gutter: 5pt,
+    image("../../results/figures/cm_heart_A_logreg.png", width: 100%),
+    image("../../results/figures/cm_heart_A_svm.png", width: 100%),
+    image("../../results/figures/cm_heart_A_rf.png", width: 100%),
+    image("../../results/figures/cm_heart_A_xgb.png", width: 100%),
+  ),
+  caption: [Heart-sound confusion matrices, feature set A (MFCC+Δ+ΔΔ). Top row: logistic
+  regression, SVM; bottom row: random forest, XGBoost.],
+) <fig-cm-heart-a>
+
+#figure(
+  grid(columns: (1fr, 1fr), gutter: 5pt,
+    image("../../results/figures/cm_heart_B_logreg.png", width: 100%),
+    image("../../results/figures/cm_heart_B_svm.png", width: 100%),
+    image("../../results/figures/cm_heart_B_rf.png", width: 100%),
+    image("../../results/figures/cm_heart_B_xgb.png", width: 100%),
+  ),
+  caption: [Heart-sound confusion matrices, feature set B (+ spectral statistics). Top
+  row: logistic regression, SVM; bottom row: random forest, XGBoost (the best classical
+  heart model, $"MAcc" = 0.903$).],
+) <fig-cm-heart-b>
+
+#figure(
+  grid(columns: (1fr, 1fr), gutter: 5pt,
+    image("../../results/figures/cm_lung_A_logreg.png", width: 100%),
+    image("../../results/figures/cm_lung_A_svm.png", width: 100%),
+    image("../../results/figures/cm_lung_A_rf.png", width: 100%),
+    image("../../results/figures/cm_lung_A_xgb.png", width: 100%),
+  ),
+  caption: [Lung-sound confusion matrices, feature set A (MFCC+Δ+ΔΔ). Top row: logistic
+  regression, SVM; bottom row: random forest, XGBoost. The random-forest collapse toward
+  the majority normal class is visible as a near-empty set of abnormal rows.],
+) <fig-cm-lung-a>
+
+#figure(
+  grid(columns: (1fr, 1fr), gutter: 5pt,
+    image("../../results/figures/cm_lung_B_logreg.png", width: 100%),
+    image("../../results/figures/cm_lung_B_svm.png", width: 100%),
+    image("../../results/figures/cm_lung_B_rf.png", width: 100%),
+    image("../../results/figures/cm_lung_B_xgb.png", width: 100%),
+  ),
+  caption: [Lung-sound confusion matrices, feature set B (+ spectral statistics). Top row:
+  logistic regression, SVM (the best classical lung model, $"ICBHI" = 0.537$); bottom row:
+  random forest, XGBoost.],
+) <fig-cm-lung-b>
+
+#figure(
+  grid(columns: (1fr, 1fr), gutter: 5pt,
+    image("../../results/figures/cm_heart_cnn.png", width: 100%),
+    image("../../results/figures/cm_lung_ast.png", width: 100%),
+  ),
+  caption: [Remaining deep-model confusion matrices (single representative seed). Left:
+  heart SmallCNN (recording level); right: lung Audio Spectrogram Transformer (cycle
+  level). The best EfficientNet-B0 and the heart AST matrices appear in Chapters 3 and 4.],
+) <fig-cm-deep-extra>
+
+#figure(
+  grid(columns: (1fr, 1fr), gutter: 5pt,
+    image("../../results/figures/learning_curve_heart_ast.png", width: 100%),
+    image("../../results/figures/learning_curve_lung_ast.png", width: 100%),
+    image("../../results/figures/learning_curve_lung_effnet.png", width: 100%),
+  ),
+  caption: [Remaining deep-model training curves (train versus validation primary metric):
+  heart AST, lung AST and lung EfficientNet-B0. The SmallCNN and heart EfficientNet-B0
+  curves appear in Chapter 3; early stopping restores the best-validation checkpoint in
+  every case.],
+) <fig-curves-extra>
 
 = Repository structure
 
