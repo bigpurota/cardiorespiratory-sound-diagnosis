@@ -15,10 +15,10 @@ contrasted: classical pipelines (MFCC with delta and spectral features fed to fo
 standard classifiers) and deep learning on log-mel spectrograms (a compact CNN and an
 EfficientNet-B0, tuned by hyperparameter optimisation over $128$ trials and reported as
 mean±std across three seeds). On heart sounds the best classical model
-(XGBoost, extended features) reaches $"MAcc" = 0.903$ ($"Se" = 0.946$, $"Sp" = 0.859$, on a
-recording-level split, so possibly optimistic); the
-tuned EfficientNet-B0 reaches $0.898 plus.minus 0.008$, comparable but not ahead of it.
-On lung sounds all methods occupy one tier; a fine-tuned Audio Spectrogram Transformer
+(XGBoost, extended features) reaches $"MAcc" = 0.903$ ($"Se" = 0.946$, $"Sp" = 0.859$); on a
+recording-level split this may be optimistic. The
+tuned EfficientNet-B0 reaches $0.898 plus.minus 0.008$, comparable with it but not ahead.
+On lung sounds all methods perform within one narrow band; a fine-tuned Audio Spectrogram Transformer
 is the single best ($"ICBHI" = 0.594 plus.minus 0.023$, three seeds), above EfficientNet-B0
 ($0.555 plus.minus 0.016$). A seed-robust cross-modal analysis finds that classical method
 rankings do not transfer between modalities, whereas deep encoders transfer benignly in

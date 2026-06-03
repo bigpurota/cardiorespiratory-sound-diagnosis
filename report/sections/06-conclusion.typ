@@ -65,8 +65,8 @@ weight), while empirical clinical work is blocked by the absence of any openly
 licensed, labelled dataset of arterial bruits. A pretrained Audio Spectrogram Transformer (AST) was
 fine-tuned on both modalities over three seeds: it gave the single best lung score in the
 study ($"ICBHI" = 0.594 plus.minus 0.023$) and a recall-leaning heart model
-($"MAcc" = 0.864 plus.minus 0.006$, $"Se" = 0.928$), though under its epoch-limited budget
-it does not displace the EfficientNet-B0 and classical baselines on heart.
+($"MAcc" = 0.864 plus.minus 0.006$, $"Se" = 0.928$); on heart it does not displace the
+EfficientNet-B0 and classical baselines.
 
 The work's positive outcomes are a leakage-safe, fully reproducible comparison
 across two modalities and an original cross-modal analysis; its negative outcomes

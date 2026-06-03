@@ -1,6 +1,6 @@
 
-#let body-font = ("Times New Roman", "DejaVu Serif")
-#let mono-font = ("Courier New", "DejaVu Sans Mono")
+#let body-font = "Times New Roman"
+#let mono-font = "Courier New"
 
 #import "helpers.typ": *
 

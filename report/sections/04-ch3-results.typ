@@ -84,9 +84,8 @@ This figure is not directly comparable to the CinC 2016 challenge leaderboard
 test set, whereas our value comes from a self-constructed recording-level partition
 of the public training pool. Because the heart split is recording-level rather than
 strictly subject-level (Section 2.1), the absolute score may be optimistic relative
-to a fully subject-disjoint evaluation. The contribution of this study is therefore
-the controlled cross-method comparison under one fixed protocol, not the absolute
-number itself.
+to a fully subject-disjoint evaluation; the contribution is the controlled cross-method
+comparison under one fixed protocol, not the absolute number itself.
 
 SVM was the second-best classical model across both feature sets ($"MAcc"$ $0.859$ on A,
 $0.869$ on B). This ordering is statistically robust, not a rounding artefact: a
@@ -155,12 +154,12 @@ where EfficientNet-B0 lands at $0.878$ and $0.885$ it is significantly behind XG
 ($chi^2 = 15.6$, $p approx 10^(-4)$; and $chi^2 = 6.4$, $p = 0.011$), but on its
 strongest seed, where it reaches $0.898$, the two models are statistically
 indistinguishable (discordant $25$ vs $29$ recordings, $chi^2 = 0.17$, $p = 0.68$). The
-classical-versus-deep ordering is therefore not stable across seeds: it is exactly the
-"within seed noise" the headline comparison reports, and a single-seed McNemar could
-have "proved" either that XGBoost dominates or that the two are equal, depending on the
-seed drawn, which is the strongest possible argument for the multi-seed protocol used
-throughout. This reframes the earlier core-run observation that classical methods dominated:
-after equivalent HPO, the two families are of comparable accuracy on heart sounds.
+classical-versus-deep ordering is therefore unstable across seeds, which is precisely the
+within-seed noise the headline comparison reports: a single-seed McNemar test could have
+shown either that XGBoost dominates or that the two are equal, depending on the seed drawn.
+This is the central justification for the multi-seed protocol used throughout. It also
+reframes the earlier core-run claim that classical methods dominated: after equivalent
+HPO, the two families are of comparable accuracy on heart sounds.
 
 The loss curves for both deep models (@fig-lc-heart-cnn and @fig-lc-heart-eff) show
 the training loss falling steadily; the validation loss trends downward for SmallCNN
@@ -256,8 +255,8 @@ single-seed run ($0.551$ reported at the core-run stage); this honest regression
 reflects seed variance on the harder four-class task rather than a model change.
 The EfficientNet-B0 is the best lung model in the main comparison ($0.555$), marginally
 ahead of SmallCNN and the best classical model (SVM-B, $0.537$); the supplementary AST of
-Chapter 4 scores higher still ($0.594 plus.minus 0.023$) but is trained under a
-non-comparable budget and is therefore reported separately. The deep-vs-classical
+Chapter 4 scores higher still ($0.594 plus.minus 0.023$) but sits outside this controlled
+comparison and is reported separately. The deep-vs-classical
 difference on lung is small (roughly $1.5"–"2$ pp) and within the multi-seed standard
 deviation, placing classical and deep methods in the same performance tier on this
 task. Both deep models show better sensitivity on minority abnormal classes compared
@@ -285,11 +284,11 @@ The best lung model in the main comparison, EfficientNet-B0, is shown in
 @fig-cm-lung-effnet. Relative
 to the SmallCNN it shifts the operating point toward specificity at the cost of
 sensitivity, but both deep models distribute their predictions across all four classes
-rather than collapsing to the majority normal class as random forest does. A reminder is
-in order here: the headline ICBHI score is a _binary_ normal-versus-abnormal measure
-(sensitivity pooled over the three abnormal classes), so genuine four-way discrimination
-— visible only in the per-class sensitivities of Annexes A and C, and weakest for the
-scarce "both" class — is substantially lower than these pooled figures suggest.
+rather than collapsing to the majority normal class as random forest does. Note that the
+headline ICBHI score is a _binary_ normal-versus-abnormal measure (sensitivity pooled over
+the three abnormal classes); genuine four-way discrimination, visible in the per-class
+sensitivities of Annex A and weakest for the scarce "both" class, is substantially lower
+than these pooled figures suggest.
 
 #figure(
   image("../../results/figures/cm_lung_effnet.png", width: 58%),
@@ -425,9 +424,8 @@ with $"ICBHI" = 0.555 plus.minus 0.016$, narrowly ahead of the best classical mo
 $0.537$) and SmallCNN ($0.540 plus.minus 0.022$). Classical and deep models occupy the same
 performance tier on this task; the four-class imbalanced structure limits all
 methods equally. The gap between heart and lung scores ($"MAcc" approx 0.90$ vs.
-$"ICBHI" approx 0.55$) reflects the fundamental difficulty difference: a binary task on
-longer recordings versus a four-class imbalanced task on short cycles. The two numbers are
-not on a common scale, however — heart uses a binary MAcc and lung a pooled-abnormal ICBHI
-score — so the gap is partly metric-structural and should not be read as a pure difficulty
-ratio. Chapter 4
+$"ICBHI" approx 0.55$) reflects a real difficulty difference — a binary task on longer
+recordings versus a four-class imbalanced task on short cycles — but the two metrics are
+not on a common scale (binary MAcc versus pooled-abnormal ICBHI), so the gap is partly
+metric-structural and should not be read as a pure difficulty ratio. Chapter 4
 analyses what these differences imply for cross-modal transfer of method rankings.

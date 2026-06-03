@@ -7,10 +7,10 @@ This chapter specifies the experimental pipeline in enough detail to reproduce
 every reported number. The design principle is _one shared, configuration-driven
 codebase_ applied to both modalities through a common set of stages, with all
 randomness fixed and all dependency versions pinned. The pipeline is deliberately
-uniform across modalities; only two protocol parameters differ between heart and
-lung, the grouping granularity and the test fraction, and both differences are
-forced by the datasets rather than chosen freely (Section 2.1). The pipeline is organised as independent stages
-(ingest, preprocess, segment, feature extraction, grouped split, training
+uniform across modalities. Only two protocol parameters differ between heart and
+lung — the grouping granularity and the test fraction — and both are forced by the
+datasets rather than chosen freely (Section 2.1). The pipeline is organised as independent
+stages (ingest, preprocess, segment, feature extraction, grouped split, training
 and evaluation), each writing its output to disk so any single stage is
 re-runnable in isolation.
 
@@ -126,8 +126,8 @@ pipeline, so no test-set statistics leak into training. Hyper-parameters are tun
 by patient-grouped grid-search cross-validation for the two models where they
 materially affect performance (the SVM's $C$ and $gamma$, and XGBoost's tree depth
 and estimator count); logistic regression and the random forest are left at fixed,
-standard scikit-learn defaults, so the classifier comparison slightly favours the
-two tuned models and should be read with that asymmetry in mind. Class imbalance is
+standard scikit-learn defaults. The classifier comparison therefore slightly favours the
+two tuned models, an asymmetry the reader should bear in mind. Class imbalance is
 handled by per-model class weighting applied inside the training fold only: balanced class weights for
 logistic regression, the SVM and the random forest, and a positive-class weight
 (binary heart) or balanced sample weights (four-class lung) for XGBoost. No synthetic

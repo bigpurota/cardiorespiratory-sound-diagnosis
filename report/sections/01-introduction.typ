@@ -67,11 +67,11 @@ Concretely, the work makes five contributions:
   against the deep family (a compact convolutional network and a hyperparameter-tuned,
   three-seed EfficientNet-B0) under one class-imbalance-robust metric per task;
 + a seed-robust cross-modal analysis showing that classical method _rankings_ do not
-  transfer between modalities (the best model on heart is not the best on lung; robust
-  to a nine-classifier panel and confirmed by a paired McNemar test, with the
-  non-transfer traced to a model-family-by-modality interaction), whereas deep encoders
-  transfer benignly in both directions under fine-tuning, and that a transfer asymmetry
-  suggested by a single seed does not survive multi-seed evaluation, a result invisible
+  transfer between modalities — the best model on heart is not the best on lung, a
+  non-transfer that survives a nine-classifier panel, is confirmed by a paired McNemar
+  test, and traces to a model-family-by-modality interaction. Deep encoders, by contrast,
+  transfer benignly in both directions under fine-tuning, and a transfer asymmetry
+  suggested by a single seed does not survive multi-seed evaluation — a result invisible
   to single-modality and single-seed studies alike;
 + an extension to a third heart dataset (CirCor DigiScope 2022) on a genuinely
   patient-level split, showing that the classical-versus-deep verdict is
@@ -111,8 +111,8 @@ limitations and directions for future work.
 
 #heading(level: 3, numbering: none, outlined: false)[Project group and contribution]
 
-This work is a _group (team) research project_ in the department's sense of a project
-group, the group in this instance consisting of a single member, the author.
+This work is a _group (team) research project_ in the department's sense, though the
+project group in this instance consists of a single member, the author.
 Accordingly, the contribution is undivided: all stages of the work were performed by
 the author, Tsember Andrei Alekseevich (group БПАД244): problem formulation and the analytical
 literature review; acquisition and exploratory analysis of the PhysioNet/CinC 2016

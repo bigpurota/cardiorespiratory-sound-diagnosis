@@ -15,7 +15,8 @@
 This annex reproduces the complete per-model metric tables for both modalities,
 beyond the rounded summary in Chapter 3: the heart-sound classical results are given
 in @tab-annex-heart-classical and the lung-sound classical results in
-@tab-annex-lung-classical. Numbers are taken directly from
+@tab-annex-lung-classical, with the corresponding deep-learning models in
+@tab-annex-heart-dl and @tab-annex-lung-dl. Numbers are taken directly from
 `results/tables/metrics_heart_classical.csv`, `metrics_lung_classical.csv`,
 `metrics_heart_cnn.csv` and `metrics_lung_cnn.csv`.
 
@@ -55,7 +56,7 @@ in @tab-annex-heart-classical and the lung-sound classical results in
     [SmallCNN],        [389 314],   [0.871 ± 0.009], [0.910], [0.831], [0.805], [0.946],
     [EfficientNet-B0], [4 010 110], [0.898 ± 0.008], [0.936], [0.860], [0.837], [0.966],
   ),
-)
+) <tab-annex-heart-dl>
 
 == Lung-sound metrics (classical models)
 
@@ -92,7 +93,7 @@ in @tab-annex-heart-classical and the lung-sound classical results in
     [SmallCNN],        [98 148],    [0.540 ± 0.022], [0.755], [0.325], [0.301],
     [EfficientNet-B0], [4 012 672], [*0.555 ± 0.016*], [0.509], [0.601], [0.309],
   ),
-)
+) <tab-annex-lung-dl>
 
 = Volumetric characteristics and reproducibility
 
@@ -256,7 +257,9 @@ modality — together with the remaining deep-model training diagnostics. The tw
 classical models per modality (heart XGBoost-B and SVM-B; lung SVM-B) are repeated here so
 that each gallery is self-contained. Heart matrices are at the recording level ($626$ test
 recordings); lung matrices are at the cycle level over the four ICBHI classes ($2636$ test
-cycles).
+cycles). The heart classical matrices appear in @fig-cm-heart-a and @fig-cm-heart-b, the
+lung classical matrices in @fig-cm-lung-a and @fig-cm-lung-b, the remaining deep-model
+matrices in @fig-cm-deep-extra, and the remaining training curves in @fig-curves-extra.
 
 #figure(
   grid(columns: (1fr, 1fr), gutter: 5pt,
