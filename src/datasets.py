@@ -1,4 +1,5 @@
 """Spectrogram Dataset and DataLoaders for the CNN training"""
+import os
 import warnings
 
 from src import config
@@ -155,6 +156,15 @@ def build_loaders(
 
     cw = train_class_weights(y_tr, n_classes)
 
+    # GPU feeding: DL_WORKERS>0 parallelises data loading (default 0 preserves
+    # the original single-thread, fully reproducible behaviour). Augmentation
+    # uses torch RNG only, which the DataLoader seeds per worker deterministically.
+    _nw = int(os.environ.get("DL_WORKERS", "0"))
+    _pin = _nw > 0
+    _dl_kw = {"num_workers": _nw, "pin_memory": _pin}
+    if _nw > 0:
+        _dl_kw["persistent_workers"] = True
+
     gen = torch.Generator().manual_seed(seed)
     if sampler_mode == "weighted_sampler":
         class_freq = np.bincount(y_tr, minlength=n_classes).astype(float)
@@ -165,15 +175,15 @@ def build_loaders(
             sample_weights, num_samples=len(y_tr), replacement=True, generator=gen
         )
         train_loader = DataLoader(
-            train_ds, batch_size=batch_size, sampler=sampler, num_workers=0
+            train_ds, batch_size=batch_size, sampler=sampler, **_dl_kw
         )
     else:
         train_loader = DataLoader(
-            train_ds, batch_size=batch_size, shuffle=True, generator=gen, num_workers=0
+            train_ds, batch_size=batch_size, shuffle=True, generator=gen, **_dl_kw
         )
 
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=0)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=0)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, **_dl_kw)
+    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, **_dl_kw)
 
     return {
         "train_loader": train_loader,
