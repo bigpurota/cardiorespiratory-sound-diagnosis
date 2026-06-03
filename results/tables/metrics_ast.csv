@@ -1,3 +1,3 @@
 modality,feature_set,model,primary_metric_name,primary_metric,MAcc,Se,Sp,macro_f1,auc_roc,accuracy,n_train,n_test,params,fallback_from,cm_figure,ICBHI_Score,se_crackle,se_wheeze,se_both,se_normal
-heart,log_mel_64x128,ast,MAcc,,,,,,,,,,,non_converged,,,,,,
-lung,log_mel_64x128,ast,ICBHI_Score,,,,,,,,,,,non_converged,,,,,,
+heart,log_mel_64x128,ast,MAcc,0.85136476426799,0.85136476426799,0.9769230769230768,0.7258064516129032,0.7422471836889454,0.9531327543424316,0.7779552715654952,33246.0,626.0,86190338.0,,cm_heart_ast.png,,,,,
+lung,log_mel_64x128,ast,ICBHI_Score,0.5727135163473454,,0.6691449814126395,0.47628205128205126,0.34314687506040414,,0.456752655538695,4262.0,2636.0,86191876.0,,cm_lung_ast.png,0.5727135163473454,0.5494327390599676,0.289544235924933,0.16279069767441862,0.47628205128205126
