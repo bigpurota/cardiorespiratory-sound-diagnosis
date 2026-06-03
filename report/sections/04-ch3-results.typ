@@ -61,7 +61,7 @@ Deep-learning scores represent HPO-tuned mean±std over three seeds.
 #v(0.4em)
 #text(size: 10pt)[DL rows: HPO-tuned ($128$-trial bounded random search, val-only selection) mean±std over seeds ${1, 2, 42}$.
   Macro-F1 not computed for multi-seed DL (indicated by —); macro-F1 figures for single-seed
-  runs appear in Annex B.
+  runs appear in Annex A.
 ]
 
 == Heart-sound results (PhysioNet/CinC 2016)
@@ -86,7 +86,10 @@ the controlled cross-method comparison under one fixed protocol, not the absolut
 number itself.
 
 SVM was the second-best classical model across both feature sets ($"MAcc"$ $0.859$ on A,
-$0.869$ on B). SVM and XGBoost both achieve high sensitivity ($"Se" >= 0.915$ in all
+$0.869$ on B). This ordering is statistically robust, not a rounding artefact: a
+McNemar paired test on the $626$ recording-level predictions finds XGBoost-B and SVM-B
+disagree on $48$ recordings, of which XGBoost is correct on $39$ and SVM on only $9$
+($chi^2 = 17.5$, exact $p approx 1.5 times 10^(-5)$). SVM and XGBoost both achieve high sensitivity ($"Se" >= 0.915$ in all
 configurations), reflecting the fact that class-weighted training forces these
 models to capture true positives. By contrast, random forest reaches high
 specificity ($"Sp" >= 0.940$) but lower sensitivity ($"Se" approx 0.69"–"0.72$), suggesting that
@@ -136,9 +139,21 @@ models are of comparable accuracy on this task, with the classical model remaini
 numerically best. The comparison can be made more precise: a normal-approximation
 $95%$ confidence interval on the recording-level MAcc of the best classical model,
 computed from its per-class binomial counts ($"Se" = 123\/130$, $"Sp" = 426\/496$), is
-approximately $[0.878, 0.927]$. EfficientNet-B0's mean ($0.898$) falls well inside this
-interval, so the two best models are statistically indistinguishable at the recording
-level. This reframes the earlier core-run observation that classical methods dominated:
+approximately $[0.878, 0.927]$. EfficientNet-B0's mean ($0.898$) lies inside this
+interval. We can go further than interval overlap with a directly paired test: running
+the retained in-domain EfficientNet-B0 checkpoints (the cross-modal reference models of
+Chapter 4, per-seed MAcc $0.878 \/ 0.885 \/ 0.898$) back through recording-level
+inference gives the deep model's per-recording predictions, and a McNemar test pairs
+them against XGBoost-B on the same $626$ recordings. The verdict tracks the seed. On the two seeds
+where EfficientNet-B0 lands at $0.878$ and $0.885$ it is significantly behind XGBoost-B
+($chi^2 = 15.6$, $p approx 10^(-4)$; and $chi^2 = 6.4$, $p = 0.011$), but on its
+strongest seed, where it reaches $0.898$, the two models are statistically
+indistinguishable (discordant $25$ vs $29$ recordings, $chi^2 = 0.17$, $p = 0.68$). The
+classical-versus-deep ordering is therefore not stable across seeds: it is exactly the
+"within seed noise" the headline comparison reports, and a single-seed McNemar could
+have "proved" either that XGBoost dominates or that the two are equal, depending on the
+seed drawn, which is the strongest possible argument for the multi-seed protocol used
+throughout. This reframes the earlier core-run observation that classical methods dominated:
 after equivalent HPO, the two families are of comparable accuracy on heart sounds.
 
 The loss curves for both deep models (@fig-lc-heart-cnn and @fig-lc-heart-eff) show
@@ -281,19 +296,76 @@ earlier best checkpoint.
   four-class task), so early stopping restores the earlier best checkpoint.],
 ) <fig-lc-lung-cnn>
 
+== Heart-murmur detection on CirCor DigiScope 2022 (extension)
+
+The binary normal/abnormal task on CinC 2016 does not localise or grade a specific
+pathology. To test whether the same pipeline extends to a clinically richer heart
+task, and on a genuinely patient-level split, we applied it to the CirCor DigiScope
+2022 phonocardiogram dataset @circor2022, the largest public pediatric PCG corpus.
+CirCor provides patient-level murmur annotations (Present / Absent / Unknown); we keep
+the $874$ subjects carrying a definite label, drop the "Unknown" cases, and form a
+binary murmur-detection task. Because CirCor records several auscultation locations
+per subject under one patient identifier, the split is made strictly at the patient
+level ($611$ train / $263$ test subjects; $3 thin 007$ recordings, $912$ in the test set),
+removing the subject-level ambiguity that the CinC heart split could not rule out
+(Section 2.1). All preprocessing, windowing, feature extraction and models are reused
+unchanged; scores are recording-level MAcc, deep models as mean±std over the same three
+seeds ($1, 2, 42$).
+
+@tab-circor reports the outcome, and its headline is a reversal of the CinC ordering.
+On murmur detection the deep SmallCNN is clearly best ($"MAcc" = 0.810 plus.minus 0.007$,
+$"Se" = 0.71$, $"Sp" = 0.91$), ahead of EfficientNet-B0 ($0.760 plus.minus 0.018$) and well clear
+of every classical model, whose best is logistic regression on feature set B
+($"MAcc" = 0.688$). Whereas on the easier CinC normal/abnormal screen the tuned classical
+XGBoost narrowly led the deep models, on the subtler murmur task the convolutional model
+opens a gap of about $0.12$ over the strongest classical baseline. Two factors plausibly
+explain the shift: a murmur is a localised spectro-temporal event that a learned
+spectrogram filter captures better than pooled MFCC statistics, and the larger CirCor
+training set ($29 thin 142$ windows) gives the deep models more to learn from. The random
+forest again collapses toward the majority "Absent" class ($"Se" approx 0.04"–"0.10$), the
+same imbalance failure mode seen on lung sounds.
+
+This extension supports two claims made elsewhere in the report. It shows that the
+pipeline transfers to a third heart dataset and a more clinically meaningful task with
+only a configuration change, and it demonstrates that the classical-versus-deep verdict
+is task-dependent: classical methods match or beat deep learning on the coarse
+normal/abnormal screen, but deep learning is the stronger choice once the task requires
+resolving a specific acoustic sign such as a murmur. Because CirCor's split is
+patient-level, this is also the study's cleanest single piece of evidence that the deep
+pipeline generalises beyond window-level memorisation.
+
+#figure(
+  caption: [Heart-murmur detection on CirCor DigiScope 2022 (binary Present vs. Absent,
+  patient-level split, $912$ test recordings). Recording-level $"MAcc" = ("Se"+"Sp") \/ 2$;
+  deep models as mean±std over seeds ${1, 2, 42}$. Classical rows give the best
+  configuration of each classifier across feature sets A/B.],
+  table(
+    columns: (1.9fr, 1fr, 1fr, 1fr, 1fr),
+    align: (left, center, center, center, center),
+    table.header([*Model*], [*MAcc*], [*Se*], [*Sp*], [*Family*]),
+    [*SmallCNN (log-mel)*],      [*0.810 ± 0.007*], [*0.71*], [*0.91*], [*deep*],
+    [EfficientNet-B0 (log-mel)], [0.760 ± 0.018], [0.59], [0.93], [deep],
+    [LogReg (set B)],            [0.688], [0.65], [0.73], [classical],
+    [XGBoost (set B)],           [0.685], [0.56], [0.81], [classical],
+    [SVM (set B)],               [0.668], [0.50], [0.83], [classical],
+    [Random forest (set B)],     [0.548], [0.10], [1.00], [classical],
+  ),
+) <tab-circor>
+
 == Volumetric characteristics
 
 @tab-volumetrics collects the dataset sizes, model parameter counts and training
 times that characterise the experimental scale. These are required by Annex 5
 §2.5. In total the study evaluates $20$ distinct model configurations under one
 protocol ($4$ classical algorithms $times 2$ feature sets $+ 2$ deep models, on
-each of the two modalities); each deep configuration is additionally the outcome
+each of the two primary modalities), with a further ten on the CirCor murmur
+extension; each deep configuration is additionally the outcome
 of a $128$-trial hyperparameter search and is reported as a mean over $3$ seeds, so
 the deep results alone rest on several hundred individual training runs. Beyond the
-data and model sizes, the experimental pipeline itself comprises $5 thin 182$ lines
-of Python across $31$ modules in `src/` and `scripts/` (approximately $177$ KB of
+data and model sizes, the experimental pipeline itself comprises $6 thin 135$ lines
+of Python across $37$ modules in `src/` and `scripts/` (approximately $216$ KB of
 source code), supported by a further $2 thin 093$ lines of automated tests.
-Full details including per-class cycle counts appear in Annex B.
+Full volumetric details appear in Annex B, and per-class cycle counts in Annex C.
 
 #figure(
   caption: [Volumetric characteristics of the experiments. Classical training times

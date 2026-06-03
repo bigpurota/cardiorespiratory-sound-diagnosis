@@ -5,8 +5,11 @@
 
 This chapter specifies the experimental pipeline in enough detail to reproduce
 every reported number. The design principle is _one shared, configuration-driven
-codebase_ applied identically to both modalities, with all randomness fixed and
-all dependency versions pinned. The pipeline is organised as independent stages
+codebase_ applied to both modalities through a common set of stages, with all
+randomness fixed and all dependency versions pinned. The pipeline is deliberately
+uniform across modalities; only two protocol parameters differ between heart and
+lung, the grouping granularity and the test fraction, and both differences are
+forced by the datasets rather than chosen freely (Section 2.1). The pipeline is organised as independent stages
 (ingest, preprocess, segment, feature extraction, grouped split, training
 and evaluation), each writing its output to disk so any single stage is
 re-runnable in isolation.
@@ -71,7 +74,7 @@ the pipeline falls back to a single causal pass so that very short inputs remain
 finite and same-length. Finally each clip is peak-normalised to the range
 $[-1, 1]$; near-silent clips are left unchanged to avoid division blow-up. No
 global normaliser is fitted at this stage; feature-space standardisation is
-fitted on the training fold only (Section 2.4).
+fitted on the training fold only (Section 2.5).
 
 == Segmentation
 
@@ -119,9 +122,13 @@ _Classical models._ Both feature sets are fed to four classifiers implemented in
 scikit-learn @sklearn: logistic regression, an RBF-kernel support-vector machine
 @cortes1995, a random forest @breiman2001 and gradient boosting (XGBoost @chen2016).
 Standardisation is fitted on the training fold only, inside a single scikit-learn
-pipeline, so no test-set statistics leak into training. Hyper-parameter tuning
-uses patient-grouped cross-validation, and class imbalance is handled by per-model
-class weighting applied inside the training fold only: balanced class weights for
+pipeline, so no test-set statistics leak into training. Hyper-parameters are tuned
+by patient-grouped grid-search cross-validation for the two models where they
+materially affect performance (the SVM's $C$ and $gamma$, and XGBoost's tree depth
+and estimator count); logistic regression and the random forest are left at fixed,
+standard scikit-learn defaults, so the classifier comparison slightly favours the
+two tuned models and should be read with that asymmetry in mind. Class imbalance is
+handled by per-model class weighting applied inside the training fold only: balanced class weights for
 logistic regression, the SVM and the random forest, and a positive-class weight
 (binary heart) or balanced sample weights (four-class lung) for XGBoost. No synthetic
 oversampling is applied, which removes any risk of synthesising minority samples
@@ -199,10 +206,13 @@ with torchaudio 2.11.0, timm ($gt.eq 1.0$), imbalanced-learn 0.14.1, with the ex
 versions captured in a committed `requirements.txt`. The splits are
 written to disk and reloaded rather than regenerated, so that the partition is
 identical across runs. The full pinned environment is reproduced in Annex B.
+The classical pipelines run on CPU; the deep models (including the multi-seed,
+hyperparameter search and cross-modal runs) were trained on an NVIDIA A100 GPU,
+with each configuration kept small enough to remain CPU-feasible if required.
 
 === Chapter summary
 
-The methodology is a single configuration-driven pipeline applied identically to
+The methodology is a single configuration-driven pipeline applied uniformly to
 both modalities, with leakage-safe grouped splits and an explicit zero-leakage
 assertion, modality-matched preprocessing and features, a common
 classical-versus-deep model set, and a shared balanced metric (@eq-balanced). This

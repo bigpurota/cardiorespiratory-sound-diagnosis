@@ -275,8 +275,9 @@ substantial fraction of the published auscultation literature.
 === Research gap and novelty claim
 
 The research gap addressed by this study is therefore twofold. First, a single,
-leakage-safe pipeline evaluated _identically_ on both heart and lung sounds (same
-protocol, same metric family, same model set) is comparatively rare. Second, the
+leakage-safe pipeline evaluated under one shared protocol on both heart and lung
+sounds (same preprocessing, feature extraction, model set and balanced metric) is
+comparatively rare. Second, the
 question of whether method rankings transfer across auscultation modalities (does the
 best heart classifier also win on lung sounds?) is largely unstudied, even though
 the answer has practical implications for how much can be shared in a multi-modality

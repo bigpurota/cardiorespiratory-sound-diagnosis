@@ -19,9 +19,9 @@
 
 #set par(
   justify: true,
-  leading: 0.85em,
+  leading: 1.05em,
   first-line-indent: (amount: 1.25cm, all: true),
-  spacing: 0.85em,
+  spacing: 1.05em,
 )
 
 #set heading(numbering: "1.1")

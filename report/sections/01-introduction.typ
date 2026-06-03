@@ -27,8 +27,8 @@ scarcity for these two modalities. Second, the methodological pitfalls of audio
 classification (chiefly data leakage from splitting recordings rather than
 patients) are now well documented, so a study that avoids them produces results
 that are genuinely comparable across methods. Third, most publicly available work
-treats each modality in isolation; a single pipeline evaluated identically on
-heart and lung sounds is comparatively rare, and arterial sounds are almost
+treats each modality in isolation; a single pipeline evaluated under one shared
+protocol on heart and lung sounds is comparatively rare, and arterial sounds are almost
 entirely unaddressed for want of open data.
 
 #heading(level: 3, numbering: none, outlined: false)[Practical significance]
@@ -44,8 +44,9 @@ of deploying it across heart and lung screening is shared rather than duplicated
 
 The novelty of this study is a _unified, leakage-safe, cross-modal comparison
 pipeline_. A single codebase, governed by per-modality configuration files,
-applies the same preprocessing, the same leakage-safe grouped partitioning with an
-explicit zero-leakage assertion, the same metric family and the same set of
+applies the same preprocessing, the same leakage-safe grouped partitioning
+(patient-level for lung, recording-level for heart) with an explicit
+zero-leakage assertion, the same metric family and the same set of
 classical and deep models to both heart and lung sounds. This lets us ask a
 question that single-modality studies cannot: do the method families that win on
 one auscultation modality also win on another? We further contribute an honest
@@ -55,23 +56,31 @@ became available. The emphasis throughout is on reliability and reproducibility 
 leakage-free protocol) rather than on chasing
 state-of-the-art accuracy through aggressive tuning.
 
-Concretely, the work makes four contributions:
+Concretely, the work makes five contributions:
 
-+ a single leakage-safe pipeline that applies identical preprocessing,
-  grouped partitioning (with an explicit zero-leakage assertion), feature
-  extraction and modelling to two auscultation modalities, enabling a
++ a single leakage-safe pipeline that applies the same preprocessing, feature
+  extraction and modelling, with a grouped, leakage-safe partitioning and an
+  explicit zero-leakage assertion, to two auscultation modalities, enabling a
   like-for-like comparison that isolated single-modality studies cannot offer;
 + a head-to-head comparison of the classical family (MFCC features with logistic
   regression, support-vector machines, random forests and gradient boosting)
   against the deep family (a compact convolutional network and a hyperparameter-tuned,
   three-seed EfficientNet-B0) under one class-imbalance-robust metric per task;
-+ the empirical finding that method and feature-set choices transfer
-  _asymmetrically_ between modalities (choices learned on lung sounds carry over
-  to heart sounds, whereas the reverse transfer is near-neutral), a result
-  invisible to studies that consider one modality at a time; and
++ a seed-robust cross-modal analysis showing that classical method _rankings_ do not
+  transfer between modalities (the best model on heart is not the best on lung; robust
+  to a nine-classifier panel and confirmed by a paired McNemar test, with the
+  non-transfer traced to a model-family-by-modality interaction), whereas deep encoders
+  transfer benignly in both directions under fine-tuning, and that a transfer asymmetry
+  suggested by a single seed does not survive multi-seed evaluation, a result invisible
+  to single-modality and single-seed studies alike;
++ an extension to a third heart dataset (CirCor DigiScope 2022) on a genuinely
+  patient-level split, showing that the classical-versus-deep verdict is
+  task-dependent: deep learning overtakes the classical models on the finer
+  murmur-detection task, reversing their order on the coarse normal/abnormal screen; and
 + an analytical arterial sub-study that states plainly why supervised learning
   is not yet possible for carotid bruits and specifies what an open dataset would
-  need to provide.
+  need to provide, complemented by a synthetic proof-of-concept that runs the
+  pipeline end-to-end on arterial-band audio.
 
 #heading(level: 3, numbering: none, outlined: false)[Research objectives]
 
@@ -112,8 +121,7 @@ construction of leakage-safe grouped splits; classical feature engineering
 and the logistic-regression, support-vector-machine, random-forest and
 gradient-boosting experiments; the convolutional-network and EfficientNet-B0
 deep-learning experiments, including the hyperparameter search and multi-seed
-evaluation, together with the code-level integration (but not the full
-fine-tuning, which was deferred for want of compute) of an Audio Spectrogram
+evaluation, together with the integration and fine-tuning of an Audio Spectrogram
 Transformer; the cross-modal transfer analysis and the arterial analytical
 sub-study; and the preparation of this report under the department's structural
 and formatting requirements.

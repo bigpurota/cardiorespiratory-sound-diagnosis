@@ -15,7 +15,11 @@ MFCC+Δ+ΔΔ + spectral-statistics feature set, reached $"MAcc" = 0.903$
 val-only selection), EfficientNet-B0 reaches $"MAcc" = 0.898 plus.minus 0.008$ (three seeds),
 comparable with the best classical model: the gap of $0.005$ falls
 within one standard deviation, so deep learning closes the
-classical advantage on heart sounds once the tuning effort is equalised.
+classical advantage on heart sounds once the tuning effort is equalised. A paired
+McNemar test on recording-level predictions makes the point concrete: the two are
+statistically indistinguishable at the seed where EfficientNet-B0 reaches $0.898$
+($p = 0.68$), while XGBoost is significantly ahead on the weaker seeds, so neither
+family is reliably best.
 On lung sounds the models were evaluated at the cycle level with the official
 ICBHI score. The best configuration, HPO-tuned EfficientNet-B0, achieves
 $"ICBHI" = 0.555 plus.minus 0.016$, marginally ahead of the best classical model (SVM-B, $0.537$)
@@ -26,19 +30,38 @@ The cross-modal analysis, the project's principal novelty, combined ranking
 comparisons, direct transfer experiments and a joint multi-task probe. Classical
 method rankings do not transfer reliably: XGBoost dominates on heart but falls to
 third on lung, while SVM is competitive on both modalities (the heart–lung rank
-correlation is weak and feature-set-dependent: Spearman $rho = 0.60$ on set A, $0.00$ on
-set B, $0.24$ pooled, none significant). Deep cross-modal transfer is
-asymmetric: lung-pretrained features transfer strongly to heart (near in-domain
-performance), but heart-pretrained features do not transfer to lung. Joint
-multi-task training preserves both modalities with a slight heart trade-off,
-consistent with shared-capacity constraints. Modality-specific classifier selection
-is therefore necessary even within a shared pipeline, and the experiments quantify
-the cost of a naive one-model-all-modalities deployment.
+correlation is weak and non-significant whether measured on the four core classifiers
+(Spearman $rho = 0.60$ / $0.00$ / $0.24$ for set A / B / pooled) or on an expanded
+nine-classifier panel ($rho = 0.42$ / $0.13$ / $0.32$, all $p > 0.19$), where XGBoost
+falls from rank 1 on heart to rank 7 of 9 on lung). The widened panel also exposes a
+model-family-by-modality interaction, tree ensembles favouring heart and linear models
+favouring lung, that underlies the non-transfer. A paired McNemar test on the individual
+predictions confirms the inversion is real rather than a rounding effect: XGBoost is
+significantly ahead of SVM on heart ($chi^2 = 17.5$, $p approx 1.5 times 10^(-5)$), yet on
+lung its raw-accuracy edge does not convert into the balanced-metric win, which SVM
+holds. Deep cross-modal transfer, by contrast, is
+benign and roughly symmetric once evaluated over three seeds: under fine-tuning both
+directions reach in-domain performance, and a transfer asymmetry suggested by a single
+seed did not survive multi-seed averaging, a cautionary result that underscores the
+value of seed-robust evaluation. Joint multi-task training holds both modalities near
+per-modality performance with only small, backbone-dependent trade-offs. It is thus
+method _rankings_, not learned features, that fail to transfer; modality-specific
+classifier selection remains necessary even within a shared pipeline.
+
+An extension to the CirCor DigiScope 2022 dataset, on a genuinely patient-level
+split, added a finer heart task, murmur detection, and reversed the
+classical-versus-deep ordering seen on CinC: the deep SmallCNN reached
+$"MAcc" = 0.810 plus.minus 0.007$, clearly ahead of the best classical model ($0.688$),
+showing that which method family wins is itself task-dependent.
 The arterial sub-study established that the pipeline generalises in principle to
-a third modality but is blocked by the absence of any openly licensed, labelled
-dataset of arterial bruits. An Audio Spectrogram Transformer (AST) was integrated
-and verified at the code level; its full fine-tuning and evaluation are reserved
-for future work.
+a third modality, demonstrated end-to-end on a synthetic arterial-band benchmark
+($"MAcc" approx 0.80$ on a deliberately hard, purely synthetic contrast with no clinical
+weight), but that empirical clinical work is blocked by the absence of any openly
+licensed, labelled dataset of arterial bruits. A pretrained Audio Spectrogram Transformer (AST) was
+fine-tuned on both modalities: it gave the single best lung score in the study
+($"ICBHI" = 0.573$) and a high-recall heart model ($"MAcc" = 0.851$, $"Se" = 0.977$),
+though as a lightly tuned, single-seed model it does not displace the multi-seed
+EfficientNet-B0 and classical baselines on heart.
 
 The work's positive outcomes are a leakage-safe, fully reproducible comparison
 across two modalities and an original cross-modal analysis; its negative outcomes
@@ -59,26 +82,33 @@ The following limitations bound every claim in this report.
   annotation noise; the smallest lung class ("both") is especially scarce, which
   limits how reliably it can be learned and reported.
 - _No open arterial data._ Arterial-bruit diagnosis could only be treated
-  analytically, because no suitable open dataset exists; the corresponding claims
-  are conceptual, not empirical.
-- _Scope of deep models._ The deep-learning comparison covers a compact CNN and an
-  EfficientNet-B0 transfer model. The Audio Spectrogram Transformer is integrated as
-  a methodological extension, with full fine-tuning left to future work rather than
-  reported as a headline result.
-- _Binary heart task._ The heart task is binary (normal versus abnormal) and does
-  not localise or grade specific pathologies such as individual murmur types.
+  analytically, because no suitable open dataset exists; the corresponding clinical
+  claims are conceptual, not empirical. The synthetic proof-of-concept demonstrates only
+  that the pipeline runs end-to-end on arterial-band audio; its data are artificial, its
+  difficulty is set by hand, and it carries no clinical weight.
+- _Scope of deep models._ The deep-learning comparison covers a compact CNN, an
+  EfficientNet-B0 transfer model and a fine-tuned Audio Spectrogram Transformer. The
+  AST was trained at a single seed for only a few epochs under the compute budget, so
+  its scores (best on lung, high-recall on heart) are a lower bound rather than a
+  multi-seed verified result.
+- _Binary heart tasks._ Both heart tasks are binary: normal versus abnormal on CinC
+  and murmur present versus absent on CirCor. Neither grades or localises a specific
+  pathology (for example individual murmur timing, shape or grade), which the richer
+  CirCor metadata would in principle support but which is left to future work.
 - _Split granularity for heart._ The public CinC 2016 release provides no complete
   recording-to-subject mapping, so the heart split is grouped at the recording level
   rather than the patient level. This eliminates window-level leakage (all windows of
   a recording stay on one side) but cannot rule out the same subject contributing
-  recordings to both sides. The ICBHI lung split is genuinely patient-independent.
+  recordings to both sides. The ICBHI lung split and the CirCor heart-murmur split are
+  both genuinely patient-independent, so the patient-level CirCor result complements
+  the recording-level CinC evaluation.
 
 #heading(level: 2, numbering: none, outlined: true)[Future work]
 
-Several extensions follow naturally. The Audio Spectrogram Transformer (AST),
-already integrated into the pipeline, should be fine-tuned and evaluated on both
-modalities to determine whether self-supervised AudioSet pretraining offers a
-further gain over the EfficientNet-B0 transfer baseline. Richer heart-sound labels
+Several extensions follow naturally. The Audio Spectrogram Transformer, here fine-tuned
+only briefly at a single seed, should be trained to convergence and over multiple seeds
+to confirm whether its single-seed lead on lung sounds and its high-recall heart
+behaviour hold up against the EfficientNet-B0 baseline. Richer heart-sound labels
 (for example the murmur metadata of the CirCor DigiScope database) would turn the
 binary task into graded murmur classification. The joint multi-task architecture
 studied here could be scaled with larger shared encoders to close the remaining
