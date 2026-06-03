@@ -1,0 +1,3 @@
+modality,level,metric,n_items,xgb,svm,xgb_score,svm_score,xgb_only_right,svm_only_right,chi2_cc,p_exact,p_chi,note
+heart,recording,MAcc,626,xgb_B,svm_B,0.9025,0.8694,39,9,17.521,1.5e-05,2.842e-05,XGB significantly more accurate than SVM at recording level
+lung,cycle,raw_accuracy,2636,xgb_B,svm_B,0.5002,0.5368,401,310,11.392,0.000726,0.00073745,McNemar on RAW cycle accuracy (XGB higher via majority class); balanced ICBHI reverses to SVM
