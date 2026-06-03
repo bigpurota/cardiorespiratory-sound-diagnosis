@@ -1,0 +1,9 @@
+modality,feature_set,model,primary_metric_name,primary_metric,MAcc,Se,Sp
+circor,A_mfcc_delta,logreg,MAcc,0.6680,0.6680,0.661,0.675
+circor,A_mfcc_delta,svm,MAcc,0.6663,0.6663,0.514,0.819
+circor,A_mfcc_delta,rf,MAcc,0.5184,0.5184,0.038,0.999
+circor,A_mfcc_delta,xgb,MAcc,0.6710,0.6710,0.546,0.796
+circor,B_mfcc_delta_spectral,logreg,MAcc,0.6880,0.6880,0.650,0.726
+circor,B_mfcc_delta_spectral,svm,MAcc,0.6677,0.6677,0.503,0.833
+circor,B_mfcc_delta_spectral,rf,MAcc,0.5485,0.5485,0.098,0.999
+circor,B_mfcc_delta_spectral,xgb,MAcc,0.6847,0.6847,0.557,0.812
