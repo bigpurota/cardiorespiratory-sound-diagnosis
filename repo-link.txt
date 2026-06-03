@@ -1,0 +1,19 @@
+Diagnosis of Pathologies of the Cardiorespiratory System and Main Arteries
+Based on the Analysis of Sound Data
+Research Project — HSE University, Faculty of Computer Science,
+Bachelor's Programme "Data Science and Business Analytics", 2025-26.
+
+Author: Tsember Andrei Alekseevich, group БПАД244.
+
+Repository (source code + Typst report sources + results):
+https://github.com/bigpurota/cardiorespiratory-sound-diagnosis
+
+Compiled report PDF inside the repository:
+docs/pdf/main.pdf
+
+The repository contains a reproducible Python pipeline (fixed seeds, pinned
+dependencies, leakage-safe grouped splits) for a comparative study of classical
+versus deep machine-learning methods on heart (PhysioNet/CinC 2016), lung
+(ICBHI 2017), supplementary murmur (CirCor DigiScope 2022) and a synthetic
+arterial-band benchmark, together with the full Typst report and all result
+tables and figures.
