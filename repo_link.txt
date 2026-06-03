@@ -1,5 +1,1 @@
-https://github.com/purota/cardiorespiratory-sound-diagnosis
-
-Repository for the HSE FCS / DSBA Year-2 Research Project:
-"Diagnosis of Pathologies of the Cardiorespiratory System and Main Arteries
- Based on the Analysis of Sound Data" — Tsember Andrei Alekseevich, group БПАД244.
+https://github.com/bigpurota/cardiorespiratory-sound-diagnosis
